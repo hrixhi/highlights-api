@@ -1,0 +1,43 @@
+	{
+	"compilerOptions": {
+		"target": "es2018",
+		"module": "commonjs",
+		"lib": ["es2015", "es2018", "esnext.asynciterable"],
+		"sourceMap": true,
+		"outDir": "build",
+		"rootDir": "./",
+		"strictFunctionTypes": true,
+		"noImplicitAny": true,
+		"strictNullChecks": true,
+		"noUnusedLocals": false,
+		"noUnusedParameters": false,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"baseUrl": "./src",
+		"paths": {
+			"*": ["typings/*"],
+			"@app/*": ["app/*"],
+			"@service/*": ["services/*"],
+			"@model/*": ["models/*"],
+			"@helper/*": ["helpers/*"],
+			"@module/*": ["modules/*"],
+			"@library/*": ["lib/*"],
+			"@config/*": ["configs/*"],
+			"@istkt/*": ["packages/*"]
+		},
+		"types": ["mocha", "node"],
+		"esModuleInterop": true,
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+		"allowSyntheticDefaultImports": true,
+		"resolveJsonModule": true
+	},
+	"exclude": [
+		"**/dist",
+		"**/node_modules",
+		"**/*.spec.ts",
+		"**/__tests__",
+		"build",
+		"bin"
+	]
+}
