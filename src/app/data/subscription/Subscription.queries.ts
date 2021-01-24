@@ -1,23 +1,26 @@
 import { Arg, Ctx, Field, ObjectType } from 'type-graphql';
 import { SubscriptionObject } from './types/Subscription.type';
 import { SubscriptionModel } from './mongo/Subscription.model';
-import { UserModel } from '../user/mongo/User.model'
 
 /**
- * Log Query Endpoints
+ * Subscription Query Endpoints
  */
 @ObjectType()
 export class SubscriptionQueryResolver {
 
-  @Field(type => SubscriptionObject, {
+  @Field(type => [SubscriptionObject], {
     description: "Used to find one user by id."
   })
-  public async findById(
-    @Arg("id", type => String)
-    id: string
+  public async findByUserId(
+    @Arg("userId", type => String)
+    userId: string
   ) {
-    const result: any = await SubscriptionModel.findById(id);
-    return result;
+    try {
+      return await SubscriptionModel.find({ userId })
+    } catch (e) {
+      console.log(e)
+      return []
+    }
   }
 
 }

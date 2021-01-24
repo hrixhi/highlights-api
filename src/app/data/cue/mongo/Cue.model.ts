@@ -5,13 +5,13 @@ export interface ICueModel extends Document {
 	cue: string;
 	shuffle: boolean;
 	frequency: string;
-	customCategory: string;
 	starred: boolean;
 	date: Date;
 	color: number;
 	createdBy: string;
 	channelId?: string;
 	endPlayAt?: Date;
+	customCategory?: string;
 }
 
 export const CueModel: Model<ICueModel> = model<ICueModel>(

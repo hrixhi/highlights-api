@@ -8,16 +8,22 @@ import { ChannelModel } from './mongo/Channel.model';
 @ObjectType()
 export class ChannelQueryResolver {
 
-  @Field(type => ChannelObject, {
+  @Field(type => [ChannelObject], {
     description: "Used to find one user by id.",
     nullable: true
   })
-  public async findById(
-    @Arg("id", type => String)
-    id: string
+  public async findByUserId(
+    @Arg("userId", type => String)
+    userId: string
   ) {
-    const result: any = await ChannelModel.findById(id);
-    return result;
+    try {
+      return await ChannelModel.find({
+        createdBy: userId
+      });
+    } catch (e) {
+      console.log(e)
+      return []
+    }
   }
 
 }

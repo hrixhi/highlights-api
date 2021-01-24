@@ -16,7 +16,7 @@ const schema = new Schema(
     },
     customCategory: {
       type: String,
-      required: true
+      required: false
     },
     starred: {
       type: Boolean,

@@ -1,26 +1,36 @@
-import { Arg, Ctx, Authorized, Field, ObjectType } from 'type-graphql';
-import { Context } from 'graphql-yoga/dist/types';
+import { Arg, Field, ObjectType } from 'type-graphql';
 import { ChannelModel } from './mongo/Channel.model'
-import { UserModel } from '../user/mongo/User.model'
-import { CueModel } from '../cue/mongo/Cue.model';
-import { IGraphQLContext } from '../../server/interfaces/Context.interface';
+import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 
 /**
  * Channel Mutation Endpoints
  */
 @ObjectType()
 export class ChannelMutationResolver {
-	
+
 	@Field(type => Boolean, {
 		description: 'Used when you want to delete a user.'
 	})
 	public async create(
 		@Arg('name', type => String) name: string,
 		@Arg('createdBy', type => String) createdBy: string,
-		@Arg('password', type => String) password: string,
-		@Ctx() context: IGraphQLContext,
+		@Arg('password', { nullable: true }) password?: string
 	) {
-		return true;
+		try {
+			const channel = await ChannelModel.create({
+				name,
+				password,
+				createdBy
+			})
+			await SubscriptionModel.create({
+				userId: createdBy,
+				channelId: channel._id
+			})
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
 	}
 
 }

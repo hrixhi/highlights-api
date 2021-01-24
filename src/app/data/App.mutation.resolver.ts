@@ -3,6 +3,7 @@ import { UserMutationResolver } from './user/User.mutations'
 import { ChannelMutationResolver } from './channel/Channel.mutations'
 import { CueMutationResolver } from './cue/Cue.mutations'
 import { SubscriptionMutationResolver } from './subscription/Subscription.mutations'
+import { StatusMutationResolver } from './status/Status.mutations'
 
 @Resolver()
 export class AppMutationResolver {
@@ -25,6 +26,11 @@ export class AppMutationResolver {
   @Mutation(returns => SubscriptionMutationResolver)
   public subscription() {
     return new SubscriptionMutationResolver()
+  }
+
+  @Mutation(returns => StatusMutationResolver)
+  public status() {
+    return new StatusMutationResolver()
   }
 
 }

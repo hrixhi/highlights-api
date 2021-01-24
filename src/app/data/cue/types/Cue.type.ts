@@ -1,3 +1,4 @@
+import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
 import { Field, ObjectType } from 'type-graphql';
 
 @ObjectType()
@@ -25,9 +26,6 @@ export class CueObject {
   public color: number;
 
   @Field()
-  public customCategory: string;
-
-  @Field()
   public createdBy: string;
 
   @Field({ nullable: true })
@@ -36,7 +34,18 @@ export class CueObject {
   @Field({ nullable: true })
   public endPlayAt: string;
 
+  @Field(type => String, { nullable: true })
+  public async customCategory() {
+    // Returns custom category if not channel cue
+    // but if channel cue, it returns channel name because that is the category displayed
+    const localThis: any = this;
+    const { channelId, customCategory } = localThis._doc || localThis;
+    if (channelId) {
+      const channel = await ChannelModel.findById(channelId)
+      return channel ? channel.name : ''
+    } else {
+      return customCategory
+    }
+  }
 
 }
-
-
