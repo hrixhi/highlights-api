@@ -6,6 +6,7 @@ import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { StatusModel } from '../status/mongo/Status.model';
 
 import { Expo } from 'expo-server-sdk';
+import { htmlStringParser } from '@helper/HTMLParser';
 
 /**
  * Cue Mutation Endpoints
@@ -56,11 +57,12 @@ export class CueMutationResolver {
 				if (!Expo.isExpoPushToken(sub.notificationId)) {
 					return;
 				}
+				const { title, subtitle: body } = htmlStringParser(cue)
 				messages.push({
 					to: sub.notificationId,
 					sound: 'default',
-					title: cue,
-					body: cue,
+					title,
+					body,
 					data: { userId: sub._id },
 				})
 			})
