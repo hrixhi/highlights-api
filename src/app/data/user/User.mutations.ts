@@ -23,10 +23,6 @@ export class UserMutationResolver {
 		notificationId: string
 	) {
 
-		console.log(fullName)
-		console.log(notificationId)
-		console.log(displayName)
-
 		try {
 			return await UserModel.create({
 				fullName,

@@ -5,8 +5,10 @@ import { CueModel } from './mongo/Cue.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { StatusModel } from '../status/mongo/Status.model';
 
+import { Expo } from 'expo-server-sdk';
+
 /**
- * User Mutation Endpoints
+ * Cue Mutation Endpoints
  */
 @ObjectType()
 export class CueMutationResolver {
@@ -25,6 +27,7 @@ export class CueMutationResolver {
 		@Arg('endPlayAt', { nullable: true }) endPlayAt: string
 	) {
 		try {
+
 			const newCue = await CueModel.create({
 				cue,
 				color: Number(color),
@@ -38,21 +41,55 @@ export class CueMutationResolver {
 				createdBy
 			})
 
-			// Parse cue and send notificatoin to all subscribers...
-			// after delivering, crete a status object that stores that the notification was delivered...
-			const subscribers = await SubscriptionModel.find({ channelId })
-			subscribers.map(async (sub) => {
-				await StatusModel.create({
-					userId: sub.userId,
-					channelId,
-					cueId: newCue._id,
-					status: 'not-delivered'
+			const notificationService = new Expo()
+			const messages: any[] = []
+			const userIds: string[] = []
+			const tickets = [];
+
+			const subscriptions = await SubscriptionModel.find({ channelId })
+			subscriptions.map((s) => {
+				userIds.push(s.userId)
+			})
+			const subscribers = await UserModel.find({ _id: { $in: userIds } })
+
+			subscribers.map((sub) => {
+				if (!Expo.isExpoPushToken(sub.notificationId)) {
+					return;
+				}
+				messages.push({
+					to: sub.notificationId,
+					sound: 'default',
+					title: cue,
+					body: cue,
+					data: { userId: sub._id },
 				})
 			})
+
+			let chunks = notificationService.chunkPushNotifications(messages);
+			for (let chunk of chunks) {
+				try {
+					let ticketChunk = await notificationService.sendPushNotificationsAsync(chunk);
+					tickets.push(...ticketChunk);
+				} catch (e) {
+					console.error(e);
+				}
+			}
+			tickets.map(async (ticket: any, index: any) => {
+				await StatusModel.create({
+					userId: messages[index].data.userId,
+					channelId,
+					cueId: newCue._id,
+					status: ticket.status === 'ok' ? 'delivered' : 'not-delivered'
+				})
+			})
+
 			return true
 
 		} catch (e) {
+
+			console.log(e)
 			return false
+
 		}
 	}
 

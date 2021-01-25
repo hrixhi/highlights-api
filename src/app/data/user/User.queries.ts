@@ -9,7 +9,7 @@ import { UserObject } from './types/User.type';
 export class UserQueryResolver {
 
   @Field(type => UserObject, {
-    description: "Used to find one user by id."
+    description: "Returns a user."
   })
   public async findById(
     @Arg("id", type => String)

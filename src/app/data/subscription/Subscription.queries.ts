@@ -1,6 +1,7 @@
 import { Arg, Ctx, Field, ObjectType } from 'type-graphql';
 import { SubscriptionObject } from './types/Subscription.type';
 import { SubscriptionModel } from './mongo/Subscription.model';
+import { ChannelModel } from '../channel/mongo/Channel.model';
 
 /**
  * Subscription Query Endpoints
@@ -9,7 +10,7 @@ import { SubscriptionModel } from './mongo/Subscription.model';
 export class SubscriptionQueryResolver {
 
   @Field(type => [SubscriptionObject], {
-    description: "Used to find one user by id."
+    description: "Returns list of subscriptions belonging to a user.",
   })
   public async findByUserId(
     @Arg("userId", type => String)

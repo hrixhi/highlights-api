@@ -1,5 +1,7 @@
 import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
-import { Field, ObjectType } from 'type-graphql';
+import { StatusModel } from '@app/data/status/mongo/Status.model';
+import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
+import { Ctx, Field, ObjectType } from 'type-graphql';
 
 @ObjectType()
 export class CueObject {
@@ -36,8 +38,6 @@ export class CueObject {
 
   @Field(type => String, { nullable: true })
   public async customCategory() {
-    // Returns custom category if not channel cue
-    // but if channel cue, it returns channel name because that is the category displayed
     const localThis: any = this;
     const { channelId, customCategory } = localThis._doc || localThis;
     if (channelId) {
@@ -46,6 +46,35 @@ export class CueObject {
     } else {
       return customCategory
     }
+  }
+
+  @Field(type => String, { nullable: true })
+  public async status(@Ctx() context: IGraphQLContext) {
+
+    const localThis: any = this;
+    const { _id, channelId } = localThis._doc || localThis;
+
+    if (context.user === null) {
+      return 'not-delivered'
+    }
+
+    const status = await StatusModel.findOne({
+      cueId: _id,
+      userId: context.user!._id
+    })
+
+    if (status) {
+      return status.status
+    } else {
+      await StatusModel.create({
+        cueId: _id,
+        userId: context.user!._id,
+        channelId,
+        status: 'not-delivered'
+      })
+      return 'not-delivered'
+    }
+
   }
 
 }

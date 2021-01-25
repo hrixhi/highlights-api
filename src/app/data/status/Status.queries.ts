@@ -3,10 +3,10 @@
 // import { SubscriptionModel } from './mongo/Subscription.model';
 
 // /**
-//  * Subscription Query Endpoints
+//  * Status Query Endpoints
 //  */
 // @ObjectType()
-// export class SubscriptionQueryResolver {
+// export class StatusQueryResolver {
 
 //   @Field(type => [SubscriptionObject], {
 //     description: "Used to find one user by id."

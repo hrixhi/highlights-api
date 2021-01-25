@@ -33,6 +33,7 @@
 		"dotenv": "^8.2.0",
 		"ejs": "^2.7.1",
 		"events": "^3.0.0",
+		"expo-server-sdk": "^3.6.0",
 		"express-jwt": "^5.3.1",
 		"express-zip": "^2.0.1",
 		"fbgraph": "^1.4.4",

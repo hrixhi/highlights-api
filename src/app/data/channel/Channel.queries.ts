@@ -9,7 +9,7 @@ import { ChannelModel } from './mongo/Channel.model';
 export class ChannelQueryResolver {
 
   @Field(type => [ChannelObject], {
-    description: "Used to find one user by id.",
+    description: "Returns list of channels created by a user.",
     nullable: true
   })
   public async findByUserId(
@@ -24,6 +24,30 @@ export class ChannelQueryResolver {
       console.log(e)
       return []
     }
+  }
+
+  @Field(type => String, {
+    description: 'Returns "private", "public", "non-existant" statuses for a channel'
+  })
+  public async getChannelStatus(
+    @Arg('name', type => String) name: string
+  ) {
+
+    try {
+      const channel = await ChannelModel.findOne({ name })
+      if (channel) {
+        if (channel.password && channel.password !== '') {
+          return "private"
+        } else {
+          return "public"
+        }
+      } else {
+        return "non-existant"
+      }
+    } catch (e) {
+      return "non-existant";
+    }
+
   }
 
 }

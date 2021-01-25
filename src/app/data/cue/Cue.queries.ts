@@ -2,15 +2,16 @@ import { Arg, Ctx, Field, ObjectType } from 'type-graphql';
 import { CueObject } from './types/Cue.type';
 import { CueModel } from './mongo/Cue.model';
 import { StatusModel } from '../status/mongo/Status.model';
+import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 
 /**
- * Log Query Endpoints
+ * Cue Query Endpoints
  */
 @ObjectType()
 export class CueQueryResolver {
 
   @Field(type => [CueObject], {
-    description: "Used to find one user by id."
+    description: "Returns list of cues by channel.",
   })
   public async findByChannelId(
     @Arg("channelId", type => String)
@@ -23,7 +24,7 @@ export class CueQueryResolver {
   }
 
   @Field(type => [CueObject], {
-    description: "Used to find one user by id."
+    description: "Returns list of unread cues by channel."
   })
   public async findUnreadByChannelId(
     @Arg("channelId", type => String)
@@ -41,4 +42,22 @@ export class CueQueryResolver {
     return result;
   }
 
+  @Field(type => [CueObject], {
+    description: "Returns list of cues created by a user.",
+  })
+  public async findByUserId(
+    @Arg("userId", type => String)
+    userId: string
+  ) {
+    try {
+      const channelIds: any[] = []
+      const subscriptions = await SubscriptionModel.find({ userId })
+      subscriptions.map((item) => {
+        channelIds.push(item.channelId)
+      })
+      return await CueModel.find({ channelId: { $in: channelIds } })
+    } catch (e) {
+      return []
+    }
+  }
 }

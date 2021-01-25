@@ -4,7 +4,7 @@ import { UserModel } from '../user/mongo/User.model'
 import { StatusModel } from './mongo/Status.model';
 
 /**
- * User Mutation Endpoints
+ * Status Mutation Endpoints
  */
 @ObjectType()
 export class StatusMutationResolver {
