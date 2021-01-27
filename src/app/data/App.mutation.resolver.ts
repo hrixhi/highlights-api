@@ -4,10 +4,11 @@ import { ChannelMutationResolver } from './channel/Channel.mutations'
 import { CueMutationResolver } from './cue/Cue.mutations'
 import { SubscriptionMutationResolver } from './subscription/Subscription.mutations'
 import { StatusMutationResolver } from './status/Status.mutations'
+import { ThreadMutationResolver } from './thread/Thread.mutations'
 
 @Resolver()
 export class AppMutationResolver {
-  
+
   @Mutation(returns => UserMutationResolver)
   public user() {
     return new UserMutationResolver()
@@ -31,6 +32,11 @@ export class AppMutationResolver {
   @Mutation(returns => StatusMutationResolver)
   public status() {
     return new StatusMutationResolver()
+  }
+
+  @Mutation(returns => ThreadMutationResolver)
+  public thread() {
+    return new ThreadMutationResolver
   }
 
 }

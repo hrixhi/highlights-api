@@ -3,6 +3,7 @@ import { UserQueryResolver } from './user/User.queries'
 import { ChannelQueryResolver } from './channel/Channel.queries'
 import { CueQueryResolver } from './cue/Cue.queries'
 import { SubscriptionQueryResolver } from './subscription/Subscription.queries'
+import { ThreadQueryResolver } from './thread/Thread.queries'
 
 @Resolver()
 export class AppQueryResolver {
@@ -25,4 +26,10 @@ export class AppQueryResolver {
   public subscription() {
     return new SubscriptionQueryResolver()
   }
+
+  @Query(returns => ThreadQueryResolver)
+  public thread() {
+    return new ThreadQueryResolver
+  }
+
 }
