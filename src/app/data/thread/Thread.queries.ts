@@ -16,7 +16,7 @@ export class ThreadQueryResolver {
     channelId: string
   ) {
     try {
-      return await ThreadModel.find({ channelId, parentId: null })
+      return await ThreadModel.find({ channelId, parentId: null, cueId: null })
     } catch (e) {
       console.log(e)
       return []
