@@ -35,4 +35,30 @@ export class UserMutationResolver {
 		}
 	}
 
+	@Field(type => Boolean, {
+		description: 'Used when you want to update a user.',
+		nullable: true
+	})
+	public async update(
+		@Arg('fullName', type => String)
+		fullName: string,
+		@Arg('displayName', type => String)
+		displayName: string,
+		@Arg('userId', type => String)
+		userId: string
+	) {
+		try {
+			await UserModel.updateOne(
+				{ _id: userId },
+				{
+					fullName,
+					displayName
+				})
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
 }

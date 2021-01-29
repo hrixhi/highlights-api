@@ -1,5 +1,6 @@
 import { UserModel } from '@app/data/user/mongo/User.model';
 import { Arg, Field, ObjectType } from 'type-graphql';
+import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { UserObject } from './types/User.type';
 
 /**
@@ -9,7 +10,8 @@ import { UserObject } from './types/User.type';
 export class UserQueryResolver {
 
   @Field(type => UserObject, {
-    description: "Returns a user."
+    description: "Returns a user by id.",
+    nullable: true
   })
   public async findById(
     @Arg("id", type => String)
@@ -17,6 +19,26 @@ export class UserQueryResolver {
   ) {
     const result: any = await UserModel.findById(id)
     return result;
+  }
+
+  @Field(type => [UserObject], {
+    description: "Returns list of users by channelId."
+  })
+  public async findByChannelId(
+    @Arg("chanelId", type => String)
+    channelId: string
+  ) {
+    try {
+      const subscriptions = await SubscriptionModel.find({ channelId })
+      const ids: any[] = []
+      subscriptions.map((subscriber) => {
+        ids.push(subscriber.userId)
+      })
+      return await UserModel.find({ _id: { $in: ids } })
+    } catch (e) {
+      console.log(e)
+      return []
+    }
   }
 
 }
