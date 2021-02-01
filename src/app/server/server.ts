@@ -89,7 +89,7 @@ export class Server {
 	/**
 	 * Initializes GQL elements used later on in queries and mutations
 	 */
-	private async initializeGraphQL() {
+	private initializeGraphQL() {
 		// Step 1 - Launch a GQL server instance with fundamental elements required later on by queries and mutations
 		this.graphqlServer = new GraphQLServer({
 			schema: this.graphqlSchema,
@@ -109,15 +109,6 @@ export class Server {
 			middlewares: [],
 		});
 
-		// Step 2 - Initializing server routes
-		// initializeRoutes(this.graphqlServer);
-		// Step 3 - Initializing server extensions
-		initializeServerExtensions(this.graphqlServer);
-		// Step 4 - Initializing passport.js
-		initializeAuthentication(this.graphqlServer);
-		// Step 5 - Initialize csv export routes
-		// initReports(this.graphqlServer);
-
 		process.stdout.write(
 			chalk.green('[Bootstraping]') +
 			chalk.whiteBright(' GraphQL Server initialized..... \n'),
@@ -136,6 +127,8 @@ export class Server {
 				port: graphqlConfig.port,
 				playground: graphqlConfig.playground,
 				subscriptions: graphqlConfig.subscriptions,
+				bodyParserOptions: graphqlConfig.bodyParserOptions,
+				uploads: graphqlConfig.uploads
 			});
 		} catch (e) {
 			throw e;

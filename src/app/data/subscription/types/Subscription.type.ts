@@ -21,4 +21,12 @@ export class SubscriptionObject {
     return channel ? channel.name : ''
   }
 
+  @Field(type => String)
+  public async channelCreatedBy() {
+    const localThis: any = this;
+    const { channelId } = localThis._doc || localThis;
+    const channel = await ChannelModel.findById(channelId)
+    return channel ? channel.createdBy : ''
+  }
+
 }

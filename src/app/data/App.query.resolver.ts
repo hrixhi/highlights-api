@@ -4,6 +4,7 @@ import { ChannelQueryResolver } from './channel/Channel.queries'
 import { CueQueryResolver } from './cue/Cue.queries'
 import { SubscriptionQueryResolver } from './subscription/Subscription.queries'
 import { ThreadQueryResolver } from './thread/Thread.queries'
+import { StatusQueryResolver } from './status/Status.queries'
 
 @Resolver()
 export class AppQueryResolver {
@@ -30,6 +31,11 @@ export class AppQueryResolver {
   @Query(returns => ThreadQueryResolver)
   public thread() {
     return new ThreadQueryResolver
+  }
+
+  @Query(returns => StatusQueryResolver)
+  public status() {
+    return new StatusQueryResolver
   }
 
 }

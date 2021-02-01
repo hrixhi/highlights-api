@@ -142,7 +142,6 @@ export class PostmarkService {
           });
         }
         this.client.sendEmail(options, (error) => {
-          // console.log("Sending error: " + error);
         });
       }
     );
@@ -170,7 +169,6 @@ export class PostmarkService {
         };
 
         this.client.sendEmail(options, () => {
-          // console.log("EMAIL SENT");
         });
       },
     );
@@ -197,7 +195,6 @@ export class PostmarkService {
         };
 
         this.client.sendEmail(options, () => {
-          // console.log("EMAIL SENT");
         });
       },
     );
@@ -225,7 +222,6 @@ export class PostmarkService {
         };
 
         this.client.sendEmail(options, () => {
-          // console.log("EMAIL SENT");
         });
       },
     );
@@ -255,7 +251,6 @@ export class PostmarkService {
         };
 
         this.client.sendEmail(options, () => {
-          // console.log("EMAIL SENT");
         });
       },
     );
@@ -279,7 +274,6 @@ export class PostmarkService {
     };
 
     this.client.sendEmail(options, () => {
-      console.log("EMAIL SENT");
     });
   }
 
@@ -295,7 +289,6 @@ export class PostmarkService {
     };
 
     this.client.sendEmail(options, () => {
-      // console.log("EMAIL SENT");
     });
   }
 
