@@ -25,7 +25,7 @@ export class UserQueryResolver {
     description: "Returns list of users by channelId."
   })
   public async findByChannelId(
-    @Arg("chanelId", type => String)
+    @Arg("channelId", type => String)
     channelId: string
   ) {
     try {

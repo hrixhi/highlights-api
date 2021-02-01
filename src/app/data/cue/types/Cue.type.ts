@@ -77,19 +77,4 @@ export class CueObject {
 
   }
 
-  @Field(type => String, { nullable: true })
-  public async channelName() {
-    const localThis: any = this;
-    const { channelId } = localThis._doc || localThis;
-    if (!channelId) {
-      return ''
-    }
-    const channel = await ChannelModel.findById(channelId)
-    if (channel) {
-      return channel.name
-    } else {
-      return ''
-    }
-  }
-
 }

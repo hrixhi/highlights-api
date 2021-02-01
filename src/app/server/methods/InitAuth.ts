@@ -1,9 +1,9 @@
 import { IUserModel, UserModel } from '@app/data/user/mongo/User.model';
 import { GraphQLServer } from 'graphql-yoga';
 import passport from 'passport';
-import { FacebookAuthRoutes } from './authentication/AuthFacebook';
-import { GoogleAuthRoutes } from './authentication/AuthGoogle';
-import { LocalAuthRoutes } from './authentication/AuthLocal';
+// import { FacebookAuthRoutes } from './authentication/AuthFacebook';
+// import { GoogleAuthRoutes } from './authentication/AuthGoogle';
+// import { LocalAuthRoutes } from './authentication/AuthLocal';
 
 /**
  * Function that initializes all the authentication routes required by the server.
@@ -18,17 +18,17 @@ export function initializeAuthentication(GQLServer: GraphQLServer): void {
 
   // How are we gonna retrieve user ?
   passport.deserializeUser((id, done) => {
-    UserModel.findById(id, (err, user: IUserModel) => {
+    UserModel.findById(id, (err: any, user: IUserModel) => {
       done(err, user);
     });
   });
 
-  // Isotope Login
-  LocalAuthRoutes(GQLServer);
-  // Facebook Login
-  FacebookAuthRoutes(GQLServer);
-  // Google Login
-  GoogleAuthRoutes(GQLServer);
+  // // Isotope Login
+  // LocalAuthRoutes(GQLServer);
+  // // Facebook Login
+  // FacebookAuthRoutes(GQLServer);
+  // // Google Login
+  // GoogleAuthRoutes(GQLServer);
 
   // Initialise passport auth session
   GQLServer.use(passport.initialize());
