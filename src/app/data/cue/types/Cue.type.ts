@@ -36,15 +36,18 @@ export class CueObject {
   @Field({ nullable: true })
   public endPlayAt: string;
 
+  @Field({ nullable: true })
+  public customCategory: string;
+
   @Field(type => String, { nullable: true })
-  public async customCategory() {
+  public async channelName() {
     const localThis: any = this;
-    const { channelId, customCategory } = localThis._doc || localThis;
+    const { channelId } = localThis._doc || localThis;
     if (channelId) {
       const channel = await ChannelModel.findById(channelId)
       return channel ? channel.name : ''
     } else {
-      return customCategory
+      return ''
     }
   }
 

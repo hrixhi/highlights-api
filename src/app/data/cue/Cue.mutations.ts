@@ -25,14 +25,15 @@ export class CueMutationResolver {
 		@Arg('shuffle', type => Boolean) shuffle: boolean,
 		@Arg('starred', type => Boolean) starred: boolean,
 		@Arg('createdBy', type => String) createdBy: string,
-		@Arg('endPlayAt', { nullable: true }) endPlayAt: string
+		@Arg('endPlayAt', { nullable: true }) endPlayAt?: string,
+		@Arg('customCategory', { nullable: true }) customCategory?: string,
 	) {
 		try {
 
 			const newCue = await CueModel.create({
 				cue,
 				color: Number(color),
-				customCategory: '',
+				customCategory: (customCategory && customCategory !== '') ? customCategory : '',
 				frequency,
 				shuffle,
 				starred,
