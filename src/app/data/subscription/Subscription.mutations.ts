@@ -18,17 +18,21 @@ export class SubscriptionMutationResolver {
 		try {
 			const channel = await ChannelModel.findOne({ name })
 			if (channel) {
-				// Trying to subscribe to one's own channel
-				if (channel.createdBy.toString().trim() === userId.toString().trim()) {
-					return 'your-channel'
+				const sub = await SubscriptionModel.findOne({
+					userId,
+					channelId: channel._id,
+					unsubscribedAt: { $exists: false }
+				})
+				if (sub) {
+					return 'already-subbed'
 				}
 				if (channel.password && channel.password !== '') {
-					// Private
-					const sub = await SubscriptionModel.findOne({ userId, channelId: channel._id })
-					if (sub) {
-						return 'already-subbed'
+
+					if (password === undefined || password === null || password === '') {
+						return 'incorrect-password'
 					}
-					if (channel.password === password) {
+					// Private
+					if (channel.password.toString().trim() === password.toString().trim()) {
 						// Correct password - subscribed!
 						await SubscriptionModel.create({
 							userId, channelId: channel._id
@@ -53,6 +57,34 @@ export class SubscriptionMutationResolver {
 		} catch (e) {
 			// Something went wrong
 			return 'error';
+		}
+	}
+
+	@Field(type => Boolean, {
+		description: 'Unsubscribes from channel'
+	})
+	public async unsubscribe(
+		@Arg('userId', type => String) userId: string,
+		@Arg('channelId', type => String) channelId: string,
+		@Arg('keepContent', type => Boolean) keepContent: boolean
+	) {
+		try {
+			const subObject = await SubscriptionModel.findOne({
+				userId, channelId, unsubscribedAt: { $exists: false }
+			})
+			if (!subObject) {
+				return false
+			}
+			await SubscriptionModel.updateOne({
+				userId, channelId, unsubscribedAt: { $exists: false }
+			}, {
+				unsubscribedAt: new Date(),
+				keepContent
+			})
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
 		}
 	}
 

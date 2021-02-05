@@ -48,7 +48,9 @@ export class CueMutationResolver {
 			const userIds: string[] = []
 			const tickets = [];
 
-			const subscriptions = await SubscriptionModel.find({ channelId })
+			const subscriptions = await SubscriptionModel.find({
+				$and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
+			})
 			subscriptions.map((s) => {
 				userIds.push(s.userId)
 			})

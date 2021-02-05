@@ -29,7 +29,9 @@ export class UserQueryResolver {
     channelId: string
   ) {
     try {
-      const subscriptions = await SubscriptionModel.find({ channelId })
+      const subscriptions = await SubscriptionModel.find({
+        $and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
+      })
       const ids: any[] = []
       subscriptions.map((subscriber) => {
         ids.push(subscriber.userId)

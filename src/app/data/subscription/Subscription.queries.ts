@@ -1,7 +1,6 @@
-import { Arg, Ctx, Field, ObjectType } from 'type-graphql';
+import { Arg, Field, ObjectType } from 'type-graphql';
 import { SubscriptionObject } from './types/Subscription.type';
 import { SubscriptionModel } from './mongo/Subscription.model';
-import { ChannelModel } from '../channel/mongo/Channel.model';
 
 /**
  * Subscription Query Endpoints
@@ -17,7 +16,12 @@ export class SubscriptionQueryResolver {
     userId: string
   ) {
     try {
-      return await SubscriptionModel.find({ userId })
+      return await SubscriptionModel.find({
+        $and: [
+          { userId },
+          { keepContent: { $ne: false } }
+        ]
+      })
     } catch (e) {
       console.log(e)
       return []

@@ -51,7 +51,9 @@ export class CueQueryResolver {
   ) {
     try {
       const channelIds: any[] = []
-      const subscriptions = await SubscriptionModel.find({ userId })
+      const subscriptions = await SubscriptionModel.find({
+        $and: [{ userId }, { unsubscribedAt: { $exists: false } }]
+      })
       subscriptions.map((item) => {
         channelIds.push(item.channelId)
       })

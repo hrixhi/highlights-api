@@ -10,6 +10,14 @@ const schema = new Schema(
       type: Types.ObjectId,
       required: true
     },
+    unsubscribedAt: {
+      type: Date,
+      required: false
+    },
+    keepContent: {
+      type: Boolean,
+      required: false
+    }
   }
 )
 
