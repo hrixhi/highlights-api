@@ -1,5 +1,4 @@
 import { UserModel } from '@app/data/user/mongo/User.model';
-import { initializeServerExtensions } from '@app/server/methods/InitExtensions';
 // import { initReports } from '@app/server/methods/InitReports';
 import { Publisher } from '@app/server/publisher/publisher'
 import cors from '@config/cors';
@@ -10,9 +9,7 @@ import { GraphQLServer } from 'graphql-yoga';
 import { buildSchema } from 'type-graphql';
 import graphqlConfig from '../../configs/graphql';
 import { MongoRepositoriesFactory } from './context/MongoRepositories';
-import { resolveUser } from './context/ResolveUser';
 import { authChecker } from './methods/AuthChecker';
-import { initializeAuthentication } from './methods/InitAuth';
 // import { initializeRoutes } from './methods/InitRoutes';
 import { PubSubNew } from './PubSub'
 

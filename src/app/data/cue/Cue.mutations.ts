@@ -4,9 +4,9 @@ import { UserModel } from '../user/mongo/User.model'
 import { CueModel } from './mongo/Cue.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { StatusModel } from '../status/mongo/Status.model';
-
 import { Expo } from 'expo-server-sdk';
 import { htmlStringParser } from '@helper/HTMLParser';
+import fs from 'fs'
 
 /**
  * Cue Mutation Endpoints
@@ -95,6 +95,47 @@ export class CueMutationResolver {
 			console.log(e)
 			return false
 
+		}
+	}
+
+	@Field(type => String, {
+		description: 'Used when you want to convert docx to html.'
+	})
+	public async convertDocxToHtml(
+		@Arg('docx', type => String) docx: string
+	) {
+		try {
+
+			const mammoth = require('mammoth')
+			let err = false;
+			const uri = __dirname + "/docs/" + Math.random().toString() + '.docx'
+			fs.writeFile(
+				uri,
+				docx,
+				{ encoding: 'base64' },
+				(status) => {
+					if (status) {
+						err = true
+					}
+				}
+			);
+
+			if (err) {
+				return "error"
+			}
+
+			const result = await mammoth.convertToHtml(
+				{ path: uri },
+				{
+					convertImage: mammoth.images.dataUri
+				}
+			)
+
+			return result.value
+
+		} catch (e) {
+			console.log(e)
+			return "error"
 		}
 	}
 
