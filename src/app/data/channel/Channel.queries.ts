@@ -1,6 +1,7 @@
 import { Arg, Ctx, Field, ObjectType } from 'type-graphql';
 import { ChannelObject } from './types/Channel.type';
 import { ChannelModel } from './mongo/Channel.model';
+import { CueModel } from '../cue/mongo/Cue.model';
 
 /**
  * Channel Query Endpoints
@@ -48,6 +49,36 @@ export class ChannelQueryResolver {
       return "non-existant";
     }
 
+  }
+
+  @Field(type => [String], {
+    description: "Returns list of channel categories.",
+  })
+  public async getChannelCategories(
+    @Arg("channelId", type => String)
+    channelId: string
+  ) {
+    try {
+      const channelCues = await CueModel.find({
+        channelId
+      })
+      const categoryObject: any = {}
+      channelCues.map((item: any) => {
+        if (item.customCategory && item.customCategory !== '') {
+          if (!categoryObject[item.customCategory]) {
+            categoryObject[item.customCategory] = 'category'
+          }
+        }
+      })
+      const categoryArray: string[] = []
+      Object.keys(categoryObject).map((key: string) => {
+        categoryArray.push(key)
+      })
+      return categoryArray
+    } catch (e) {
+      console.log(e)
+      return []
+    }
   }
 
 }

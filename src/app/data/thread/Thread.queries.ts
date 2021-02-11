@@ -61,7 +61,7 @@ export class ThreadQueryResolver {
   }
 
   @Field(type => [String], {
-    description: "Returns full list of threads.",
+    description: "Returns list of thread categories.",
   })
   public async getChannelThreadCategories(
     @Arg("channelId", type => String)
@@ -89,7 +89,5 @@ export class ThreadQueryResolver {
       return []
     }
   }
-
-
 
 }
