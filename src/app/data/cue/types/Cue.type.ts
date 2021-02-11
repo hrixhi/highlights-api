@@ -34,7 +34,7 @@ export class CueObject {
   public channelId: string;
 
   @Field({ nullable: true })
-  public endPlayAt: string;
+  public endPlayAt: Date;
 
   @Field({ nullable: true })
   public customCategory: string;

@@ -17,6 +17,8 @@ export class ChannelMutationResolver {
 		@Arg('password', { nullable: true }) password?: string
 	) {
 		try {
+			// check for existing channel
+			// here
 			const channel = await ChannelModel.create({
 				name,
 				password,
