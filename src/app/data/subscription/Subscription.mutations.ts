@@ -34,6 +34,15 @@ export class SubscriptionMutationResolver {
 					// Private
 					if (channel.password.toString().trim() === password.toString().trim()) {
 						// Correct password - subscribed!
+						// Clear any old subscriptions with kc = true
+						await SubscriptionModel.updateMany({
+							userId,
+							channelId: channel._id,
+							unsubscribedAt: { $exists: true }
+						}, {
+							keepContent: false
+						})
+						// subscribe 
 						await SubscriptionModel.create({
 							userId, channelId: channel._id
 						})
@@ -69,14 +78,31 @@ export class SubscriptionMutationResolver {
 		@Arg('keepContent', type => Boolean) keepContent: boolean
 	) {
 		try {
-			const subObject = await SubscriptionModel.findOne({
-				userId, channelId, unsubscribedAt: { $exists: false }
+			let subObject = await SubscriptionModel.findOne({
+				userId,
+				channelId,
+				unsubscribedAt: { $exists: false }
 			})
 			if (!subObject) {
-				return false
+				if (keepContent) {
+					return false
+				} else {
+					// if erase content unsub is done after a keep content unsub
+					subObject = await SubscriptionModel.findOne({
+						userId,
+						channelId,
+						unsubscribedAt: { $exists: true },
+						keepContent: true
+					})
+					if (!subObject) {
+						return false
+					}
+				}
+
 			}
+			// otherwise unsub
 			await SubscriptionModel.updateOne({
-				userId, channelId, unsubscribedAt: { $exists: false }
+				_id: subObject._id
 			}, {
 				unsubscribedAt: new Date(),
 				keepContent
