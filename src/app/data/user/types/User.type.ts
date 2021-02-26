@@ -15,4 +15,22 @@ export class UserObject {
   @Field()
   public notificationId: string;
 
+  @Field({ nullable: true })
+  public randomShuffleFrequency?: string;
+
+  @Field({ nullable: true })
+  public sleepFrom?: string;
+
+  @Field({ nullable: true })
+  public sleepTo?: string;
+
+  @Field({ nullable: true })
+  public email?: string;
+
+  // @Field({ nullable: true })
+  // public password?: string;
+
+  @Field({ nullable: true })
+  public currentDraft?: string;
+
 }

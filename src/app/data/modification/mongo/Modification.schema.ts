@@ -1,0 +1,56 @@
+import { Schema, Types } from 'mongoose';
+
+const schema = new Schema(
+  {
+    userId: {
+      type: Types.ObjectId,
+      required: true
+    },
+    cueId: {
+      type: Types.ObjectId,
+      required: true
+    },
+    cue: {
+      type: String,
+      required: false
+    },
+    shuffle: {
+      type: Boolean,
+      required: true
+    },
+    frequency: {
+      type: String,
+      required: true
+    },
+    customCategory: {
+      type: String,
+      required: false
+    },
+    starred: {
+      type: Boolean,
+      required: true
+    },
+    date: {
+      type: Date,
+      required: true
+    },
+    color: {
+      type: Number,
+      required: true
+    },
+    createdBy: {
+      type: Types.ObjectId,
+      required: true
+    },
+    channelId: {
+      type: Types.ObjectId,
+      required: false
+    },
+    endPlayAt: {
+      type: Date,
+      required: false
+    }
+  }
+)
+
+export const modifiationSchema = schema;

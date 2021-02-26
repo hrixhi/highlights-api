@@ -8,8 +8,8 @@ export interface ICueModel extends Document {
 	starred: boolean;
 	date: Date;
 	color: number;
-	createdBy: string;
-	channelId?: string;
+	createdBy: any;
+	channelId?: any;
 	endPlayAt?: Date;
 	customCategory?: string;
 }

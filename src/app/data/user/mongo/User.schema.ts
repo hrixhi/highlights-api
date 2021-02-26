@@ -14,6 +14,30 @@ const schema = new Schema(
     displayName: {
       type: String,
       required: true
+    },
+    email: {
+      type: String,
+      required: false
+    },
+    password: {
+      type: String,
+      required: false
+    },
+    sleepTo: {
+      type: String,
+      required: false
+    },
+    sleepFrom: {
+      type: String,
+      required: false
+    },
+    randomShuffleFrequency: {
+      type: String,
+      required: false
+    },
+    currentDraft: {
+      type: String,
+      required: false
     }
   },
   SchemaTimestamps

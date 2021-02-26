@@ -5,6 +5,12 @@ export interface IUserModel extends Document {
 	notificationId: string;
 	displayName: string;
 	fullName: string;
+	email?: string;
+	password?: string;
+	randomShuffleFrequency?: string;
+	sleepFrom?: string;
+	sleepTo?: string;
+	currentDraft?: string;
 }
 
 export const UserModel: Model<IUserModel> = model<IUserModel>(

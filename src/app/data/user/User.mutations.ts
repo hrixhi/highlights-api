@@ -61,4 +61,66 @@ export class UserMutationResolver {
 		}
 	}
 
+	@Field(type => Boolean)
+	public async signup(
+		@Arg('fullName', type => String)
+		fullName: string,
+		@Arg('displayName', type => String)
+		displayName: string,
+		@Arg('userId', type => String)
+		userId: string,
+		@Arg('email', type => String)
+		email: string,
+		@Arg('password', type => String)
+		password: string
+	) {
+		try {
+			const hash = await hashPassword(password)
+			await UserModel.updateOne(
+				{ _id: userId },
+				{
+					fullName,
+					displayName,
+					password: hash,
+					email
+				})
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
+	@Field(type => Boolean)
+	public async saveConfigToCloud(
+		@Arg('sleepFrom', type => String)
+		sleepFrom: string,
+		@Arg('sleepTo', type => String)
+		sleepTo: string,
+		@Arg('randomShuffleFrequency', type => String)
+		randomShuffleFrequency: string,
+		@Arg('userId', type => String)
+		userId: string,
+		// @Arg('subscriptions', type => [String])
+		// subscriptions: string[],
+		@Arg('currentDraft', { nullable: true })
+		currentDraft?: string,
+	) {
+		try {
+			await UserModel.updateOne(
+				{ _id: userId },
+				{
+					sleepTo,
+					sleepFrom,
+					randomShuffleFrequency,
+					currentDraft,
+					// subscriptions
+				})
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
 }

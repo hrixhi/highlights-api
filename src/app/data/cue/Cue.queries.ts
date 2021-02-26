@@ -3,6 +3,7 @@ import { CueObject } from './types/Cue.type';
 import { CueModel } from './mongo/Cue.model';
 import { StatusModel } from '../status/mongo/Status.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
+import { ModificationsModel } from '../modification/mongo/Modification.model';
 
 /**
  * Cue Query Endpoints
@@ -62,4 +63,30 @@ export class CueQueryResolver {
       return []
     }
   }
+
+  @Field(type => [CueObject], {
+    description: "Returns list of cues created by a user.",
+  })
+  public async getCuesFromCloud(
+    @Arg("userId", type => String)
+    userId: string
+  ) {
+    try {
+      const localCues: any[] = await CueModel.find({
+        createdBy: userId,
+        channelId: null
+      })
+      console.log(localCues)
+      const channelCues: any[] = await ModificationsModel.find({
+        userId
+      })
+      console.log(channelCues)
+      const allCues: any[] = [...localCues, ...channelCues]
+      return allCues
+    } catch (e) {
+      console.log(e)
+      return []
+    }
+  }
+
 }

@@ -2,12 +2,21 @@ import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
 import { StatusModel } from '@app/data/status/mongo/Status.model';
 import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
 import { Ctx, Field, ObjectType } from 'type-graphql';
+import { CueModel } from '../mongo/Cue.model';
 
 @ObjectType()
 export class CueObject {
 
-  @Field()
-  public _id: string;
+  @Field(type => String)
+  public async _id() {
+    const localThis: any = this;
+    const { cueId, _id } = localThis._doc || localThis;
+    if (cueId) {
+      return cueId
+    } else {
+      return _id
+    }
+  }
 
   @Field()
   public cue: string;
@@ -55,14 +64,15 @@ export class CueObject {
   public async status(@Ctx() context: IGraphQLContext) {
 
     const localThis: any = this;
-    const { _id, channelId } = localThis._doc || localThis;
+    const { channelId, cueId } = localThis._doc || localThis;
 
-    if (context.user === null) {
-      return 'not-delivered'
+    if (!channelId) {
+      // local cue
+      return 'read'
     }
 
     const status = await StatusModel.findOne({
-      cueId: _id,
+      cueId: cueId, // because we are loading channel cues from the modifications collection
       userId: context.user!._id
     })
 
@@ -70,7 +80,7 @@ export class CueObject {
       return status.status
     } else {
       await StatusModel.create({
-        cueId: _id,
+        cueId: cueId,
         userId: context.user!._id,
         channelId,
         status: 'not-delivered'
@@ -78,6 +88,19 @@ export class CueObject {
       return 'not-delivered'
     }
 
+  }
+
+  @Field(type => String, { nullable: true })
+  // returns null for personal notes but original cue
+  public async original() {
+    const localThis: any = this;
+    const { cueId } = localThis._doc || localThis;
+    if (cueId) {
+      const cue = await CueModel.findById(cueId)
+      return cue ? cue.cue : null
+    } else {
+      return null
+    }
   }
 
 }

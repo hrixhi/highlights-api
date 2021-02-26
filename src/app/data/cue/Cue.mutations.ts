@@ -1,5 +1,4 @@
-import { Arg, Ctx, Authorized, Field, ObjectType } from 'type-graphql';
-import { Context } from 'graphql-yoga/dist/types';
+import { Arg, Field, ObjectType } from 'type-graphql';
 import { UserModel } from '../user/mongo/User.model'
 import { CueModel } from './mongo/Cue.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
@@ -7,6 +6,9 @@ import { StatusModel } from '../status/mongo/Status.model';
 import { Expo } from 'expo-server-sdk';
 import { htmlStringParser } from '@helper/HTMLParser';
 import fs from 'fs'
+import { CueInputObject } from './types/CueInput.type';
+import { IDMapObject } from './types/IDMap.type';
+import { ModificationsModel } from '../modification/mongo/Modification.model';
 
 /**
  * Cue Mutation Endpoints
@@ -136,6 +138,87 @@ export class CueMutationResolver {
 		} catch (e) {
 			console.log(e)
 			return "error"
+		}
+	}
+
+	@Field(type => [IDMapObject])
+	public async saveCuesToCloud(
+		@Arg('cues', type => [CueInputObject])
+		cues: [CueInputObject],
+		@Arg('userId', type => String)
+		userId: string,
+	) {
+		try {
+			// make sure dates are saved correctly
+			const idMap: any[] = []
+			const toBeCreated: any[] = []
+			cues.map((cue: any) => {
+				if (!cue.channelId || cue.channelId === '') {
+					// Local cue
+					if (!Number.isNaN(Number(cue._id))) {
+						// create a new cue
+						const c = {
+							...cue,
+							channelId: null,
+							createdBy: userId,
+							color: Number(cue.color),
+							date: new Date(cue.date),
+							endPlayAt: (cue.endPlayAt && cue.endPlayAt !== '') ? new Date(cue.endPlayAt) : null,
+						}
+						delete c._id;
+						toBeCreated.push(c)
+						idMap.push({
+							oldId: cue._id,
+							newId: ''
+						})
+					}
+				}
+			})
+			const newCues = await CueModel.insertMany(toBeCreated)
+			newCues.map((item: any, index: number) => {
+				idMap[index].newId = item._id
+			})
+			cues.map(async (cue: any) => {
+				const c = {
+					...cue,
+					createdBy: userId,
+					color: Number(cue.color),
+					date: new Date(cue.date),
+					endPlayAt: (cue.endPlayAt && cue.endPlayAt !== '') ? new Date(cue.endPlayAt) : null,
+				}
+				delete c._id
+				if (cue.channelId && cue.channelId !== '') {
+					// Channel cue
+					const mod = await ModificationsModel.findOne({ userId, cueId: cue._id })
+					if (mod) {
+						// update modified
+						await ModificationsModel.updateOne({
+							cueId: cue._id,
+							userId
+						}, {
+							...c
+						})
+					} else {
+						// create modified
+						await ModificationsModel.create({
+							cueId: cue._id,
+							userId,
+							...c
+						})
+					}
+				} else {
+					// Local cue
+					if (Number.isNaN(Number(cue._id))) {
+						// update the cue
+						await CueModel.updateOne({ _id: cue._id }, { ...c })
+					}
+				}
+			})
+			console.log(idMap)
+			return idMap
+		} catch (e) {
+			console.log(e)
+			return []
 		}
 	}
 
