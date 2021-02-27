@@ -71,6 +71,10 @@ export class CueObject {
       return 'read'
     }
 
+    if (context.user!._id) {
+      return 'read'
+    }
+
     const status = await StatusModel.findOne({
       cueId: cueId, // because we are loading channel cues from the modifications collection
       userId: context.user!._id
