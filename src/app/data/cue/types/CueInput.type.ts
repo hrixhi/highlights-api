@@ -1,8 +1,4 @@
-import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
-import { StatusModel } from '@app/data/status/mongo/Status.model';
-import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
-import { Ctx, Field, InputType, ObjectType } from 'type-graphql';
-
+import { Field, InputType, ObjectType } from 'type-graphql';
 @InputType()
 export class CueInputObject {
 
@@ -38,5 +34,23 @@ export class CueInputObject {
 
   @Field({ nullable: true })
   public customCategory?: string;
+
+  @Field({ nullable: true })
+  public submission: boolean
+
+  @Field({ nullable: true })
+  public deadline: Date;
+
+  @Field({ nullable: true })
+  public gradeWeight: number;
+
+  @Field({ nullable: true })
+  public score: number;
+
+  @Field({ nullable: true })
+  public graded: boolean;
+
+  @Field({ nullable: true })
+  public submittedAt: Date;
 
 }

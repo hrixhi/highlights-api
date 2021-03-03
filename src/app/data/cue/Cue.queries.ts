@@ -1,4 +1,4 @@
-import { Arg, Ctx, Field, ObjectType } from 'type-graphql';
+import { Arg, Field, ObjectType } from 'type-graphql';
 import { CueObject } from './types/Cue.type';
 import { CueModel } from './mongo/Cue.model';
 import { StatusModel } from '../status/mongo/Status.model';
@@ -76,11 +76,9 @@ export class CueQueryResolver {
         createdBy: userId,
         channelId: null
       })
-      console.log(localCues)
       const channelCues: any[] = await ModificationsModel.find({
         userId
       })
-      console.log(channelCues)
       const allCues: any[] = [...localCues, ...channelCues]
       return allCues
     } catch (e) {

@@ -12,6 +12,10 @@ export interface ICueModel extends Document {
 	channelId?: any;
 	endPlayAt?: Date;
 	customCategory?: string;
+	// New - for submission and grades
+	submission?: boolean;
+	deadline?: Date;
+	gradeWeight?: number;
 }
 
 export const CueModel: Model<ICueModel> = model<ICueModel>(

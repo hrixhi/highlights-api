@@ -49,6 +49,31 @@ const schema = new Schema(
     endPlayAt: {
       type: Date,
       required: false
+    },
+    // New - for submission and grades
+    submittedAt: {
+      type: Date,
+      required: false
+    },
+    score: {
+      type: Number,
+      required: false
+    },
+    graded: {
+      type: Boolean,
+      required: false
+    },
+    submission: {
+      type: Boolean,
+      required: false
+    },
+    deadline: {
+      type: Date,
+      required: false
+    },
+    gradeWeight: {
+      type: Number,
+      required: false
     }
   }
 )

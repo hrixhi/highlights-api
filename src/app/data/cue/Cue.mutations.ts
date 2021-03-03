@@ -27,12 +27,15 @@ export class CueMutationResolver {
 		@Arg('shuffle', type => Boolean) shuffle: boolean,
 		@Arg('starred', type => Boolean) starred: boolean,
 		@Arg('createdBy', type => String) createdBy: string,
+		@Arg('submission', type => Boolean) submission: boolean,
+		@Arg('gradeWeight', type => String) gradeWeight: string,
+		@Arg('deadline', { nullable: true }) deadline?: string,
 		@Arg('endPlayAt', { nullable: true }) endPlayAt?: string,
 		@Arg('customCategory', { nullable: true }) customCategory?: string,
 	) {
 		try {
 
-			const newCue = await CueModel.create({
+			const c = {
 				cue,
 				color: Number(color),
 				customCategory: (customCategory && customCategory !== '') ? customCategory : '',
@@ -42,7 +45,14 @@ export class CueMutationResolver {
 				date: new Date(),
 				endPlayAt: (endPlayAt && endPlayAt !== '') ? new Date(endPlayAt) : null,
 				channelId,
-				createdBy
+				createdBy,
+				gradeWeight: Number(gradeWeight),
+				deadline: (deadline && deadline !== '') ? new Date(deadline) : null,
+				submission
+			}
+
+			const newCue = await CueModel.create({
+				...c
 			})
 
 			const notificationService = new Expo()
@@ -53,14 +63,26 @@ export class CueMutationResolver {
 			const subscriptions = await SubscriptionModel.find({
 				$and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
 			})
+
+			const modifications: any[] = []
 			subscriptions.map((s) => {
 				userIds.push(s.userId)
+				modifications.push({
+					...c,
+					cueId: newCue._id,
+					userId: s.userId,
+					graded: false,
+					score: 0
+				})
 			})
-			const subscribers = await UserModel.find({ _id: { $in: userIds } })
+			await ModificationsModel.insertMany(modifications)
+			const notSetUserIds: any[] = []
 
+			const subscribers = await UserModel.find({ _id: { $in: userIds } })
 			subscribers.map((sub) => {
 				if (!Expo.isExpoPushToken(sub.notificationId)) {
-					return;
+					notSetUserIds.push(sub._id)
+					return
 				}
 				const { title, subtitle: body } = htmlStringParser(cue)
 				messages.push({
@@ -69,6 +91,15 @@ export class CueMutationResolver {
 					title,
 					body,
 					data: { userId: sub._id },
+				})
+			})
+
+			notSetUserIds.map(async uId => {
+				await StatusModel.create({
+					userId: uId,
+					channelId,
+					cueId: newCue._id,
+					status: 'not-delivered'
 				})
 			})
 
@@ -93,10 +124,8 @@ export class CueMutationResolver {
 			return true
 
 		} catch (e) {
-
 			console.log(e)
 			return false
-
 		}
 	}
 
@@ -187,7 +216,13 @@ export class CueMutationResolver {
 					endPlayAt: (cue.endPlayAt && cue.endPlayAt !== '') ? new Date(cue.endPlayAt) : null,
 				}
 				delete c._id
+
 				if (cue.channelId && cue.channelId !== '') {
+					if (c.submission) {
+						c.gradeWeight = Number(c.gradeWeight)
+						c.deadline = (c.deadline && c.deadline !== '') ? new Date(c.deadline) : null
+						c.submittedAt = (c.submittedAt && c.submittedAt !== '') ? new Date(c.submittedAt) : null
+					}
 					// Channel cue
 					const mod = await ModificationsModel.findOne({ userId, cueId: cue._id })
 					if (mod) {
@@ -196,13 +231,6 @@ export class CueMutationResolver {
 							cueId: cue._id,
 							userId
 						}, {
-							...c
-						})
-					} else {
-						// create modified
-						await ModificationsModel.create({
-							cueId: cue._id,
-							userId,
 							...c
 						})
 					}
@@ -214,7 +242,6 @@ export class CueMutationResolver {
 					}
 				}
 			})
-			console.log(idMap)
 			return idMap
 		} catch (e) {
 			console.log(e)

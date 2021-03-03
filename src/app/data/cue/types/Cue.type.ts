@@ -71,8 +71,8 @@ export class CueObject {
       return 'read'
     }
 
-    if (context.user!._id) {
-      return 'read'
+    if (!context.user!._id) {
+      return 'not-delivered'
     }
 
     const status = await StatusModel.findOne({
@@ -106,5 +106,25 @@ export class CueObject {
       return null
     }
   }
+
+  // New - for submission and grades
+
+  @Field({ nullable: true })
+  public submission: boolean
+
+  @Field({ nullable: true })
+  public deadline: Date;
+
+  @Field({ nullable: true })
+  public gradeWeight: number;
+
+  @Field({ nullable: true })
+  public score: number;
+
+  @Field({ nullable: true })
+  public graded: boolean;
+
+  @Field({ nullable: true })
+  public submittedAt: Date;
 
 }

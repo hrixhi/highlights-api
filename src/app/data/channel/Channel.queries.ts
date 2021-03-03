@@ -2,6 +2,7 @@ import { Arg, Ctx, Field, ObjectType } from 'type-graphql';
 import { ChannelObject } from './types/Channel.type';
 import { ChannelModel } from './mongo/Channel.model';
 import { CueModel } from '../cue/mongo/Cue.model';
+import { ModificationObject } from '../modification/types/Modification.type';
 
 /**
  * Channel Query Endpoints
@@ -79,6 +80,19 @@ export class ChannelQueryResolver {
       console.log(e)
       return []
     }
+  }
+
+  @Field(type => [ModificationObject], {
+    description: "Returns a list of modification object.",
+  })
+  public async getGrades(
+    @Arg("channelId", type => String)
+    channelId: string
+    // context.userId required here
+  ) {
+    // return a list of modification objects
+    // default by assignment
+    // assignment - 
   }
 
 }
