@@ -108,7 +108,6 @@ export class CueObject {
   }
 
   // New - for submission and grades
-
   @Field({ nullable: true })
   public submission: boolean
 

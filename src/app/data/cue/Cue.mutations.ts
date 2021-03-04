@@ -72,7 +72,8 @@ export class CueMutationResolver {
 					cueId: newCue._id,
 					userId: s.userId,
 					graded: false,
-					score: 0
+					score: 0,
+					cue: submission ? '' : null
 				})
 			})
 			await ModificationsModel.insertMany(modifications)
@@ -210,19 +211,20 @@ export class CueMutationResolver {
 			cues.map(async (cue: any) => {
 				const c = {
 					...cue,
-					createdBy: userId,
 					color: Number(cue.color),
 					date: new Date(cue.date),
 					endPlayAt: (cue.endPlayAt && cue.endPlayAt !== '') ? new Date(cue.endPlayAt) : null,
 				}
 				delete c._id
-
 				if (cue.channelId && cue.channelId !== '') {
-					if (c.submission) {
-						c.gradeWeight = Number(c.gradeWeight)
-						c.deadline = (c.deadline && c.deadline !== '') ? new Date(c.deadline) : null
-						c.submittedAt = (c.submittedAt && c.submittedAt !== '') ? new Date(c.submittedAt) : null
-					}
+					// Deleting these because they should not be changed...
+					delete c.deadline
+					delete c.score
+					delete c.gradeWeight
+					delete c.submittedAt
+					delete c.submission
+					delete c.createdBy
+					delete c.graded;
 					// Channel cue
 					const mod = await ModificationsModel.findOne({ userId, cueId: cue._id })
 					if (mod) {
@@ -246,6 +248,40 @@ export class CueMutationResolver {
 		} catch (e) {
 			console.log(e)
 			return []
+		}
+	}
+
+	@Field(type => Boolean)
+	public async submitModification(
+		@Arg('userId', type => String)
+		userId: string,
+		@Arg('cueId', type => String)
+		cueId: string
+	) {
+		try {
+			await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date() })
+			return true
+		} catch (e) {
+			console.log(e)
+			return false;
+		}
+	}
+
+	@Field(type => Boolean)
+	public async submitGrade(
+		@Arg('userId', type => String)
+		userId: string,
+		@Arg('cueId', type => String)
+		cueId: string,
+		@Arg('score', type => String)
+		score: string
+	) {
+		try {
+			await ModificationsModel.updateOne({ cueId, userId }, { score: Number(score), graded: true })
+			return true
+		} catch (e) {
+			console.log(e)
+			return false;
 		}
 	}
 

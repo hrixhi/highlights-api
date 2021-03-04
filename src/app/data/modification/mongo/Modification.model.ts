@@ -2,9 +2,6 @@ import { Document, Model, model } from 'mongoose';
 import { modifiationSchema } from './Modification.schema';
 
 export interface IModificationsModel extends Document {
-	userId: any;
-	cueId: any;
-	cue: string;
 	shuffle: boolean;
 	frequency: string;
 	starred: boolean;
@@ -14,13 +11,17 @@ export interface IModificationsModel extends Document {
 	channelId?: string;
 	endPlayAt?: Date;
 	customCategory?: string;
-	// New - for submission and grades
+	cue?: string;
+	// On top of CUE COPY
+	userId: any;
+	cueId: any;
 	submission?: boolean;
 	deadline?: Date;
 	gradeWeight?: number;
 	submittedAt?: Date;
 	score?: number;
 	graded?: boolean;
+
 }
 
 export const ModificationsModel: Model<IModificationsModel> = model<IModificationsModel>(

@@ -39,13 +39,13 @@ export class CueInputObject {
   public submission: boolean
 
   @Field({ nullable: true })
-  public deadline: Date;
+  public deadline: string;
 
   @Field({ nullable: true })
-  public gradeWeight: number;
+  public gradeWeight: string;
 
   @Field({ nullable: true })
-  public score: number;
+  public score: string;
 
   @Field({ nullable: true })
   public graded: boolean;

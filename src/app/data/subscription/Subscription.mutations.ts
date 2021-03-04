@@ -1,5 +1,7 @@
 import { Arg, Field, ObjectType } from 'type-graphql';
 import { ChannelModel } from '../channel/mongo/Channel.model';
+import { CueModel } from '../cue/mongo/Cue.model';
+import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { SubscriptionModel } from './mongo/Subscription.model';
 /**
  * Subscription Mutation Endpoints
@@ -35,6 +37,25 @@ export class SubscriptionMutationResolver {
 					if (channel.password.toString().trim() === password.toString().trim()) {
 						// Correct password - subscribed!
 						// Clear any old subscriptions with kc = true
+						const pastSubs = await SubscriptionModel.find({
+							userId,
+							channelId: channel._id
+						})
+						if (pastSubs.length === 0) {
+							const channelCues = await CueModel.find({ channelId: channel._id })
+							channelCues.map(async (cue: any) => {
+								const duplicate = { ...cue }
+								delete duplicate._id
+								delete duplicate.deletedAt
+								delete duplicate.__v
+								duplicate.cueId = cue._id
+								duplicate.userId = userId
+								console.log(duplicate)
+								const u = await ModificationsModel.create(duplicate)
+								console.log(u)
+							})
+						}
+
 						await SubscriptionModel.updateMany({
 							userId,
 							channelId: channel._id,
@@ -46,6 +67,8 @@ export class SubscriptionMutationResolver {
 						await SubscriptionModel.create({
 							userId, channelId: channel._id
 						})
+
+
 						return 'subscribed'
 					} else {
 						// Incorrect password
@@ -54,6 +77,26 @@ export class SubscriptionMutationResolver {
 
 				} else {
 					// Public
+					const pastSubs = await SubscriptionModel.find({
+						userId,
+						channelId: channel._id
+					})
+					if (pastSubs.length === 0) {
+						const channelCues = await CueModel.find({ channelId: channel._id })
+						channelCues.map(async (cue: any) => {
+							const obj = cue.toObject()
+							const duplicate = { ...obj }
+							delete duplicate._id
+							delete duplicate.deletedAt
+							delete duplicate.__v
+							duplicate.cueId = cue._id
+							duplicate.userId = userId
+							console.log(duplicate)
+							const u = await ModificationsModel.create(duplicate)
+							console.log(u)
+						})
+					}
+
 					await SubscriptionModel.create({
 						userId, channelId: channel._id
 					})
