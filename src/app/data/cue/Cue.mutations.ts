@@ -218,23 +218,27 @@ export class CueMutationResolver {
 				delete c._id
 				if (cue.channelId && cue.channelId !== '') {
 					// Deleting these because they should not be changed...
-					delete c.deadline
-					delete c.score
-					delete c.gradeWeight
-					delete c.submittedAt
-					delete c.submission
-					delete c.createdBy
-					delete c.graded;
-					// Channel cue
-					const mod = await ModificationsModel.findOne({ userId, cueId: cue._id })
-					if (mod) {
-						// update modified
-						await ModificationsModel.updateOne({
-							cueId: cue._id,
-							userId
-						}, {
-							...c
-						})
+					if (cue.createdBy.toString().trim() !== userId.toString().trim()) {
+						delete c.deadline
+						delete c.score
+						delete c.gradeWeight
+						delete c.submittedAt
+						delete c.submission
+						delete c.createdBy
+						delete c.graded;
+						// Channel cue
+						const mod = await ModificationsModel.findOne({ userId, cueId: cue._id })
+						if (mod) {
+							// update modified
+							await ModificationsModel.updateOne({
+								cueId: cue._id,
+								userId
+							}, {
+								...c
+							})
+						}
+					} else {
+						// update all modification objects with that particular CueId along with details to original one
 					}
 				} else {
 					// Local cue

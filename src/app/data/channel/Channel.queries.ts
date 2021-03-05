@@ -1,7 +1,11 @@
-import { Arg, Ctx, Field, ObjectType } from 'type-graphql';
+import { Arg, Field, ObjectType } from 'type-graphql';
 import { ChannelObject } from './types/Channel.type';
 import { ChannelModel } from './mongo/Channel.model';
 import { CueModel } from '../cue/mongo/Cue.model';
+import { ModificationsModel } from '../modification/mongo/Modification.model';
+import { UserModel } from '../user/mongo/User.model';
+import { GradeObject } from '../modification/types/Modification.type';
+import { CueObject } from '../cue/types/Cue.type';
 
 /**
  * Channel Query Endpoints
@@ -81,17 +85,71 @@ export class ChannelQueryResolver {
     }
   }
 
-  @Field(type => String, {
-    description: "Returns a list of modification object.",
+  @Field(type => [CueObject], {
+    description: "Returns a list of submission cues.",
+  })
+  public async getSubmissionCues(
+    @Arg("channelId", type => String)
+    channelId: string
+  ) {
+    try {
+      return await CueModel.find({ channelId, submission: true })
+    } catch (e) {
+      return []
+    }
+  }
+
+  @Field(type => [GradeObject], {
+    description: "Returns a list of grade object.",
   })
   public async getGrades(
     @Arg("channelId", type => String)
     channelId: string
-    // context.userId required here
   ) {
-    // return a list of modification objects
-    // default by assignment
-    // assignment - 
+
+    try {
+      const gradedData: any = await ModificationsModel.find({ channelId, submission: true })
+      const gradesObject: any = {}
+      const userIds: any = []
+
+      gradedData.map((mod: any) => {
+        const modification = mod.toObject()
+        if (gradesObject[modification.userId]) {
+          gradesObject[modification.userId].push({
+            score: modification.score,
+            gradeWeight: modification.gradeWeight,
+            cueId: modification.cueId,
+            graded: modification.graded
+          })
+        } else {
+          userIds.push(modification.userId)
+          gradesObject[modification.userId] = [{
+            score: modification.score,
+            gradeWeight: modification.gradeWeight,
+            cueId: modification.cueId,
+            graded: modification.graded
+          }]
+        }
+      })
+      const users: any = await UserModel.find({ _id: { $in: userIds } })
+      const grades: any[] = []
+
+      users.map((u: any) => {
+        const user = u.toObject()
+        grades.push({
+          userId: user._id,
+          displayName: user.displayName,
+          fullName: user.fullName,
+          email: user.email && user.email !== '' ? user.email : '',
+          scores: gradesObject[user._id] ? gradesObject[user._id] : []
+        })
+      })
+      return grades
+    } catch (e) {
+      return []
+    }
+
   }
+
 
 }

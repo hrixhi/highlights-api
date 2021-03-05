@@ -18,7 +18,7 @@ export class CueObject {
     }
   }
 
-  @Field()
+  @Field({ nullable: true })
   public cue: string;
 
   @Field()
@@ -61,31 +61,27 @@ export class CueObject {
   }
 
   @Field(type => String, { nullable: true })
-  public async status(@Ctx() context: IGraphQLContext) {
+  public async status() {
 
     const localThis: any = this;
-    const { channelId, cueId } = localThis._doc || localThis;
+    const { channelId, cueId, userId } = localThis._doc || localThis;
 
-    if (!channelId) {
+    if (!channelId || !userId) {
       // local cue
       return 'read'
     }
 
-    if (!context.user!._id) {
-      return 'not-delivered'
-    }
-
     const status = await StatusModel.findOne({
       cueId: cueId, // because we are loading channel cues from the modifications collection
-      userId: context.user!._id
+      userId
     })
 
     if (status) {
       return status.status
     } else {
       await StatusModel.create({
-        cueId: cueId,
-        userId: context.user!._id,
+        cueId,
+        userId,
         channelId,
         status: 'not-delivered'
       })
