@@ -1,16 +1,14 @@
 import { UserModel } from '@app/data/user/mongo/User.model';
-// import { initReports } from '@app/server/methods/InitReports';
 import { Publisher } from '@app/server/publisher/publisher'
 import cors from '@config/cors';
-// import { PermissionManager } from '@helper/permissions/PermissionManager';
 import { MongoDBService } from '@service/MongoDB/mongodb.service';
 import chalk from 'chalk';
 import { GraphQLServer } from 'graphql-yoga';
 import { buildSchema } from 'type-graphql';
 import graphqlConfig from '../../configs/graphql';
 import { MongoRepositoriesFactory } from './context/MongoRepositories';
-import { authChecker } from './methods/AuthChecker';
-// import { initializeRoutes } from './methods/InitRoutes';
+import { initializeRoutes } from './methods/InitRoutes';
+import {initializeServerExtensions} from './methods/InitExtensions'
 import { PubSubNew } from './PubSub'
 
 /**
@@ -74,8 +72,9 @@ export class Server {
 			this.publisher = new Publisher(this.pubSub);
 			this.graphqlSchema = await buildSchema({
 				resolvers: [__dirname + '/../**/*.resolver.ts'],
-				authChecker,
+				// authChecker,
 				pubSub: this.pubSub,
+				validate: false
 			});
 		} catch (e) {
 			throw e;
@@ -105,6 +104,11 @@ export class Server {
 			},
 			middlewares: [],
 		});
+
+		// init routes
+		initializeRoutes(this.graphqlServer);
+		// init form parser
+		initializeServerExtensions(this.graphqlServer)
 
 		process.stdout.write(
 			chalk.green('[Bootstraping]') +

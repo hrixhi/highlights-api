@@ -5,6 +5,7 @@ import { CueMutationResolver } from './cue/Cue.mutations'
 import { SubscriptionMutationResolver } from './subscription/Subscription.mutations'
 import { StatusMutationResolver } from './status/Status.mutations'
 import { ThreadMutationResolver } from './thread/Thread.mutations'
+import { MessageMutationResolver } from './message/Message.mutations'
 
 @Resolver()
 export class AppMutationResolver {
@@ -37,6 +38,11 @@ export class AppMutationResolver {
   @Mutation(returns => ThreadMutationResolver)
   public thread() {
     return new ThreadMutationResolver
+  }
+
+  @Mutation(returns => MessageMutationResolver)
+  public message() {
+    return new MessageMutationResolver()
   }
 
 }
