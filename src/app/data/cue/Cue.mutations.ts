@@ -73,7 +73,7 @@ export class CueMutationResolver {
 					userId: s.userId,
 					graded: false,
 					score: 0,
-					cue: submission ? '' : null
+					cue: ''
 				})
 			})
 			await ModificationsModel.insertMany(modifications)

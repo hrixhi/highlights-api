@@ -6,13 +6,13 @@ export class ScoreObject {
     @Field()
     public cueId: string;
 
-    @Field()
+    @Field({ nullable: true })
     public score: string;
 
     @Field()
     public gradeWeight: string;
 
-    @Field()
+    @Field({ nullable: true })
     public graded: boolean;
 
 }

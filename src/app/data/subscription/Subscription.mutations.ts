@@ -49,10 +49,11 @@ export class SubscriptionMutationResolver {
 								delete duplicate.deletedAt
 								delete duplicate.__v
 								duplicate.cueId = cue._id
+								duplicate.cue = ''
 								duplicate.userId = userId
-								console.log(duplicate)
+								duplicate.score = 0;
+								duplicate.graded = false
 								const u = await ModificationsModel.create(duplicate)
-								console.log(u)
 							})
 						}
 
