@@ -1,5 +1,5 @@
 import { Arg, Field, ObjectType } from 'type-graphql';
-import { ChannelObject } from './types/Channel.type';
+import { ChannelObject, EventObject } from './types/Channel.type';
 import { ChannelModel } from './mongo/Channel.model';
 import { CueModel } from '../cue/mongo/Cue.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
@@ -149,6 +149,32 @@ export class ChannelQueryResolver {
       return []
     }
 
+  }
+
+  @Field(type => [EventObject], {
+    description: "Returns list of date objects created by a user.",
+    nullable: true
+  })
+  public async getCalendar(
+    @Arg("channelId", type => String)
+    channelId: string
+  ) {
+    try {
+      const dates: any[] = []
+      const cues: any[] = await CueModel.find({ submission: true, channelId })
+      cues.map((c) => {
+        const cue = c.toObject()
+        dates.push({
+          title: cue.cue,
+          start: cue.deadline,
+          end: cue.deadline
+        })
+      })
+      return dates;
+    } catch (e) {
+      console.log(e)
+      return []
+    }
   }
 
 
