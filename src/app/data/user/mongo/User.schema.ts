@@ -38,6 +38,10 @@ const schema = new Schema(
     currentDraft: {
       type: String,
       required: false
+    },
+    schoolId: {
+      type: Types.ObjectId,
+      required: false
     }
   },
   SchemaTimestamps

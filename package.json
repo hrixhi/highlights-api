@@ -18,6 +18,7 @@
 		"@sentry/node": "^5.30.0",
 		"@types/zeromq": "^4.6.3",
 		"PubSub": "^3.6.2",
+		"apollo-boost": "^0.4.9",
 		"aws-sdk": "^2.834.0",
 		"axios": "^0.19.2",
 		"bcrypt": "^3.0.7",
@@ -64,6 +65,7 @@
 		"tsconfig-paths": "^3.9.0",
 		"twilio": "^3.55.1",
 		"type-graphql": "^0.17.6",
+		"unique-names-generator": "^4.4.0",
 		"unrequired": "^0.2.0",
 		"zeromq": "^5.2.0"
 	},

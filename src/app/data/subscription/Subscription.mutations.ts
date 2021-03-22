@@ -2,6 +2,7 @@ import { Arg, Field, ObjectType } from 'type-graphql';
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import { CueModel } from '../cue/mongo/Cue.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
+import { UserModel } from '../user/mongo/User.model';
 import { SubscriptionModel } from './mongo/Subscription.model';
 /**
  * Subscription Mutation Endpoints
@@ -35,6 +36,17 @@ export class SubscriptionMutationResolver {
 					}
 					// Private
 					if (channel.password.toString().trim() === password.toString().trim()) {
+
+						// check org
+						const owner = await UserModel.findById(channel.createdBy)
+						if (owner && owner.schoolId && owner.schoolId !== '') {
+							const u = await UserModel.findById(userId)
+							if (u && (!u.schoolId || u.schoolId.toString().trim() !== owner.schoolId.toString().trim())) {
+								// not same school
+								return 'error'
+							}
+						}
+
 						// Correct password - subscribed!
 						// Clear any old subscriptions with kc = true
 						const pastSubs = await SubscriptionModel.find({
@@ -69,7 +81,6 @@ export class SubscriptionMutationResolver {
 							userId, channelId: channel._id
 						})
 
-
 						return 'subscribed'
 					} else {
 						// Incorrect password
@@ -78,6 +89,15 @@ export class SubscriptionMutationResolver {
 
 				} else {
 					// Public
+					const owner = await UserModel.findById(channel.createdBy)
+					if (owner && owner.schoolId && owner.schoolId !== '') {
+						const u = await UserModel.findById(userId)
+						if (u && (!u.schoolId || u.schoolId.toString().trim() !== owner.schoolId.toString().trim())) {
+							// not same school
+							return 'error'
+						}
+					}
+					
 					const pastSubs = await SubscriptionModel.find({
 						userId,
 						channelId: channel._id
