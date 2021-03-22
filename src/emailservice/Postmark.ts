@@ -5,7 +5,7 @@ export class EmailService {
     public addedToOrgConfirm(email: string, orgName: string) {
         client.sendEmail({
             "From": "alert@cuesapp.co",
-            "To": "hrishi@cuesapp.co",
+            "To": email,
             "Subject": "CUES - You have been added to organisation " + orgName,
             "TextBody": "Visit www.cuesapp.co to log in. You will be notified when you are added to any courses."
         });
@@ -14,16 +14,16 @@ export class EmailService {
     public newAccountAddedToOrgConfirm(email: string, password: string, orgName: string) {
         client.sendEmail({
             "From": "alert@cuesapp.co",
-            "To": "hrishi@cuesapp.co",
+            "To": email,
             "Subject": "CUES - You have been added to organisation " + orgName,
-            "TextBody": "Visit www.cuesapp.co to login using email: " + email + " & password: " + password + " (You will be notified when you are added to any courses)." 
+            "TextBody": "Visit www.cuesapp.co to login using email: " + email + " & password: " + password + " (You will be notified when you are added to any courses)."
         });
     }
 
     public inviteByEmail(email: string, channelName: string) {
         client.sendEmail({
             "From": "alert@cuesapp.co",
-            "To": "hrishi@cuesapp.co",
+            "To": email,
             "Subject": "CUES - You have been added to course " + channelName,
             "TextBody": "Visit www.cuesapp.co to log in and view course."
         });
@@ -32,7 +32,7 @@ export class EmailService {
     public newAccountInviteByEmail(email: string, password: string, channelName: string) {
         client.sendEmail({
             "From": "alert@cuesapp.co",
-            "To": "hrishi@cuesapp.co",
+            "To": email,
             "Subject": "CUES - You have been added to course " + channelName,
             "TextBody": "Visit www.cuesapp.co to log in using email: " + email + " & password: " + password + " to view course."
         });
