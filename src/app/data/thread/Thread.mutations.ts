@@ -1,5 +1,6 @@
 import { Arg, Field, ObjectType } from 'type-graphql';
 import { ChannelModel } from '../channel/mongo/Channel.model';
+import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
 import { ThreadModel } from './mongo/Thread.model';
 
 /**
@@ -22,7 +23,7 @@ export class ThreadMutationResolver {
 		@Arg('category', { nullable: true }) category?: string,
 	) {
 		try {
-			await ThreadModel.create({
+			const thread = await ThreadModel.create({
 				message,
 				userId,
 				channelId,
@@ -32,6 +33,12 @@ export class ThreadMutationResolver {
 				category,
 				cueId: cueId === 'NULL' ? null : cueId,
 				parentId: parentId === 'INIT' ? null : parentId
+			})
+			await ThreadStatusModel.create({
+				cueId: cueId === 'NULL' ? undefined : cueId,
+				userId,
+				threadId: parentId === 'INIT' ? thread._id : parentId,
+				channelId
 			})
 			return true
 		} catch (e) {

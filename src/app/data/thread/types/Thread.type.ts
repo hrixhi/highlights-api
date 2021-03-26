@@ -1,6 +1,8 @@
 import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
+import { ThreadStatusModel } from '@app/data/thread-status/mongo/thread-status.model';
 import { UserModel } from '@app/data/user/mongo/User.model';
-import { Field, ObjectType } from 'type-graphql';
+import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
+import { Ctx, Field, ObjectType } from 'type-graphql';
 
 @ObjectType()
 export class ThreadObject {
@@ -46,5 +48,20 @@ export class ThreadObject {
       return ''
     }
   }
+
+  @Field(type => Number, { nullable: true })
+  public async unreadThreads(@Ctx() context: IGraphQLContext) {
+    const localThis: any = this;
+    const { _id } = localThis._doc || localThis;
+    try {
+      const threads = await ThreadStatusModel.find({
+        userId: context?.user?._id, threadId: _id
+      })
+      return threads.length
+    } catch (e) {
+      return 0
+    }
+  }
+
 
 }

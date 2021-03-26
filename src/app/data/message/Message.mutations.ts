@@ -1,5 +1,6 @@
 import { Arg, Field, ObjectType } from 'type-graphql';
 import { GroupModel } from '../group/mongo/Group.model';
+import { MessageStatusModel } from '../message-status/mongo/message-status.model';
 import { MessageModel } from './mongo/Message.model';
 
 /**
@@ -16,6 +17,8 @@ export class MessageMutationResolver {
         users: string[],
         @Arg("message", type => String)
         message: string,
+        @Arg("channelId", type => String)
+        channelId: string,
     ) {
         try {
             if (users.length === 0) {
@@ -36,6 +39,13 @@ export class MessageMutationResolver {
                 message,
                 sentBy: users[0],
                 sentAt: new Date()
+            })
+            users.map(async (u, i) => {
+                await MessageStatusModel.create({
+                    groupId,
+                    userId: users[i],
+                    channelId
+                })
             })
             return true;
         } catch (e) {

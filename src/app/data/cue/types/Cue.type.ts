@@ -1,5 +1,6 @@
 import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
 import { StatusModel } from '@app/data/status/mongo/Status.model';
+import { ThreadStatusModel } from '@app/data/thread-status/mongo/thread-status.model';
 import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
 import { Ctx, Field, ObjectType } from 'type-graphql';
 import { CueModel } from '../mongo/Cue.model';
@@ -100,6 +101,19 @@ export class CueObject {
       return cue ? cue.cue : null
     } else {
       return null
+    }
+  }
+
+  @Field(type => Number, { nullable: true })
+  // returns null for personal notes but original cue
+  public async unreadThreads() {
+    const localThis: any = this;
+    const { cueId, userId } = localThis._doc || localThis;
+    if (cueId && userId) {
+      const threads = await ThreadStatusModel.find({ cueId, userId })
+      return threads.length
+    } else {
+      return 0
     }
   }
 

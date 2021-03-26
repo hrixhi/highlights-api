@@ -1,4 +1,7 @@
-import { Field, ObjectType } from 'type-graphql';
+import { Ctx, Field, ObjectType } from 'type-graphql';
+import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
+import { MessageStatusModel } from '@app/data/message-status/mongo/message-status.model';
+import { GroupModel } from '@app/data/group/mongo/Group.model';
 
 @ObjectType()
 export class UserObject {
@@ -32,5 +35,42 @@ export class UserObject {
 
   @Field({ nullable: true })
   public currentDraft?: string;
+
+  @Field(type => Number)
+  public async unreadMessages(@Ctx() context: IGraphQLContext) {
+    const localThis: any = this;
+    const { _id } = localThis._doc || localThis;
+    const group: any = await GroupModel.findOne({
+      users: {
+        $all: [
+          context.user?._id, _id
+        ]
+      }
+    })
+    if (!group) {
+      return 0
+    }
+    const statuses: any[] = await MessageStatusModel.find({
+      groupId: group._id, userId: context.user?._id
+    })
+    return statuses.length
+  }
+
+  @Field(type => String, { nullable: true })
+  public async groupId(@Ctx() context: IGraphQLContext) {
+    const localThis: any = this;
+    const { _id } = localThis._doc || localThis;
+    const group: any = await GroupModel.findOne({
+      users: {
+        $all: [
+          context.user?._id, _id
+        ]
+      }
+    })
+    if (!group) {
+      return ''
+    }
+    return group._id
+  }
 
 }
