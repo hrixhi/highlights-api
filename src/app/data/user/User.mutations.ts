@@ -9,6 +9,8 @@ import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { UserObject } from './types/User.type';
 import { SchoolsModel } from '../school/mongo/School.model';
+import { ThreadModel } from '../thread/mongo/Thread.model';
+import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
 
 /**
  * User Mutation Endpoints
@@ -263,6 +265,20 @@ export class UserMutationResolver {
 									const u = await ModificationsModel.create(duplicate)
 								})
 							}
+
+							const threads = await ThreadModel.find({
+								channelId: channel._id,
+							})
+							threads.map(async (t) => {
+								const thread = t.toObject()
+								await ThreadStatusModel.create({
+									userId: user._id,
+									channelId: channel._id,
+									cueId: thread.cueId ? thread.cueId : null,
+									threadId: thread._id
+								})
+							})
+
 							await SubscriptionModel.updateMany({
 								userId: user._id,
 								channelId: channel._id,
@@ -299,6 +315,20 @@ export class UserMutationResolver {
 								const u = await ModificationsModel.create(duplicate)
 							})
 						}
+
+						const threads = await ThreadModel.find({
+							channelId: channel._id,
+						})
+						threads.map(async (t) => {
+							const thread = t.toObject()
+							await ThreadStatusModel.create({
+								userId: user._id,
+								channelId: channel._id,
+								cueId: thread.cueId ? thread.cueId : null,
+								threadId: thread._id
+							})
+						})
+
 						await SubscriptionModel.updateMany({
 							userId: user._id,
 							channelId: channel._id,

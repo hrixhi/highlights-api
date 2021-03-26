@@ -2,6 +2,8 @@ import { Arg, Field, ObjectType } from 'type-graphql';
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import { CueModel } from '../cue/mongo/Cue.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
+import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
+import { ThreadModel } from '../thread/mongo/Thread.model';
 import { UserModel } from '../user/mongo/User.model';
 import { SubscriptionModel } from './mongo/Subscription.model';
 /**
@@ -69,6 +71,19 @@ export class SubscriptionMutationResolver {
 							})
 						}
 
+						const threads = await ThreadModel.find({
+							channelId: channel._id,
+						})
+						threads.map(async (t) => {
+							const thread = t.toObject()
+							await ThreadStatusModel.create({
+								userId,
+								channelId: channel._id,
+								cueId: thread.cueId ? thread.cueId : null,
+								threadId: thread._id
+							})
+						})
+
 						await SubscriptionModel.updateMany({
 							userId,
 							channelId: channel._id,
@@ -97,7 +112,7 @@ export class SubscriptionMutationResolver {
 							return 'error'
 						}
 					}
-					
+
 					const pastSubs = await SubscriptionModel.find({
 						userId,
 						channelId: channel._id
@@ -117,6 +132,19 @@ export class SubscriptionMutationResolver {
 							console.log(u)
 						})
 					}
+
+					const threads = await ThreadModel.find({
+						channelId: channel._id,
+					})
+					threads.map(async (t) => {
+						const thread = t.toObject()
+						await ThreadStatusModel.create({
+							userId,
+							channelId: channel._id,
+							cueId: thread.cueId ? thread.cueId : null,
+							threadId: thread._id
+						})
+					})
 
 					await SubscriptionModel.create({
 						userId, channelId: channel._id
