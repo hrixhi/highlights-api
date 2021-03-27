@@ -81,7 +81,7 @@ export class SubscriptionMutationResolver {
 								userId,
 								channelId: channel._id,
 								cueId: thread.cueId ? thread.cueId : null,
-								threadId: thread._id
+								threadId: thread.parentId ? thread.parentId : thread._id
 							})
 						})
 
@@ -142,7 +142,7 @@ export class SubscriptionMutationResolver {
 							userId,
 							channelId: channel._id,
 							cueId: thread.cueId ? thread.cueId : null,
-							threadId: thread._id
+							threadId: thread.parentId ? thread.parentId : thread._id
 						})
 					})
 

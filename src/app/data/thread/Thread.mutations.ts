@@ -2,7 +2,6 @@ import { Arg, Field, ObjectType } from 'type-graphql';
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
-import { UserModel } from '../user/mongo/User.model';
 import { ThreadModel } from './mongo/Thread.model';
 
 /**
