@@ -1,5 +1,5 @@
 import { Arg, Field, ObjectType } from 'type-graphql';
-import { ChannelObject, EventObject } from './types/Channel.type';
+import { ChannelObject } from './types/Channel.type';
 import { ChannelModel } from './mongo/Channel.model';
 import { CueModel } from '../cue/mongo/Cue.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
@@ -151,31 +151,23 @@ export class ChannelQueryResolver {
 
   }
 
-  @Field(type => [EventObject], {
-    description: "Returns list of date objects created by a user.",
-    nullable: true
+  @Field(type => Boolean, {
+    description: "Returns status of channel meeting.",
   })
-  public async getCalendar(
+  public async getMeetingStatus(
     @Arg("channelId", type => String)
     channelId: string
   ) {
     try {
-      const dates: any[] = []
-      const cues: any[] = await CueModel.find({ submission: true, channelId })
-      cues.map((c) => {
-        const cue = c.toObject()
-        dates.push({
-          title: cue.cue,
-          start: cue.deadline,
-          end: cue.deadline
-        })
-      })
-      return dates;
+      const c = await ChannelModel.findById(channelId)
+      if (c) {
+        const channel = c.toObject()
+        return channel.meetingOn ? channel.meetingOn : false
+      }
+      return false
     } catch (e) {
-      console.log(e)
-      return []
+      return false
     }
   }
-
 
 }

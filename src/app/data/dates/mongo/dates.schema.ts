@@ -2,25 +2,23 @@ import { Schema, Types } from 'mongoose';
 
 const schema = new Schema(
   {
-    createdBy: {
+    userId: {
       type: Types.ObjectId,
       required: true
     },
-    name: {
+    title: {
       type: String,
       required: true
     },
-    password: {
-      type: String,
-      required: false
+    start: {
+      type: Date,
+      required: true
     },
-    meetingOn: {
-      type: Boolean,
-      required: false
+    end: {
+      type: Date,
+      required: true
     }
   }
-);
+)
 
-
-
-export const channelSchema = schema;
+export const dateSchema = schema;

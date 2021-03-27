@@ -1,0 +1,63 @@
+import { Arg, Ctx, Field, ObjectType } from 'type-graphql';
+import { ModificationsModel } from '../modification/mongo/Modification.model';
+import { CueModel } from '../cue/mongo/Cue.model';
+import { EventObject } from './types/Date.type';
+import { DateModel } from './mongo/dates.model';
+import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
+import { ChannelModel } from '../channel/mongo/Channel.model';
+
+/**
+ * Date Query Endpoints
+ */
+@ObjectType()
+export class DateQueryResolver {
+
+    @Field(type => [EventObject], {
+        description: "Returns list of date objects created by a user.",
+        nullable: true
+    })
+    public async getCalendar(
+        @Arg("userId", type => String)
+        userId: string
+    ) {
+        try {
+            const dates: any[] = []
+            const cues: any[] = await ModificationsModel.find({ submission: true, userId })
+            const subscriptions: any[] = await SubscriptionModel.find({ userId, unsubscribedAt: { $exists: false } })
+            const channelIdInputs: any[] = []
+            subscriptions.map((s) => {
+                const sub = s.toObject()
+                channelIdInputs.push(sub.channelId)
+            })
+            const channels = await ChannelModel.find({ _id: { $in: channelIdInputs } })
+            const channelNames: any = {}
+            channels.map((c) => {
+                const channel = c.toObject()
+                channelNames[channel._id] = channel.name
+            })
+            cues.map((c) => {
+                const cue = c.toObject()
+                dates.push({
+                    title: cue.cue,
+                    start: cue.deadline,
+                    end: cue.deadline,
+                    channelName: channelNames[cue.channelId]
+                })
+            })
+            const addedDates: any[] = await DateModel.find({ userId })
+            addedDates.map((d) => {
+                const date = d.toObject()
+                dates.push({
+                    title: date.title,
+                    start: date.start,
+                    end: date.end
+                })
+            })
+            return dates;
+        } catch (e) {
+            console.log(e)
+            return []
+        }
+    }
+
+}

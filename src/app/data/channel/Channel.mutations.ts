@@ -52,4 +52,20 @@ export class ChannelMutationResolver {
 		}
 	}
 
+	@Field(type => Boolean, {
+		description: 'Used when you want to allow or disallow people from joining meeting.'
+	})
+	public async editMeeting(
+		@Arg('channelId', type => String) channelId: string,
+		@Arg('meetingOn', type => Boolean) meetingOn: boolean,
+	) {
+		try {
+			await ChannelModel.updateOne({ _id: channelId }, { meetingOn })
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
 }

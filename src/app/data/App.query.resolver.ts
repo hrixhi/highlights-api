@@ -8,6 +8,7 @@ import { StatusQueryResolver } from './status/Status.queries'
 import { MessageQueryResolver } from './message/Message.queries'
 import { MessageStatusQueryResolver } from './message-status/MessageStatus.queries'
 import { ThreadStatusQueryResolver } from './thread-status/ThreadStatus.queries'
+import { DateQueryResolver } from './dates/Date.queries'
 
 @Resolver()
 export class AppQueryResolver {
@@ -54,6 +55,11 @@ export class AppQueryResolver {
   @Query(returns => ThreadStatusQueryResolver)
   public threadStatus() {
     return new ThreadStatusQueryResolver();
+  }
+
+  @Query(returns => DateQueryResolver)
+  public date() {
+    return new DateQueryResolver();
   }
 
 }

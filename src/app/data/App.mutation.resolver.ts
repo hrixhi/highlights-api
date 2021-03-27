@@ -8,6 +8,7 @@ import { ThreadMutationResolver } from './thread/Thread.mutations'
 import { MessageMutationResolver } from './message/Message.mutations'
 import { MessageStatusMutationResolver } from './message-status/MessageStatus.mutations'
 import { ThreadStatusMutationResolver } from './thread-status/ThreadStatus.mutations'
+import { DateMutationResolver } from './dates/Date.mutations'
 
 @Resolver()
 export class AppMutationResolver {
@@ -55,6 +56,11 @@ export class AppMutationResolver {
   @Mutation(returns => ThreadStatusMutationResolver)
   public threadStatus() {
     return new ThreadStatusMutationResolver();
+  }
+
+  @Mutation(returns => DateMutationResolver)
+  public date() {
+    return new DateMutationResolver();
   }
 
 }
