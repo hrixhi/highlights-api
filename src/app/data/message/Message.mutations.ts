@@ -41,6 +41,9 @@ export class MessageMutationResolver {
                 sentAt: new Date()
             })
             users.map(async (u, i) => {
+                if (i === 0) {
+                    return;
+                }
                 await MessageStatusModel.create({
                     groupId,
                     userId: users[i],

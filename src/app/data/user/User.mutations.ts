@@ -268,6 +268,7 @@ export class UserMutationResolver {
 
 							const threads = await ThreadModel.find({
 								channelId: channel._id,
+								isPrivate: false
 							})
 							threads.map(async (t) => {
 								const thread = t.toObject()
@@ -318,6 +319,7 @@ export class UserMutationResolver {
 
 						const threads = await ThreadModel.find({
 							channelId: channel._id,
+							isPrivate: false
 						})
 						threads.map(async (t) => {
 							const thread = t.toObject()

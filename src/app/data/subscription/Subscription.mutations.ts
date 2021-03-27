@@ -73,6 +73,7 @@ export class SubscriptionMutationResolver {
 
 						const threads = await ThreadModel.find({
 							channelId: channel._id,
+							isPrivate: false
 						})
 						threads.map(async (t) => {
 							const thread = t.toObject()
@@ -127,14 +128,13 @@ export class SubscriptionMutationResolver {
 							delete duplicate.__v
 							duplicate.cueId = cue._id
 							duplicate.userId = userId
-							console.log(duplicate)
 							const u = await ModificationsModel.create(duplicate)
-							console.log(u)
 						})
 					}
 
 					const threads = await ThreadModel.find({
 						channelId: channel._id,
+						isPrivate: false
 					})
 					threads.map(async (t) => {
 						const thread = t.toObject()
