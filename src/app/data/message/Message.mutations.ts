@@ -30,7 +30,8 @@ export class MessageMutationResolver {
                 groupId = groupDoc._id
             } else {
                 const newGroup = await GroupModel.create({
-                    users
+                    users,
+                    channelId
                 })
                 groupId = newGroup._id
             }
