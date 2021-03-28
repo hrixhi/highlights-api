@@ -32,6 +32,7 @@ export class CueMutationResolver {
 		@Arg('deadline', { nullable: true }) deadline?: string,
 		@Arg('endPlayAt', { nullable: true }) endPlayAt?: string,
 		@Arg('customCategory', { nullable: true }) customCategory?: string,
+		@Arg('shareWithUserIds', type => [String], { nullable: true }) shareWithUserIds?: string[]
 	) {
 		try {
 
@@ -51,34 +52,53 @@ export class CueMutationResolver {
 				submission
 			}
 
+			console.log(shareWithUserIds !== undefined && shareWithUserIds !== null)
+
 			const newCue = await CueModel.create({
-				...c
+				...c,
+				limitedShares: (shareWithUserIds !== undefined && shareWithUserIds !== null) ? true : false
 			})
 
 			const notificationService = new Expo()
+			let userIds: string[] = []
 			const messages: any[] = []
-			const userIds: string[] = []
 			const tickets = [];
-
-			const subscriptions = await SubscriptionModel.find({
-				$and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
-			})
-
-			const modifications: any[] = []
-			subscriptions.map((s) => {
-				userIds.push(s.userId)
-				modifications.push({
-					...c,
-					cueId: newCue._id,
-					userId: s.userId,
-					graded: false,
-					score: 0,
-					cue: ''
-				})
-			})
-			await ModificationsModel.insertMany(modifications)
 			const notSetUserIds: any[] = []
+			const modifications: any[] = []
 
+			console.log(shareWithUserIds)
+
+			if (shareWithUserIds !== undefined && shareWithUserIds !== null) {
+				userIds = shareWithUserIds;
+				userIds.map((userId: string) => {
+					modifications.push({
+						...c,
+						cueId: newCue._id,
+						userId,
+						graded: false,
+						score: 0,
+						cue: ''
+					})
+				})
+			} else {
+				const subscriptions = await SubscriptionModel.find({
+					$and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
+				})
+				subscriptions.map((s) => {
+					userIds.push(s.userId)
+					modifications.push({
+						...c,
+						cueId: newCue._id,
+						userId: s.userId,
+						graded: false,
+						score: 0,
+						cue: ''
+					})
+				})
+			}
+			// insert documents in modifications model
+			await ModificationsModel.insertMany(modifications)
+			// load subscribers
 			const subscribers = await UserModel.find({ _id: { $in: userIds } })
 			subscribers.map((sub) => {
 				if (!Expo.isExpoPushToken(sub.notificationId)) {
@@ -95,6 +115,7 @@ export class CueMutationResolver {
 				})
 			})
 
+			// for user Ids that have no notification receiver attached to them
 			notSetUserIds.map(async uId => {
 				await StatusModel.create({
 					userId: uId,
@@ -283,6 +304,44 @@ export class CueMutationResolver {
 		try {
 			await ModificationsModel.updateOne({ cueId, userId }, { score: Number(score), graded: true })
 			return true
+		} catch (e) {
+			console.log(e)
+			return false;
+		}
+	}
+
+	@Field(type => Boolean)
+	public async shareCueWithMoreIds(
+		@Arg('userId', type => String)
+		userId: string,
+		@Arg('cueId', type => String)
+		cueId: string,
+	) {
+		try {
+			const c: any = await CueModel.findOne({ _id: cueId })
+			if (c) {
+				const cue = c.toObject()
+				cue.cueId = cue._id;
+				delete cue._id;
+				delete cue.limitedShares;
+				cue.userId = userId;
+				cue.original = cue.cue;
+				cue.cue = '';
+				cue.score = 0;
+				cue.graded = false;
+				delete cue.__v;
+				delete cue.__typename;
+				await ModificationsModel.create({ ...cue })
+				// create status here
+				await StatusModel.create({
+					userId,
+					channelId: cue.channelId,
+					status: 'not-delivered',
+					cueId: cue.cueId
+				})
+				return true
+			}
+			return false
 		} catch (e) {
 			console.log(e)
 			return false;

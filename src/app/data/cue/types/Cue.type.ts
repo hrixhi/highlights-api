@@ -80,6 +80,7 @@ export class CueObject {
     if (status) {
       return status.status
     } else {
+      // statuses created here...
       await StatusModel.create({
         cueId,
         userId,
@@ -135,5 +136,5 @@ export class CueObject {
 
   @Field({ nullable: true })
   public submittedAt: Date;
-
+  
 }

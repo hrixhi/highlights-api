@@ -54,6 +54,10 @@ const schema = new Schema(
     gradeWeight: {
       type: Number,
       required: false
+    },
+    limitedShares: {
+      type: Boolean,
+      required: false
     }
   }
 )

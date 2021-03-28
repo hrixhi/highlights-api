@@ -251,7 +251,7 @@ export class UserMutationResolver {
 								channelId: channel._id
 							})
 							if (pastSubs.length === 0) {
-								const channelCues = await CueModel.find({ channelId: channel._id })
+								const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
 								channelCues.map(async (cue: any) => {
 									const duplicate = { ...cue }
 									delete duplicate._id
@@ -302,7 +302,7 @@ export class UserMutationResolver {
 							channelId: channel._id
 						})
 						if (pastSubs.length === 0) {
-							const channelCues = await CueModel.find({ channelId: channel._id })
+							const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
 							channelCues.map(async (cue: any) => {
 								const duplicate = { ...cue }
 								delete duplicate._id

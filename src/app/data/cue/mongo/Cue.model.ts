@@ -16,6 +16,9 @@ export interface ICueModel extends Document {
 	submission?: boolean;
 	deadline?: Date;
 	gradeWeight?: number;
+	// not stored in modification
+	// does not need type object
+	limitedShares?: boolean;
 }
 
 export const CueModel: Model<ICueModel> = model<ICueModel>(

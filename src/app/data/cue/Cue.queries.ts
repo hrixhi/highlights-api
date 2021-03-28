@@ -4,6 +4,7 @@ import { CueModel } from './mongo/Cue.model';
 import { StatusModel } from '../status/mongo/Status.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
+import { SharedWithObject } from './types/SharedWith';
 
 /**
  * Cue Query Endpoints
@@ -74,6 +75,36 @@ export class CueQueryResolver {
       })
       const allCues: any[] = [...localCues, ...channelCues]
       return allCues
+    } catch (e) {
+      console.log(e)
+      return []
+    }
+  }
+
+  @Field(type => [SharedWithObject], {
+    description: "Returns list of people who have received the cue.",
+  })
+  public async getSharedWith(
+    @Arg("channelId", type => String)
+    channelId: string,
+    @Arg("cueId", type => String, { nullable: true })
+    cueId?: string
+  ) {
+    try {
+      const subscribers = await SubscriptionModel.find({
+        channelId, unsubscribedAt: { $exists: false }
+      })
+      const modifications = cueId ? await ModificationsModel.find({ cueId }) : []
+      const sharedWith: any[] = [];
+      subscribers.map((s) => {
+        const sub = s.toObject()
+        const mod = modifications.find((m) => m.userId.toString().trim() === sub.userId.toString().trim())
+        sharedWith.push({
+          value: sub.userId,
+          isFixed: mod ? true : false
+        })
+      })
+      return sharedWith
     } catch (e) {
       console.log(e)
       return []
