@@ -18,7 +18,7 @@ export class MessageQueryResolver {
     ) {
         try {
             const groupDoc = await GroupModel.findOne({
-                users
+                users: { $all: users }
             })
             if (groupDoc) {
                 const groupId = groupDoc._id

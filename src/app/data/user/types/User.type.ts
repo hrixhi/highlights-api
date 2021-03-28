@@ -41,11 +41,10 @@ export class UserObject {
     const localThis: any = this;
     const { _id } = localThis._doc || localThis;
     const group: any = await GroupModel.findOne({
-      users: {
-        $all: [
-          context.user?._id, _id
-        ]
-      }
+      $or: [
+        { users: [context.user?._id, _id] },
+        { users: [_id, context.user?._id] }
+      ]
     })
     if (!group) {
       return 0

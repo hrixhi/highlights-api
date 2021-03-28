@@ -34,6 +34,7 @@ export class MessageStatusQueryResolver {
                     }
                 })
             }
+            // Takes into account groups
             const allStatuses = await MessageStatusModel.find({
                 groupId: { $in: groupIds }, userId
             })

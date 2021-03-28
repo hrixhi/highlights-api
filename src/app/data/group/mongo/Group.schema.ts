@@ -6,6 +6,10 @@ const schema = new Schema(
       type: [Types.ObjectId],
       required: true
     },
+    channelId: {
+      type: String,
+      required: false
+    }
   }
 )
 

@@ -9,6 +9,7 @@ import { MessageQueryResolver } from './message/Message.queries'
 import { MessageStatusQueryResolver } from './message-status/MessageStatus.queries'
 import { ThreadStatusQueryResolver } from './thread-status/ThreadStatus.queries'
 import { DateQueryResolver } from './dates/Date.queries'
+import { GroupQueryResolver } from './group/Group.queries'
 
 @Resolver()
 export class AppQueryResolver {
@@ -60,6 +61,11 @@ export class AppQueryResolver {
   @Query(returns => DateQueryResolver)
   public date() {
     return new DateQueryResolver();
+  }
+
+  @Query(returns => GroupQueryResolver)
+  public group() {
+    return new GroupQueryResolver();
   }
 
 }

@@ -325,7 +325,6 @@ export class CueMutationResolver {
 				delete cue._id;
 				delete cue.limitedShares;
 				cue.userId = userId;
-				cue.original = cue.cue;
 				cue.cue = '';
 				cue.score = 0;
 				cue.graded = false;

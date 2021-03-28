@@ -24,7 +24,7 @@ export class MessageMutationResolver {
             if (users.length === 0) {
                 return false
             }
-            const groupDoc = await GroupModel.findOne({ users })
+            const groupDoc = await GroupModel.findOne({ users: { $all: users } })
             let groupId = ''
             if (groupDoc) {
                 groupId = groupDoc._id
