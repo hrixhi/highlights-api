@@ -22,7 +22,6 @@ export class DateQueryResolver {
     ) {
         try {
             const dates: any[] = []
-            const cues: any[] = await ModificationsModel.find({ submission: true, userId })
             const subscriptions: any[] = await SubscriptionModel.find({ userId, unsubscribedAt: { $exists: false } })
             const channelIdInputs: any[] = []
             subscriptions.map((s) => {
@@ -30,6 +29,7 @@ export class DateQueryResolver {
                 channelIdInputs.push(sub.channelId)
             })
             const channels = await ChannelModel.find({ _id: { $in: channelIdInputs } })
+            const cues = await CueModel.find({ channelId: { $in: channelIdInputs }, submission: true })
             const channelNames: any = {}
             channels.map((c) => {
                 const channel = c.toObject()
@@ -38,6 +38,7 @@ export class DateQueryResolver {
             cues.map((c) => {
                 const cue = c.toObject()
                 dates.push({
+                    dateId: 'channel',
                     title: cue.cue,
                     start: cue.deadline,
                     end: cue.deadline,
@@ -48,6 +49,7 @@ export class DateQueryResolver {
             addedDates.map((d) => {
                 const date = d.toObject()
                 dates.push({
+                    dateId: date._id,
                     title: date.title,
                     start: date.start,
                     end: date.end

@@ -36,6 +36,7 @@ export class StatusQueryResolver {
                     if (mod && mod.submittedAt && mod.submittedAt !== '') {
                         statusArray.push({
                             ...status,
+                            comment: mod.comment ? mod.comment : '',
                             graded: mod.graded,
                             submission: mod.cue,
                             score: mod.score,

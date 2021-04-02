@@ -15,4 +15,7 @@ export class EventObject {
   @Field(type => String, { nullable: true })
   public channelName?: string;
 
+  @Field(type => String, { nullable: true })
+  public dateId?: string;
+
 }

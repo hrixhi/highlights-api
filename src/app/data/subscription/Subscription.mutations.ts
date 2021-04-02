@@ -126,6 +126,7 @@ export class SubscriptionMutationResolver {
 							delete duplicate._id
 							delete duplicate.deletedAt
 							delete duplicate.__v
+							duplicate.cue = ''
 							duplicate.cueId = cue._id
 							duplicate.userId = userId
 							const u = await ModificationsModel.create(duplicate)

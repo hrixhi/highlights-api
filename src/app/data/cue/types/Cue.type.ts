@@ -136,5 +136,8 @@ export class CueObject {
 
   @Field({ nullable: true })
   public submittedAt: Date;
-  
+
+  @Field({ nullable: true })
+  public comment: string;
+
 }

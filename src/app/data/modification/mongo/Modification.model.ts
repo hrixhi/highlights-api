@@ -21,6 +21,7 @@ export interface IModificationsModel extends Document {
 	submittedAt?: Date;
 	score?: number;
 	graded?: boolean;
+	comment?: string;
 
 }
 

@@ -52,4 +52,7 @@ export class StatusObject {
   @Field({ nullable: true })
   public score: number;
 
+  @Field({nullable: true})
+  public comment: string;
+
 }

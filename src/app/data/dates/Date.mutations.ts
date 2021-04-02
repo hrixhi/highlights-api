@@ -29,4 +29,18 @@ export class DateMutationResolver {
         }
     }
 
+    @Field(type => Boolean, {
+        description: 'Used when you want to delete a date.'
+    })
+    public async delete(
+        @Arg('dateId', type => String) dateId: string,
+    ) {
+        try {
+            await DateModel.deleteOne({ _id: dateId })
+            return true;
+        } catch (e) {
+            return false
+        }
+    }
+
 }

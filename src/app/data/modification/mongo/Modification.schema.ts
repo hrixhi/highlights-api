@@ -67,6 +67,10 @@ const schema = new Schema(
       type: Boolean,
       required: false
     },
+    comment: {
+      type: String,
+      required: false
+    },
     deadline: {
       type: Date,
       required: false

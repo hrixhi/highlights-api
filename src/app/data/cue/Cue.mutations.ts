@@ -52,8 +52,6 @@ export class CueMutationResolver {
 				submission
 			}
 
-			console.log(shareWithUserIds !== undefined && shareWithUserIds !== null)
-
 			const newCue = await CueModel.create({
 				...c,
 				limitedShares: (shareWithUserIds !== undefined && shareWithUserIds !== null) ? true : false
@@ -238,13 +236,14 @@ export class CueMutationResolver {
 				}
 				delete c._id
 				if (cue.channelId && cue.channelId !== '') {
-					// Deleting these because they should not be changed...
 					if (cue.createdBy.toString().trim() !== userId.toString().trim()) {
+						// Deleting these because they should not be changed...
 						delete c.deadline
-						delete c.score
 						delete c.gradeWeight
-						delete c.submittedAt
 						delete c.submission
+
+						delete c.score
+						delete c.submittedAt
 						delete c.createdBy
 						delete c.graded;
 						// Channel cue
@@ -257,9 +256,32 @@ export class CueMutationResolver {
 							}, {
 								...c
 							})
+						} else {
+							// the cue was deleted by owner. do nothing.
 						}
 					} else {
 						// update all modification objects with that particular CueId along with details to original one
+						const subscribers: any[] = await SubscriptionModel.find({
+							channelId: cue.channelId,
+							unsubscribedAt: { $exists: false }
+						})
+						const userIds: any[] = []
+						subscribers.map((s) => {
+							const sub = s.toObject()
+							userIds.push(sub.userId)
+						})
+						delete c.score
+						delete c.graded
+						delete c.submittedAt
+						delete c.createdBy
+
+						await ModificationsModel.updateMany({
+							cueId: cue._id,
+							userId: { $in: userIds }
+						}, {
+							...c,
+							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
+						})
 					}
 				} else {
 					// Local cue
@@ -277,14 +299,31 @@ export class CueMutationResolver {
 	}
 
 	@Field(type => Boolean)
+	public async deleteForEveryone(
+		@Arg('cueId', type => String)
+		cueId: string,
+	) {
+		try {
+			await ModificationsModel.deleteMany({ cueId })
+			await CueModel.deleteOne({ _id: cueId })
+			return true
+		} catch (e) {
+			console.log(e)
+			return false;
+		}
+	}
+
+	@Field(type => Boolean)
 	public async submitModification(
 		@Arg('userId', type => String)
 		userId: string,
 		@Arg('cueId', type => String)
-		cueId: string
+		cueId: string,
+		@Arg('cue', type => String)
+		cue: string
 	) {
 		try {
-			await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date() })
+			await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue })
 			return true
 		} catch (e) {
 			console.log(e)
@@ -299,10 +338,16 @@ export class CueMutationResolver {
 		@Arg('cueId', type => String)
 		cueId: string,
 		@Arg('score', type => String)
-		score: string
+		score: string,
+		@Arg('comment', type => String, { nullable: true })
+		comment?: string
 	) {
 		try {
-			await ModificationsModel.updateOne({ cueId, userId }, { score: Number(score), graded: true })
+			await ModificationsModel.updateOne({ cueId, userId }, {
+				score: Number(score),
+				comment: comment && comment !== '' ? comment : '',
+				graded: true
+			})
 			return true
 		} catch (e) {
 			console.log(e)
