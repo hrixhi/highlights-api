@@ -4,25 +4,21 @@ const schema = new Schema(
   {
     userId: {
       type: Types.ObjectId,
-      required: false
-    },
-    title: {
-      type: String,
       required: true
     },
-    start: {
-      type: Date,
-      required: true
-    },
-    end: {
-      type: Date,
-      required: true
-    },
-    scheduledMeetingForChannelId: {
+    dateId: {
       type: Types.ObjectId,
+      required: true
+    },
+    channelId: {
+      type: Types.ObjectId,
+      required: true
+    },
+    joinedAt: {
+      type: Date,
       required: false
     }
   }
 )
 
-export const dateSchema = schema;
+export const attendanceSchema = schema;

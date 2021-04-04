@@ -9,6 +9,8 @@ import { MessageMutationResolver } from './message/Message.mutations'
 import { MessageStatusMutationResolver } from './message-status/MessageStatus.mutations'
 import { ThreadStatusMutationResolver } from './thread-status/ThreadStatus.mutations'
 import { DateMutationResolver } from './dates/Date.mutations'
+import { AttendanceMutationResolver } from './attendance/Attendance.mutations'
+import { QuizMutationResolver } from './quiz/Quiz.mutations'
 
 @Resolver()
 export class AppMutationResolver {
@@ -61,6 +63,16 @@ export class AppMutationResolver {
   @Mutation(returns => DateMutationResolver)
   public date() {
     return new DateMutationResolver();
+  }
+
+  @Mutation(returns => AttendanceMutationResolver)
+  public attendance() {
+    return new AttendanceMutationResolver();
+  }
+
+  @Mutation(returns => QuizMutationResolver)
+  public quiz() {
+    return new QuizMutationResolver();
   }
 
 }

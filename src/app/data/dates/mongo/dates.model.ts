@@ -2,10 +2,11 @@ import { Document, Model, model } from 'mongoose';
 import { dateSchema } from './dates.schema';
 
 export interface IDateModel extends Document {
-	userId: string;
+	userId?: string;
 	title: string;
 	start: Date;
 	end: Date;
+	scheduledMeetingForChannelId?: any;
 }
 
 export const DateModel: Model<IDateModel> = model<IDateModel>(

@@ -9,6 +9,7 @@ import fs from 'fs'
 import { CueInputObject } from './types/CueInput.type';
 import { IDMapObject } from './types/IDMap.type';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
+import { QuizModel } from '../quiz/mongo/Quiz.model';
 
 /**
  * Cue Mutation Endpoints
@@ -64,8 +65,6 @@ export class CueMutationResolver {
 			const notSetUserIds: any[] = []
 			const modifications: any[] = []
 
-			console.log(shareWithUserIds)
-
 			if (shareWithUserIds !== undefined && shareWithUserIds !== null) {
 				userIds = shareWithUserIds;
 				userIds.map((userId: string) => {
@@ -94,6 +93,7 @@ export class CueMutationResolver {
 					})
 				})
 			}
+			console.log(modifications)
 			// insert documents in modifications model
 			await ModificationsModel.insertMany(modifications)
 			// load subscribers
@@ -236,6 +236,7 @@ export class CueMutationResolver {
 				}
 				delete c._id
 				if (cue.channelId && cue.channelId !== '') {
+					//  now update modifications objects
 					if (cue.createdBy.toString().trim() !== userId.toString().trim()) {
 						// Deleting these because they should not be changed...
 						delete c.deadline
@@ -270,10 +271,12 @@ export class CueMutationResolver {
 							const sub = s.toObject()
 							userIds.push(sub.userId)
 						})
+
 						delete c.score
 						delete c.graded
 						delete c.submittedAt
 						delete c.createdBy
+						delete c.cue
 
 						await ModificationsModel.updateMany({
 							cueId: cue._id,
@@ -282,6 +285,14 @@ export class CueMutationResolver {
 							...c,
 							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
 						})
+						// also update original cue !!
+						await CueModel.updateOne({
+							_id: cue._id
+						}, {
+							...c,
+							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
+						})
+
 					}
 				} else {
 					// Local cue
@@ -320,10 +331,37 @@ export class CueMutationResolver {
 		@Arg('cueId', type => String)
 		cueId: string,
 		@Arg('cue', type => String)
-		cue: string
+		cue: string,
+		@Arg('quizId', type => String, { nullable: true })
+		quizId?: string
 	) {
 		try {
-			await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue })
+			if (quizId !== undefined && quizId !== null) {
+				const solutionsObject = JSON.parse(cue)
+				const solutions = solutionsObject.solutions;
+				// grade submission over here
+				const quizDoc: any = await QuizModel.findById(quizId)
+				let score = 0;
+				let total = 0;
+				const quiz = quizDoc.toObject()
+				quiz.problems.map((problem: any, i: any) => {
+					total += 1;
+					let correctAnswers = 0;
+					let totalAnswers = 0;
+					problem.options.map((option: any, j: any) => {
+						if (option.isCorrect && solutions[i].selected[j].isSelected) {
+							correctAnswers += 1
+						}
+						if (option.isCorrect) {
+							totalAnswers += 1
+						}
+					})
+					score += Number((correctAnswers / totalAnswers).toFixed(2))
+				})
+				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue, graded: true, score: Number(((score / total) * 100).toFixed(2)) })
+			} else {
+				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue })
+			}
 			return true
 		} catch (e) {
 			console.log(e)

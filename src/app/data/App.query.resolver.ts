@@ -10,6 +10,8 @@ import { MessageStatusQueryResolver } from './message-status/MessageStatus.queri
 import { ThreadStatusQueryResolver } from './thread-status/ThreadStatus.queries'
 import { DateQueryResolver } from './dates/Date.queries'
 import { GroupQueryResolver } from './group/Group.queries'
+import { AttendanceQueryResolver } from './attendance/Attendance.queries'
+import { QuizQueryResolver } from './quiz/Quiz.queries'
 
 @Resolver()
 export class AppQueryResolver {
@@ -66,6 +68,16 @@ export class AppQueryResolver {
   @Query(returns => GroupQueryResolver)
   public group() {
     return new GroupQueryResolver();
+  }
+
+  @Query(returns => AttendanceQueryResolver)
+  public attendance() {
+    return new AttendanceQueryResolver();
+  }
+
+  @Query(returns => QuizQueryResolver)
+  public quiz() {
+    return new QuizQueryResolver();
   }
 
 }
