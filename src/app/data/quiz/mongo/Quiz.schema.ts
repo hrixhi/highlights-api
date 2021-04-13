@@ -1,4 +1,4 @@
-import { Schema, Types } from 'mongoose';
+import { Schema } from 'mongoose';
 
 const answerSchema = new Schema({
   option: {
@@ -20,6 +20,10 @@ const problemSchema = new Schema(
     options: {
       type: [answerSchema],
       required: true
+    },
+    points: {
+      type: Number,
+      required: true
     }
   }
 )
@@ -29,6 +33,10 @@ const schema = new Schema(
     problems: {
       type: [problemSchema],
       required: true
+    },
+    duration: {
+      type: Number,
+      required: false
     }
   }
 )

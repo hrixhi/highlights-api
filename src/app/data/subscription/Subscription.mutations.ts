@@ -207,4 +207,64 @@ export class SubscriptionMutationResolver {
 		}
 	}
 
+	@Field(type => Boolean, {
+		description: 'Makes user active again (active by default)'
+	})
+	public async makeActive(
+		@Arg('userId', type => String) userId: string,
+		@Arg('channelId', type => String) channelId: string,
+	) {
+		try {
+			const sub = await SubscriptionModel.findOne({
+				userId,
+				channelId,
+				unsubscribedAt: { $exists: false },
+			})
+			if (sub) {
+				const subscription = sub.toObject();
+				if (subscription.inactive !== true) {
+					return false
+				} else {
+					await SubscriptionModel.updateOne({ _id: subscription._id }, { inactive: false })
+					return true
+				}
+			} else {
+				return false;
+			}
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
+	@Field(type => Boolean, {
+		description: 'Makes user inactive'
+	})
+	public async makeInactive(
+		@Arg('userId', type => String) userId: string,
+		@Arg('channelId', type => String) channelId: string,
+	) {
+		try {
+			const sub = await SubscriptionModel.findOne({
+				userId,
+				channelId,
+				unsubscribedAt: { $exists: false },
+			})
+			if (sub) {
+				const subscription = sub.toObject();
+				if (subscription.inactive === true) {
+					return false
+				} else {
+					await SubscriptionModel.updateOne({ _id: subscription._id }, { inactive: true })
+					return true
+				}
+			} else {
+				return false;
+			}
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
 }

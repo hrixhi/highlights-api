@@ -17,6 +17,10 @@ const schema = new Schema(
     keepContent: {
       type: Boolean,
       required: false
+    },
+    inactive: {
+      type: Boolean,
+      required: false
     }
   }
 )

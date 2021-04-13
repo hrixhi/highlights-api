@@ -28,4 +28,30 @@ export class SubscriptionQueryResolver {
     }
   }
 
+  @Field(type => Boolean, {
+    description: "Returns inactive status (T/F).",
+  })
+  public async isSubInactive(
+    @Arg("userId", type => String)
+    userId: string,
+    @Arg("channelId", type => String)
+    channelId: string
+  ) {
+    try {
+      const sub = await SubscriptionModel.findOne({
+        userId,
+        channelId,
+        unsubscribedAt: { $exists: false }
+      })
+      if (sub) {
+        return sub.inactive ? true : false
+      } else {
+        return false
+      }
+    } catch (e) {
+      console.log(e)
+      return false
+    }
+  }
+
 }

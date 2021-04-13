@@ -8,8 +8,11 @@ import { buildSchema } from 'type-graphql';
 import graphqlConfig from '../../configs/graphql';
 import { MongoRepositoriesFactory } from './context/MongoRepositories';
 import { initializeRoutes } from './methods/InitRoutes';
-import {initializeServerExtensions} from './methods/InitExtensions'
+import { initializeServerExtensions } from './methods/InitExtensions'
 import { PubSubNew } from './PubSub'
+import { ModificationsModel } from '@app/data/modification/mongo/Modification.model';
+import { CueModel } from '@app/data/cue/mongo/Cue.model';
+import { QuizModel } from '@app/data/quiz/mongo/Quiz.model';
 
 /**
  *  The most fundamental class that is the beginning to the working of the Isotope API
@@ -49,7 +52,78 @@ export class Server {
 					this.startGraphQLServer();
 				});
 			});
+			// set timer function
+			var d = new Date();
+			var epoch = d.getTime() / 1000;
+			var secondsSinceLastTimerTrigger = epoch % 120; // (2 minutes)
+			var secondsUntilNextTimerTrigger = 120 - secondsSinceLastTimerTrigger;
+			setInterval(this.submitQuizCheck, secondsUntilNextTimerTrigger * 1000);
 		}
+	}
+
+	private async submitQuizCheck() {
+		// get modifications with deadline where quizId is there and are not graded
+		let time = new Date()
+		time.setMinutes(time.getMinutes() - 2)
+		const cues = await CueModel.find({
+			submission: true,
+			channelId: { $exists: true },
+			deadline: { $lte: time },
+			cue: { $regex: /{"quizId":"/ }
+		})
+		// get mods and grade them
+		cues.map(async (c: any) => {
+			const cue = c.toObject()
+			const obj = JSON.parse(cue)
+			const quizId = obj.quizId;
+			const quizDoc: any = await QuizModel.findById(quizId)
+			const quiz = quizDoc.toObject()
+			if (quiz.duration && quiz.duration !== 0) {
+				const mods = await ModificationsModel.find({
+					cueId: cue._id,
+					submittedAt: { $exists: false }
+				})
+				mods.map(async (m: any) => {
+					try {
+						const mod = m.toObject()
+						if (mod.userId.toString().trim() === cue.createdBy.toString().trim()) {
+							return;
+						}
+						const solutionsObject = JSON.parse(mod.cue)
+						if (!solutionsObject.solutions || solutionsObject.solutions.length === 0) {
+							return;
+						}
+						const solutions = solutionsObject.solutions;
+						// grade submission over here
+						let score = 0;
+						let total = 0;
+						quiz.problems.map((problem: any, i: any) => {
+							total += (problem.points !== null && problem.points !== undefined ? problem.points : 1);
+							let correctAnswers = 0;
+							let totalAnswers = 0;
+							problem.options.map((option: any, j: any) => {
+								if (option.isCorrect && solutions[i].selected[j].isSelected) {
+									// correct answers
+									correctAnswers += 1
+								}
+								if (option.isCorrect) {
+									// total correct answers
+									totalAnswers += 1
+								}
+								if (!option.isCorrect && solutions[i].selected[j].isSelected) {
+									// to deduct points if answer is not correct but selected
+									totalAnswers += 1;
+								}
+							})
+							score += Number(
+								((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
+							)
+						})
+						await ModificationsModel.updateOne({ _id: mod._id }, { submittedAt: new Date(), graded: true, score: Number(((score / total) * 100).toFixed(2)) })
+					} catch (e) { }
+				})
+			}
+		})
 	}
 
 	/**

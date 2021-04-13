@@ -336,6 +336,14 @@ export class CueMutationResolver {
 		quizId?: string
 	) {
 		try {
+			const mod = await ModificationsModel.findOne({ cueId, userId })
+			if (mod) {
+				const modification = mod.toObject()
+				if (modification.submittedAt !== undefined && modification.submittedAt !== null) {
+					// already submitted 
+					return true;
+				}
+			}
 			if (quizId !== undefined && quizId !== null) {
 				const solutionsObject = JSON.parse(cue)
 				const solutions = solutionsObject.solutions;
@@ -345,18 +353,27 @@ export class CueMutationResolver {
 				let total = 0;
 				const quiz = quizDoc.toObject()
 				quiz.problems.map((problem: any, i: any) => {
-					total += 1;
+					total += (problem.points !== null && problem.points !== undefined ? problem.points : 1);
 					let correctAnswers = 0;
 					let totalAnswers = 0;
 					problem.options.map((option: any, j: any) => {
 						if (option.isCorrect && solutions[i].selected[j].isSelected) {
+							// correct answers
 							correctAnswers += 1
 						}
+						// TO FIX
 						if (option.isCorrect) {
+							// total correct answers
 							totalAnswers += 1
 						}
+						if (!option.isCorrect && solutions[i].selected[j].isSelected) {
+							// to deduct points if answer is not correct but selected
+							totalAnswers += 1;
+						}
 					})
-					score += Number((correctAnswers / totalAnswers).toFixed(2))
+					score += Number(
+						((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
+					)
 				})
 				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue, graded: true, score: Number(((score / total) * 100).toFixed(2)) })
 			} else {

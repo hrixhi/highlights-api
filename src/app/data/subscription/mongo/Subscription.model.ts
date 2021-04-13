@@ -6,6 +6,7 @@ export interface ISubscriptionModel extends Document {
 	channelId: any;
 	unsubscribedAt?: Date;
 	keepContent?: boolean;
+	inactive?: boolean;
 }
 
 export const SubscriptionModel: Model<ISubscriptionModel> = model<ISubscriptionModel>(

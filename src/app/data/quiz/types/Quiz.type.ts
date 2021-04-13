@@ -21,6 +21,9 @@ class ProblemObject {
   @Field(type => [AnswerObject])
   public options: AnswerObject[];
 
+  @Field(type => Number)
+  public points: Number;
+
 }
 
 @ObjectType()
@@ -28,5 +31,8 @@ export class QuizObject {
 
   @Field(type => [ProblemObject])
   public problems: ProblemObject[];
+
+  @Field(type => Number, { nullable: true })
+  public duration?: Number;
 
 }

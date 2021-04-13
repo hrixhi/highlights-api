@@ -29,4 +29,7 @@ export class SubscriptionObject {
     return channel ? channel.createdBy : ''
   }
 
+  @Field(type => Boolean, { nullable: true })
+  public inactive?: boolean;
+
 }
