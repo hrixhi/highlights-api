@@ -74,55 +74,57 @@ export class Server {
 		// get mods and grade them
 		cues.map(async (c: any) => {
 			const cue = c.toObject()
-			const obj = JSON.parse(cue)
+			const obj = JSON.parse(cue.cue)
 			const quizId = obj.quizId;
 			const quizDoc: any = await QuizModel.findById(quizId)
 			const quiz = quizDoc.toObject()
-			if (quiz.duration && quiz.duration !== 0) {
-				const mods = await ModificationsModel.find({
-					cueId: cue._id,
-					submittedAt: { $exists: false }
-				})
-				mods.map(async (m: any) => {
-					try {
-						const mod = m.toObject()
-						if (mod.userId.toString().trim() === cue.createdBy.toString().trim()) {
-							return;
-						}
-						const solutionsObject = JSON.parse(mod.cue)
-						if (!solutionsObject.solutions || solutionsObject.solutions.length === 0) {
-							return;
-						}
-						const solutions = solutionsObject.solutions;
-						// grade submission over here
-						let score = 0;
-						let total = 0;
-						quiz.problems.map((problem: any, i: any) => {
-							total += (problem.points !== null && problem.points !== undefined ? problem.points : 1);
-							let correctAnswers = 0;
-							let totalAnswers = 0;
-							problem.options.map((option: any, j: any) => {
-								if (option.isCorrect && solutions[i].selected[j].isSelected) {
-									// correct answers
-									correctAnswers += 1
-								}
-								if (option.isCorrect) {
-									// total correct answers
-									totalAnswers += 1
-								}
-								if (!option.isCorrect && solutions[i].selected[j].isSelected) {
-									// to deduct points if answer is not correct but selected
-									totalAnswers += 1;
-								}
-							})
-							score += Number(
-								((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
-							)
+			const mods = await ModificationsModel.find({
+				cue: { $ne: '' },
+				cueId: cue._id,
+				submittedAt: { $exists: false }
+			})
+			mods.map(async (m: any) => {
+				try {
+					const mod = m.toObject()
+					if (mod.userId.toString().trim() === cue.createdBy.toString().trim()) {
+						// owner
+						return;
+					}
+					const solutionsObject = JSON.parse(mod.cue)
+					if (!solutionsObject.solutions || solutionsObject.solutions.length === 0) {
+						return;
+					}
+					const solutions = solutionsObject.solutions;
+					// grade submission over here
+					let score = 0;
+					let total = 0;
+					quiz.problems.map((problem: any, i: any) => {
+						total += (problem.points !== null && problem.points !== undefined ? problem.points : 1);
+						let correctAnswers = 0;
+						let totalAnswers = 0;
+						problem.options.map((option: any, j: any) => {
+							if (option.isCorrect && solutions[i].selected[j].isSelected) {
+								// correct answers
+								correctAnswers += 1
+							}
+							if (option.isCorrect) {
+								// total correct answers
+								totalAnswers += 1
+							}
+							if (!option.isCorrect && solutions[i].selected[j].isSelected) {
+								// to deduct points if answer is not correct but selected
+								totalAnswers += 1;
+							}
 						})
-						await ModificationsModel.updateOne({ _id: mod._id }, { submittedAt: new Date(), graded: true, score: Number(((score / total) * 100).toFixed(2)) })
-					} catch (e) { }
-				})
-			}
+						score += Number(
+							((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
+						)
+					})
+					await ModificationsModel.updateOne({ _id: mod._id }, { submittedAt: new Date(), graded: true, score: Number(((score / total) * 100).toFixed(2)) })
+				} catch (e) {
+					console.log(e)
+				}
+			})
 		})
 	}
 
