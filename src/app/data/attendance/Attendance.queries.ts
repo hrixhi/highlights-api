@@ -30,34 +30,6 @@ export class AttendanceQueryResolver {
     }
 
     @Field(type => [EventObject], {
-        description: "Returns list of upcoming dates per user for all channels.",
-        nullable: true
-    })
-    public async getAllUpcomingDates(
-        @Arg("userId", type => String)
-        userId: string
-    ) {
-        try {
-            const channelIds: any[] = []
-            const activeSubs = await SubscriptionModel.find({
-                userId,
-                unsubscribedAt: { $exists: false }
-            })
-            activeSubs.map((s: any) => {
-                const sub = s.toObject();
-                channelIds.push(sub.channelId);
-            })
-            return await DateModel.find({
-                scheduledMeetingForChannelId: { $in: channelIds },
-                end: { $gt: new Date() }
-            })
-        } catch (e) {
-            console.log(e)
-            return []
-        }
-    }
-
-    @Field(type => [EventObject], {
         description: "Returns list of past dates.",
         nullable: true
     })

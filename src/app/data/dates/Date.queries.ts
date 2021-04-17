@@ -55,6 +55,18 @@ export class DateQueryResolver {
                     end: date.end
                 })
             })
+            const scheduledMeetings: any[] = await DateModel.find({
+                scheduledMeetingForChannelId: { $in: channelIdInputs },
+                end: { $lte: new Date() }
+            })
+            scheduledMeetings.map((d: any) => {
+                const date = d.toObject()
+                dates.push({
+                    ...date,
+                    title: 'Meeting',
+                    dateId: date._id
+                })
+            })
             return dates;
         } catch (e) {
             console.log(e)

@@ -1,5 +1,3 @@
-import { AttendanceModel } from '@app/data/attendance/mongo/attendance.model';
-import { AttendanceObject } from '@app/data/attendance/types/Attendance.type';
 import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
 import { Field, ObjectType } from 'type-graphql';
 
@@ -18,8 +16,10 @@ export class EventObject {
   @Field(type => String, { nullable: true })
   public async channelName() {
     const localThis: any = this;
-    const { scheduledMeetingForChannelId } = localThis._doc || localThis;
-    if (scheduledMeetingForChannelId) {
+    const { scheduledMeetingForChannelId, channelName } = localThis._doc || localThis;
+    if (channelName && channelName !== '') {
+      return channelName
+    } else if (scheduledMeetingForChannelId) {
       const channel = await ChannelModel.findById(scheduledMeetingForChannelId)
       return channel ? channel.name : ''
     } else {
