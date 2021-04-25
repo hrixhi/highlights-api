@@ -1,7 +1,10 @@
+import { htmlStringParser } from '@helper/HTMLParser';
+import Expo from 'expo-server-sdk';
 import { Arg, Field, ObjectType } from 'type-graphql';
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
+import { UserModel } from '../user/mongo/User.model';
 import { ThreadModel } from './mongo/Thread.model';
 
 /**
@@ -55,6 +58,35 @@ export class ThreadMutationResolver {
 						channelId
 					})
 				})
+				const userIds: any[] = []
+				const messages: any[] = []
+				const notificationService = new Expo()
+				subscribers.map(u => {
+					userIds.push(u.userId)
+				})
+				const users = await UserModel.find({ _id: { $in: userIds } })
+				users.map(sub => {
+					if (!Expo.isExpoPushToken(sub.notificationId)) {
+						return
+					}
+					const { title, subtitle: body } = htmlStringParser(message)
+					messages.push({
+						to: sub.notificationId,
+						sound: 'default',
+						title,
+						subtitle: body,
+						body,
+						data: { userId: sub._id },
+					})
+				})
+				let chunks = notificationService.chunkPushNotifications(messages);
+				for (let chunk of chunks) {
+					try {
+						await notificationService.sendPushNotificationsAsync(chunk);
+					} catch (e) {
+						console.error(e);
+					}
+				}
 			} else {
 				// Private thread
 				// Create badges for the owner only
@@ -67,11 +99,64 @@ export class ThreadMutationResolver {
 						threadId: parentId === 'INIT' ? thread._id : parentId,
 						channelId
 					})
+					// SEND MESSAGE TO OWNER
+					const user: any = await UserModel.findById(obj.createdBy)
+					const messages: any[] = []
+					const notificationService = new Expo()
+					if (!Expo.isExpoPushToken(user.notificationId)) {
+						return true
+					}
+					const { title, subtitle: body } = htmlStringParser(message)
+					messages.push({
+						to: user.notificationId,
+						sound: 'default',
+						title,
+						body,
+						subtitle: body,
+						data: { userId: user._id },
+					})
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+						} catch (e) {
+							console.error(e);
+						}
+					}
 				}
+
 			}
 			return true
 		} catch (e) {
 			return false;
+		}
+	}
+
+	@Field(type => Boolean, {
+		description: 'deletes thread(s)'
+	})
+	public async delete(
+		@Arg('threadId', type => String) threadId: string,
+	) {
+		try {
+			const t = await ThreadModel.findById(threadId)
+			if (t) {
+				const thread = t.toObject()
+				if (thread.parentId) {
+					// if not parent only delete that one
+					await ThreadModel.deleteOne({ _id: threadId })
+					return true;
+				} else {
+					// If parent, delete children also
+					await ThreadModel.deleteMany({ parentId: threadId })
+					await ThreadModel.deleteOne({ _id: threadId })
+					return true;
+				}
+			} else {
+				return false;
+			}
+		} catch (e) {
+			return false
 		}
 	}
 

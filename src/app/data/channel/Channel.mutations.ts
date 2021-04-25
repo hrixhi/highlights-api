@@ -1,6 +1,9 @@
 import { Arg, Field, ObjectType } from 'type-graphql';
 import { ChannelModel } from './mongo/Channel.model'
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
+import Expo from 'expo-server-sdk';
+import { UserModel } from '../user/mongo/User.model';
+import { htmlStringParser } from '@helper/HTMLParser';
 
 /**
  * Channel Mutation Endpoints
@@ -61,6 +64,38 @@ export class ChannelMutationResolver {
 	) {
 		try {
 			await ChannelModel.updateOne({ _id: channelId }, { meetingOn })
+			const channel: any = await ChannelModel.findById(channelId)
+			if (meetingOn) {
+				const subscribers = await SubscriptionModel.find({ channelId, unsubscribedAt: { $exists: false } })
+				const userIds: any[] = []
+				const messages: any[] = []
+				const notificationService = new Expo()
+				subscribers.map(u => {
+					userIds.push(u.userId)
+				})
+				const users = await UserModel.find({ _id: { $in: userIds } })
+				users.map(sub => {
+					if (!Expo.isExpoPushToken(sub.notificationId)) {
+						return
+					}
+					messages.push({
+						to: sub.notificationId,
+						sound: 'default',
+						title: 'Meeting Started!',
+						subtitle: channel.name,
+						body: channel.name,
+						data: { userId: sub._id },
+					})
+				})
+				let chunks = notificationService.chunkPushNotifications(messages);
+				for (let chunk of chunks) {
+					try {
+						await notificationService.sendPushNotificationsAsync(chunk);
+					} catch (e) {
+						console.error(e);
+					}
+				}
+			}
 			return true
 		} catch (e) {
 			console.log(e)

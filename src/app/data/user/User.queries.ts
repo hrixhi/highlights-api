@@ -55,7 +55,7 @@ export class UserQueryResolver {
     try {
       const user: any = await UserModel.findOne({ email })
       if (user) {
-        const passwordCorrect = verifyPassword(password, user.password)
+        const passwordCorrect = await verifyPassword(password, user.password)
         if (passwordCorrect) {
           return user
         }
@@ -65,19 +65,6 @@ export class UserQueryResolver {
       return null
     }
   }
-
-  // @Field(type => Number)
-  // public async getSchoolUsers(
-  //   @Arg('schoolId', type => String)
-  //   schoolId: string,
-  // ) {
-  //   try {
-  //     const users = await UserModel.find({ schoolId })
-  //     return users.length;
-  //   } catch (e) {
-  //     return 0
-  //   }
-  // }
 
   @Field(type => [UserObject])
   public async getSchoolUsers(
@@ -106,9 +93,13 @@ export class UserQueryResolver {
         await SchoolsModel.updateOne({ _id: unhashedPasswordFound._id }, { password: hash })
         return unhashedPasswordFound._id
       } else {
-        const school = await SchoolsModel.findOne({ name })
-        if (school && verifyPassword(password, school.password)) {
-          return school._id
+        const s: any = await SchoolsModel.findOne({ name })
+        if (s) {
+          const school = s.toObject();
+          const passwordCorrect = await verifyPassword(password, school.password)
+          if (passwordCorrect) {
+            return school._id
+          }
         }
       }
       return 'error'

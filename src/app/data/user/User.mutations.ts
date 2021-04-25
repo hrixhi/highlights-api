@@ -1,4 +1,4 @@
-import { hashPassword } from '@app/data/methods';
+import { hashPassword, verifyPassword } from '@app/data/methods';
 import { UserModel } from '@app/data/user/mongo/User.model';
 import { EmailService } from '../../../emailservice/Postmark';
 import { Arg, Field, ObjectType } from 'type-graphql';
@@ -63,6 +63,89 @@ export class UserMutationResolver {
 					displayName
 				})
 			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
+	@Field(type => Boolean, {
+		description: 'false means entered password is incorrect.',
+		nullable: true
+	})
+	public async updatePassword(
+		@Arg('userId', type => String)
+		userId: string,
+		@Arg('currentPassword', type => String)
+		currentPassword: string,
+		@Arg('newPassword', type => String)
+		newPassword: string
+	) {
+		try {
+			const u = await UserModel.findById(userId)
+			if (u) {
+				const user: any = u.toObject()
+				const passwordCorrect = await verifyPassword(currentPassword, user.password)
+				if (passwordCorrect) {
+					const hash = await hashPassword(newPassword)
+					await UserModel.updateOne({ _id: userId }, { password: hash })
+					return true
+				} else {
+					return false
+				}
+			} else {
+				return false
+			}
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
+	@Field(type => Boolean, {
+		description: 'Updates the notification Id for a user that was not set up on native devices.',
+		nullable: true
+	})
+	public async updateNotificationId(
+		@Arg('userId', type => String)
+		userId: string,
+		@Arg('notificationId', type => String)
+		notificationId: string,
+	) {
+		try {
+			const u = await UserModel.findById(userId)
+			if (u) {
+				await UserModel.updateOne({ _id: userId }, { notificationId })
+				return true
+			} else {
+				return false
+			}
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
+	@Field(type => Boolean, {
+		description: 'Resets password using email.',
+		nullable: true
+	})
+	public async resetPassword(
+		@Arg('email', type => String)
+		email: string
+	) {
+		try {
+			const u = await UserModel.findOne({ email })
+			if (u) {
+				const newPassword = (Math.random() + Math.random()).toString(36).substring(7);
+				const hash = await hashPassword(newPassword)
+				await UserModel.updateOne({ email }, { password: hash })
+				const emailService = new EmailService()
+				emailService.resetPassword(email, newPassword)
+				return true
+			} else {
+				return false
+			}
 		} catch (e) {
 			console.log(e)
 			return false

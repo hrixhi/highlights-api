@@ -38,4 +38,13 @@ export class EmailService {
         });
     }
 
+    public resetPassword(email: string, password: string) {
+        client.sendEmail({
+            "From": "alert@cuesapp.co",
+            "To": email,
+            "Subject": "CUES - Your password has been reset",
+            "TextBody": "Visit www.cuesapp.co to log in using this temporary password: " + password
+        })
+    }
+
 }

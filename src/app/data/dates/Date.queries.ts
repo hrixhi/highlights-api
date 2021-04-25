@@ -42,7 +42,8 @@ export class DateQueryResolver {
                     title: cue.cue,
                     start: cue.deadline,
                     end: cue.deadline,
-                    channelName: channelNames[cue.channelId]
+                    scheduledMeetingForChannelId: cue.channelId
+                    // channelName: channelNames[cue.channelId]
                 })
             })
             const addedDates: any[] = await DateModel.find({ userId })

@@ -10,6 +10,7 @@ import { CueInputObject } from './types/CueInput.type';
 import { IDMapObject } from './types/IDMap.type';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { QuizModel } from '../quiz/mongo/Quiz.model';
+import { ChannelModel } from '../channel/mongo/Channel.model';
 
 /**
  * Cue Mutation Endpoints
@@ -93,7 +94,6 @@ export class CueMutationResolver {
 					})
 				})
 			}
-			console.log(modifications)
 			// insert documents in modifications model
 			await ModificationsModel.insertMany(modifications)
 			// load subscribers
@@ -108,6 +108,7 @@ export class CueMutationResolver {
 					to: sub.notificationId,
 					sound: 'default',
 					title,
+					subtitle: body,
 					body,
 					data: { userId: sub._id },
 				})
@@ -379,6 +380,32 @@ export class CueMutationResolver {
 			} else {
 				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue })
 			}
+
+			const c: any = await CueModel.findById(cueId)
+			const channel: any = await ChannelModel.findById(c.channelId)
+			const user: any = await UserModel.findById(userId)
+			const messages: any[] = []
+			const notificationService = new Expo()
+			if (!Expo.isExpoPushToken(user.notificationId)) {
+				return true
+			}
+			const { title } = htmlStringParser(c.cue)
+			messages.push({
+				to: user.notificationId,
+				sound: 'default',
+				title: (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
+				body: channel.name,
+				subtitle: channel.name,
+				data: { userId: user._id },
+			})
+			let chunks = notificationService.chunkPushNotifications(messages);
+			for (let chunk of chunks) {
+				try {
+					await notificationService.sendPushNotificationsAsync(chunk);
+				} catch (e) {
+					console.error(e);
+				}
+			}
 			return true
 		} catch (e) {
 			console.log(e)
@@ -398,11 +425,36 @@ export class CueMutationResolver {
 		comment?: string
 	) {
 		try {
+			const cue: any = await CueModel.findById(cueId)
+			const channel: any = await ChannelModel.findById(cue.channelId)
 			await ModificationsModel.updateOne({ cueId, userId }, {
 				score: Number(score),
 				comment: comment && comment !== '' ? comment : '',
 				graded: true
 			})
+			const user: any = await UserModel.findById(userId)
+			const messages: any[] = []
+			const notificationService = new Expo()
+			if (!Expo.isExpoPushToken(user.notificationId)) {
+				return true
+			}
+			const { title } = htmlStringParser(cue.cue)
+			messages.push({
+				to: user.notificationId,
+				sound: 'default',
+				title: 'Graded! ' + title,
+				body: channel.name,
+				subtitle: channel.name,
+				data: { userId: user._id },
+			})
+			let chunks = notificationService.chunkPushNotifications(messages);
+			for (let chunk of chunks) {
+				try {
+					await notificationService.sendPushNotificationsAsync(chunk);
+				} catch (e) {
+					console.error(e);
+				}
+			}
 			return true
 		} catch (e) {
 			console.log(e)
@@ -438,6 +490,29 @@ export class CueMutationResolver {
 					status: 'not-delivered',
 					cueId: cue.cueId
 				})
+				const user: any = await UserModel.findById(userId)
+				const messages: any[] = []
+				const notificationService = new Expo()
+				if (!Expo.isExpoPushToken(user.notificationId)) {
+					return true
+				}
+				const { title, subtitle: body } = htmlStringParser(cue.cue)
+				messages.push({
+					to: user.notificationId,
+					sound: 'default',
+					title,
+					body,
+					subtitle: body,
+					data: { userId: user._id },
+				})
+				let chunks = notificationService.chunkPushNotifications(messages);
+				for (let chunk of chunks) {
+					try {
+						await notificationService.sendPushNotificationsAsync(chunk);
+					} catch (e) {
+						console.error(e);
+					}
+				}
 				return true
 			}
 			return false

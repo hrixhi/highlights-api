@@ -16,10 +16,8 @@ export class EventObject {
   @Field(type => String, { nullable: true })
   public async channelName() {
     const localThis: any = this;
-    const { scheduledMeetingForChannelId, channelName } = localThis._doc || localThis;
-    if (channelName && channelName !== '') {
-      return channelName
-    } else if (scheduledMeetingForChannelId) {
+    const { scheduledMeetingForChannelId } = localThis._doc || localThis;
+    if (scheduledMeetingForChannelId) {
       const channel = await ChannelModel.findById(scheduledMeetingForChannelId)
       return channel ? channel.name : ''
     } else {

@@ -1,6 +1,9 @@
+import { htmlStringParser } from '@helper/HTMLParser';
+import Expo from 'expo-server-sdk';
 import { Arg, Field, ObjectType } from 'type-graphql';
 import { GroupModel } from '../group/mongo/Group.model';
 import { MessageStatusModel } from '../message-status/mongo/message-status.model';
+import { UserModel } from '../user/mongo/User.model';
 import { MessageModel } from './mongo/Message.model';
 
 /**
@@ -41,6 +44,7 @@ export class MessageMutationResolver {
                 sentBy: users[0],
                 sentAt: new Date()
             })
+            let sender: any = null
             users.map(async (u, i) => {
                 if (i === 0) {
                     return;
@@ -51,6 +55,35 @@ export class MessageMutationResolver {
                     channelId
                 })
             })
+            const userIds: any[] = []
+            const messages: any[] = []
+            const notificationService = new Expo()
+            users.map(u => {
+                userIds.push(u)
+            })
+            const userArr = await UserModel.find({ _id: { $in: userIds } })
+            userArr.map(sub => {
+                if (!Expo.isExpoPushToken(sub.notificationId)) {
+                    return
+                }
+                const { title, subtitle: body } = htmlStringParser(message)
+                messages.push({
+                    to: sub.notificationId,
+                    sound: 'default',
+                    title,
+                    body,
+                    subtitle: body,
+                    data: { userId: sub._id },
+                })
+            })
+            let chunks = notificationService.chunkPushNotifications(messages);
+            for (let chunk of chunks) {
+                try {
+                    await notificationService.sendPushNotificationsAsync(chunk);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
             return true;
         } catch (e) {
             return false
