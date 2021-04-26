@@ -37,7 +37,7 @@ export class CueMutationResolver {
 		@Arg('shareWithUserIds', type => [String], { nullable: true }) shareWithUserIds?: string[]
 	) {
 		try {
-
+			const channel: any = await ChannelModel.findById(channelId)
 			const c = {
 				cue,
 				color: Number(color),
@@ -107,8 +107,8 @@ export class CueMutationResolver {
 				messages.push({
 					to: sub.notificationId,
 					sound: 'default',
-					title,
-					subtitle: body,
+					subtitle: title,
+					title: channel.name,
 					body,
 					data: { userId: sub._id },
 				})
@@ -393,9 +393,8 @@ export class CueMutationResolver {
 			messages.push({
 				to: user.notificationId,
 				sound: 'default',
-				title: (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
-				body: channel.name,
-				subtitle: channel.name,
+				subtitle: (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
+				title: channel.name,
 				data: { userId: user._id },
 			})
 			let chunks = notificationService.chunkPushNotifications(messages);
@@ -442,9 +441,8 @@ export class CueMutationResolver {
 			messages.push({
 				to: user.notificationId,
 				sound: 'default',
-				title: 'Graded! ' + title,
-				body: channel.name,
-				subtitle: channel.name,
+				subtitle: 'Graded! ' + title,
+				title: channel.name,
 				data: { userId: user._id },
 			})
 			let chunks = notificationService.chunkPushNotifications(messages);
@@ -496,13 +494,13 @@ export class CueMutationResolver {
 				if (!Expo.isExpoPushToken(user.notificationId)) {
 					return true
 				}
+				const channel: any = await ChannelModel.findById(cue.channelId)
 				const { title, subtitle: body } = htmlStringParser(cue.cue)
 				messages.push({
 					to: user.notificationId,
 					sound: 'default',
-					title,
-					body,
-					subtitle: body,
+					subtitle: title,
+					title: channel.name,
 					data: { userId: user._id },
 				})
 				let chunks = notificationService.chunkPushNotifications(messages);

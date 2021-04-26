@@ -64,6 +64,7 @@ export class ThreadMutationResolver {
 				subscribers.map(u => {
 					userIds.push(u.userId)
 				})
+				const channel: any = await ChannelModel.findById(channelId)
 				const users = await UserModel.find({ _id: { $in: userIds } })
 				users.map(sub => {
 					if (!Expo.isExpoPushToken(sub.notificationId)) {
@@ -73,8 +74,8 @@ export class ThreadMutationResolver {
 					messages.push({
 						to: sub.notificationId,
 						sound: 'default',
-						title,
-						subtitle: body,
+						title: channel.name,
+						subtitle: title,
 						body,
 						data: { userId: sub._id },
 					})
@@ -110,9 +111,8 @@ export class ThreadMutationResolver {
 					messages.push({
 						to: user.notificationId,
 						sound: 'default',
-						title,
-						body,
-						subtitle: body,
+						subtitle: title,
+						title: obj.name,
 						data: { userId: user._id },
 					})
 					let chunks = notificationService.chunkPushNotifications(messages);

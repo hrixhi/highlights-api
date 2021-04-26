@@ -44,7 +44,6 @@ export class MessageMutationResolver {
                 sentBy: users[0],
                 sentAt: new Date()
             })
-            let sender: any = null
             users.map(async (u, i) => {
                 if (i === 0) {
                     return;
@@ -62,7 +61,12 @@ export class MessageMutationResolver {
                 userIds.push(u)
             })
             const userArr = await UserModel.find({ _id: { $in: userIds } })
-            userArr.map(sub => {
+            let senderName = ''
+            userArr.map((sub: any, i: any) => {
+                if(i === 0) {
+                    senderName = sub.fullName;
+                    return
+                }
                 if (!Expo.isExpoPushToken(sub.notificationId)) {
                     return
                 }
@@ -70,9 +74,8 @@ export class MessageMutationResolver {
                 messages.push({
                     to: sub.notificationId,
                     sound: 'default',
-                    title,
-                    body,
-                    subtitle: body,
+                    title: senderName,
+                    subtitle: title,
                     data: { userId: sub._id },
                 })
             })

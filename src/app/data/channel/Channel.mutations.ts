@@ -81,9 +81,8 @@ export class ChannelMutationResolver {
 					messages.push({
 						to: sub.notificationId,
 						sound: 'default',
-						title: 'Meeting Started!',
-						subtitle: channel.name,
-						body: channel.name,
+						subtitle: 'Meeting Started!',
+						title: channel.name,
 						data: { userId: sub._id },
 					})
 				})

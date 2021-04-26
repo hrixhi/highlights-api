@@ -1,6 +1,10 @@
+import { htmlStringParser } from '@helper/HTMLParser';
+import Expo from 'expo-server-sdk';
 import { Arg, Field, ObjectType } from 'type-graphql';
+import { ChannelModel } from '../channel/mongo/Channel.model';
 import { DateModel } from '../dates/mongo/dates.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
+import { UserModel } from '../user/mongo/User.model';
 import { AttendanceModel } from './mongo/attendance.model';
 
 /**
@@ -24,6 +28,38 @@ export class AttendanceMutationResolver {
                 title: 'Scheduled Call',
                 scheduledMeetingForChannelId: channelId
             })
+            const messages: any[] = []
+            const userIds: any[] = []
+
+            const subscriptions = await SubscriptionModel.find({
+                $and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
+            })
+            subscriptions.map((s) => {
+                userIds.push(s.userId)
+            })
+            const channel: any = await ChannelModel.findById(channelId)
+            const users: any[] = await UserModel.find({ _id: { $in: userIds } })
+            users.map((sub) => {
+                if (!Expo.isExpoPushToken(sub.notificationId)) {
+                    return
+                }
+                messages.push({
+                    to: sub.notificationId,
+                    sound: 'default',
+                    subtitle: 'New Meeting Scheduled!',
+                    title: channel.name,
+                    data: { userId: sub._id },
+                })
+            })
+            const notificationService = new Expo()
+            let chunks = notificationService.chunkPushNotifications(messages);
+            for (let chunk of chunks) {
+                try {
+                    await notificationService.sendPushNotificationsAsync(chunk);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
             return true;
         } catch (e) {
             return false
