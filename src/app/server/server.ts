@@ -121,6 +121,8 @@ export class Server {
 						)
 					})
 					await ModificationsModel.updateOne({ _id: mod._id }, { submittedAt: new Date(), graded: true, score: Number(((score / total) * 100).toFixed(2)) })
+					// DO NOTIFICATIONTHING OVER HERE !!!
+					// SEDN ONLY TO THE PERSON WHO's ACCOUNT IS LINKED
 				} catch (e) {
 					console.log(e)
 				}

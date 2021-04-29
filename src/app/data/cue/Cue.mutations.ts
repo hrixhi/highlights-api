@@ -279,13 +279,14 @@ export class CueMutationResolver {
 						delete c.createdBy
 						delete c.cue
 
-						await ModificationsModel.updateMany({
+						const updates = await ModificationsModel.updateMany({
 							cueId: cue._id,
 							userId: { $in: userIds }
 						}, {
 							...c,
 							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
 						})
+						console.log(updates)
 						// also update original cue !!
 						await CueModel.updateOne({
 							_id: cue._id
