@@ -152,7 +152,7 @@ export class UserMutationResolver {
 		}
 	}
 
-	@Field(type => Boolean)
+	@Field(type => String)
 	public async signup(
 		@Arg('fullName', type => String)
 		fullName: string,
@@ -166,6 +166,15 @@ export class UserMutationResolver {
 		password: string
 	) {
 		try {
+			// First lookup document with provided email
+			const existingUser = await UserModel.findOne({
+				email
+			});
+
+			if (existingUser !== undefined || existingUser !== null) {
+				return "Email already in use."
+			}
+
 			const hash = await hashPassword(password)
 			await UserModel.updateOne(
 				{ _id: userId },
@@ -175,10 +184,10 @@ export class UserMutationResolver {
 					password: hash,
 					email
 				})
-			return true
+			return ""
 		} catch (e) {
 			console.log(e)
-			return false
+			return "Something went wrong. Try again."
 		}
 	}
 
