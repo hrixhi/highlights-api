@@ -85,6 +85,40 @@ export class ChannelQueryResolver {
     }
   }
 
+  @Field(type => String, {
+    description: "Returns meeting link.",
+  })
+  public async getMeetingLink(
+    @Arg("channelId", type => String)
+    channelId: string,
+    @Arg("userId", type => String)
+    userId: string
+  ) {
+    try {
+      const u: any = await UserModel.findById(userId)
+      const c: any = await ChannelModel.findById(channelId)
+      if (u && c) {
+        const user = u.toObject()
+        const channel = c.toObject()
+        const sha1 = require('sha1');
+        const vdoURL = 'https://my1.vdo.click/bigbluebutton/api/'
+        const vdoKey = 'bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI'
+        const atendeePass = channelId
+        const modPass = channel.createdBy
+        const params = 'fullName=' + user.displayName
+          + '&meetingID=' + channelId
+          + '&password=' + (channel.createdBy.toString().trim() === user._id.toString().trim() ? modPass : atendeePass)
+        const toHash = 'join' + params + vdoKey
+        const checksum = sha1(toHash)
+        return (vdoURL + 'join?' + params + '&checksum=' + checksum)
+      } else {
+        return 'error'
+      }
+    } catch (e) {
+      return 'error'
+    }
+  }
+
   @Field(type => [CueObject], {
     description: "Returns a list of submission cues.",
   })

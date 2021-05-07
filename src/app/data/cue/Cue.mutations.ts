@@ -150,6 +150,20 @@ export class CueMutationResolver {
 		}
 	}
 
+	@Field(type => Boolean, {
+		description: 'Used when you want to delete a cue.'
+	})
+	public async delete(
+		@Arg('cueId', type => String) cueId: string,
+	) {
+		try {
+			await CueModel.deleteOne({ _id: cueId })
+			return true
+		} catch (e) {
+			return false
+		}
+	}
+
 	@Field(type => String, {
 		description: 'Used when you want to convert docx to html.'
 	})
