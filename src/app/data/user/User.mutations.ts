@@ -171,7 +171,9 @@ export class UserMutationResolver {
 				email
 			});
 
-			if (existingUser !== undefined || existingUser !== null) {
+			console.log(existingUser);
+
+			if (existingUser !== null) {
 				return "Email already in use."
 			}
 
