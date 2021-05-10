@@ -13,6 +13,7 @@ import { PubSubNew } from './PubSub'
 import { ModificationsModel } from '@app/data/modification/mongo/Modification.model';
 import { CueModel } from '@app/data/cue/mongo/Cue.model';
 import { QuizModel } from '@app/data/quiz/mongo/Quiz.model';
+import { resolveUser } from './context/ResolveUser';
 
 /**
  *  The most fundamental class that is the beginning to the working of the Isotope API
@@ -160,19 +161,74 @@ export class Server {
 		return this.graphqlSchema;
 	}
 
+	// This middleware checks if user was found using jwt token while creating context
+	isLoggedIn = async (resolve: any, root: any, args: any, ctx: any, info: any) => {
+		if (!ctx.user) {
+		    return new Error('NOT_AUTHENTICATED');
+		}
+
+		return resolve()
+	  }
+
+	//  This object assigns all the necessary resolver, queries and mutations with the isLoggedIn middleware
+	private requiresAuthentication = {
+		Query: {
+			// channel: this.isLoggedIn,
+			cue: this.isLoggedIn,
+			subscription: this.isLoggedIn,
+			thread: this.isLoggedIn,
+			status: this.isLoggedIn,
+			message: this.isLoggedIn,
+			messageStatus: this.isLoggedIn,
+			threadStatus: this.isLoggedIn,
+			date: this.isLoggedIn,
+			group: this.isLoggedIn,
+			attendance: this.isLoggedIn,
+			quiz: this.isLoggedIn,
+		},
+		Mutation: {
+			channel: this.isLoggedIn,
+			cue: this.isLoggedIn,
+			subscription: this.isLoggedIn,
+			status: this.isLoggedIn,
+			thread: this.isLoggedIn,
+			message: this.isLoggedIn,
+			messageStatus: this.isLoggedIn,
+			threadStatus: this.isLoggedIn,
+			date: this.isLoggedIn,
+			attendance: this.isLoggedIn,
+			quiz: this.isLoggedIn,
+		}
+	}
+
+
 	/**
 	 * Initializes GQL elements used later on in queries and mutations
 	 */
 	private initializeGraphQL() {
 		// Step 1 - Launch a GQL server instance with fundamental elements required later on by queries and mutations
 		this.graphqlServer = new GraphQLServer({
-			schema: this.graphqlSchema,
+		  	schema: this.graphqlSchema,
 			context: async (req) => {
+				// Add the resolve user over here: 
+				// let token = "";
+
+				// if (req.request.header("authorization")) {
+				// 	token = req.request.header("authorization") || "";
+				// }
+
+				// let user = null;
+
+				// if (token !== "") {
+				// 	user = resolveUser(token)
+				// }
+
 				let user = null
 				const userId = req.request.header("userId")
 				if (userId !== '') {
 					user = await UserModel.findById(userId)
 				}
+
 				return {
 					mongodb: this.mongoConnection,
 					repositories: new MongoRepositoriesFactory(),
@@ -180,7 +236,7 @@ export class Server {
 					publisher: this.publisher
 				}
 			},
-			middlewares: [],
+			// middlewares: [this.requiresAuthentication],
 		});
 
 		// init routes

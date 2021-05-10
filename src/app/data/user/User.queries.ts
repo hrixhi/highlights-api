@@ -5,6 +5,7 @@ import { SchoolsModel } from "../school/mongo/School.model";
 import { SubscriptionModel } from "../subscription/mongo/Subscription.model";
 import { UserObject } from "./types/User.type";
 import { AuthResponseObject } from "./types/AuthResponse.type";
+import { createJWTToken } from "../../../helpers/auth";
 
 /**
  * User Query Endpoints
@@ -57,26 +58,31 @@ export class UserQueryResolver {
       if (user) {
         const passwordCorrect = await verifyPassword(password, user.password);
         if (passwordCorrect) {
+          const token = createJWTToken(user._id)
           return {
             user,
-            error: ""
+            error: "",
+            token
           };
         } else {
           return {
             user: null,
-            error: "Incorrect Password. Try again."
+            error: "Incorrect Password. Try again.",
+            token: ""
           };
         }
       } else {
         return {
           user: null,
-          error: "No user found with this email."
+          error: "No user found with this email.",
+          token: ""
         };
       }
     } catch (e) {
       return {
         user: null,
-        error: "Something went wrong. Try again."
+        error: "Something went wrong. Try again.",
+        token: ""
       };
     }
   }
