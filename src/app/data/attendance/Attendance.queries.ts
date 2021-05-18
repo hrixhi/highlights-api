@@ -4,6 +4,8 @@ import { EventObject } from '../dates/types/Date.type';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { AttendanceModel } from './mongo/attendance.model';
 import { AttendanceObject } from './types/Attendance.type';
+import { ChannelAttendanceObject } from './types/ChannelAttendance.type';
+import { UserModel } from '../user/mongo/User.model';
 /**
  * Attendance Query Endpoints
  */
@@ -73,6 +75,68 @@ export class AttendanceQueryResolver {
             console.log(e)
             return []
         }
+    }
+
+    @Field(type => [ChannelAttendanceObject], {
+        description: "Returns a list of Attendances for  past dates",
+        nullable: true
+    })
+    public async getAttendancesForChannel(
+        @Arg("channelId", type => String)
+        channelId: string
+    ) {
+        try {
+
+            const channelSubscriptions: any[] = await SubscriptionModel.find({
+                channelId,
+                "deletedAt": null,
+            })
+
+            const userIds: string[] = channelSubscriptions.map(sub => sub.userId)
+            
+            const channelUsers: any[] = await UserModel.find({ _id: { $in: userIds }})
+
+            const attendanceObject: any = {}
+
+            const attendanceData: any = await AttendanceModel.find({
+                channelId
+            })
+
+            attendanceData.map((att: any) => {
+                const attendance = att.toObject()
+                if (attendanceObject[attendance.userId]) {
+                    attendanceObject[attendance.userId].push({
+                        userId: attendance.userId,
+                        dateId: attendance.dateId,
+                        joinedAt: attendance.joinedAt
+                    })
+                } else {
+                    attendanceObject[attendance.userId] = [{
+                        userId: attendance.userId,
+                        dateId: attendance.dateId,
+                        joinedAt: attendance.joinedAt
+                    }]
+                }
+            })
+
+            const channelAttendance: any[] = [] 
+
+            channelUsers.map((u: any) => {
+                const user = u.toObject()
+                channelAttendance.push({
+                    userId: user._id,
+                    displayName: user.displayName,
+                    fullName: user.fullName,
+                    email: user.email && user.email !== '' ? user.email : '',
+                    attendances: attendanceObject[user._id] ? attendanceObject[user._id] : []
+                })
+            })
+
+            return channelAttendance
+          } catch (e) {
+            return []
+          }
+      
     }
 
 }
