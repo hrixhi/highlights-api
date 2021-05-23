@@ -204,4 +204,23 @@ export class ChannelQueryResolver {
     }
   }
 
+  @Field(type => Boolean, {
+    description: "Returns true if channel name exists.",
+  })
+  public async doesChannelNameExist(
+    @Arg("name", type => String)
+    name: string
+  ) {
+    try {
+      const channel = await ChannelModel.findOne({ name })
+      if (channel) {
+        return true
+      } else {
+        return false
+      }
+    } catch (e) {
+      return false
+    }
+  }
+
 }

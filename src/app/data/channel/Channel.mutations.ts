@@ -148,4 +148,24 @@ export class ChannelMutationResolver {
 		}
 	}
 
+	@Field(type => Boolean, {
+		description: 'Used when owner wants to set up new password.'
+	})
+	public async update(
+		@Arg('channelId', type => String) channelId: string,
+		@Arg('name', type => String) name: string,
+		@Arg('password', type => String, { nullable: true }) password?: string,
+	) {
+		try {
+			await ChannelModel.updateOne(
+				{ _id: channelId },
+				{ name, password: password && password !== '' ? password : undefined }
+			)
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
 }
