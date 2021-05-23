@@ -22,6 +22,7 @@ export class AttendanceQueryResolver {
     ) {
         try {
             return await DateModel.find({
+                isNonMeetingChannelEvent: { $ne: true },
                 scheduledMeetingForChannelId: channelId,
                 end: { $gt: new Date() }
             })
@@ -42,6 +43,7 @@ export class AttendanceQueryResolver {
         try {
             const toReturn: any[] = []
             const dates = await DateModel.find({
+                isNonMeetingChannelEvent: { $ne: true },
                 scheduledMeetingForChannelId: channelId,
                 end: { $lte: new Date() }
             })
@@ -93,8 +95,8 @@ export class AttendanceQueryResolver {
             })
 
             const userIds: string[] = channelSubscriptions.map(sub => sub.userId)
-            
-            const channelUsers: any[] = await UserModel.find({ _id: { $in: userIds }})
+
+            const channelUsers: any[] = await UserModel.find({ _id: { $in: userIds } })
 
             const attendanceObject: any = {}
 
@@ -119,7 +121,7 @@ export class AttendanceQueryResolver {
                 }
             })
 
-            const channelAttendance: any[] = [] 
+            const channelAttendance: any[] = []
 
             channelUsers.map((u: any) => {
                 const user = u.toObject()
@@ -133,10 +135,10 @@ export class AttendanceQueryResolver {
             })
 
             return channelAttendance
-          } catch (e) {
+        } catch (e) {
             return []
-          }
-      
+        }
+
     }
 
 }

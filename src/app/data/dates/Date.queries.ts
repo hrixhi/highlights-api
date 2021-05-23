@@ -28,13 +28,12 @@ export class DateQueryResolver {
                 const sub = s.toObject()
                 channelIdInputs.push(sub.channelId)
             })
-            const channels = await ChannelModel.find({ _id: { $in: channelIdInputs } })
+            // const channels = await ChannelModel.find({ _id: { $in: channelIdInputs } })
             const cues = await CueModel.find({ channelId: { $in: channelIdInputs }, submission: true })
-            const channelNames: any = {}
-            channels.map((c) => {
-                const channel = c.toObject()
-                channelNames[channel._id] = channel.name
-            })
+            // channels.map((c) => {
+            //     const channel = c.toObject()
+            //     channelNames[channel._id] = channel.name
+            // })
             cues.map((c) => {
                 const cue = c.toObject()
                 dates.push({
@@ -42,7 +41,7 @@ export class DateQueryResolver {
                     title: cue.cue,
                     start: cue.deadline,
                     end: cue.deadline,
-                    scheduledMeetingForChannelId: cue.channelId
+                    scheduledMeetingForChannelId: cue.channelId,
                     // channelName: channelNames[cue.channelId]
                 })
             })
@@ -57,6 +56,7 @@ export class DateQueryResolver {
                 })
             })
             const scheduledMeetings: any[] = await DateModel.find({
+                isNonMeetingChannelEvent: { $ne: true },
                 scheduledMeetingForChannelId: { $in: channelIdInputs },
                 end: { $lte: new Date() }
             })
@@ -66,6 +66,18 @@ export class DateQueryResolver {
                     ...date,
                     title: 'Meeting',
                     dateId: date._id
+                })
+            })
+            const nonMeetingChannelEvents: any[] = await DateModel.find({
+                scheduledMeetingForChannelId: { $in: channelIdInputs },
+                isNonMeetingChannelEvent: true
+            })
+            nonMeetingChannelEvents.map((d: any) => {
+                const date = d.toObject()
+                dates.push({
+                    ...date,
+                    title: date.title,
+                    dateId: 'channel'
                 })
             })
             return dates;

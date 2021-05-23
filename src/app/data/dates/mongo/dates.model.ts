@@ -7,6 +7,7 @@ export interface IDateModel extends Document {
 	start: Date;
 	end: Date;
 	scheduledMeetingForChannelId?: any;
+	isNonMeetingChannelEvent?: boolean;
 }
 
 export const DateModel: Model<IDateModel> = model<IDateModel>(

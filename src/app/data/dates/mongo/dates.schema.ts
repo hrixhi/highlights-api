@@ -21,6 +21,10 @@ const schema = new Schema(
     scheduledMeetingForChannelId: {
       type: Types.ObjectId,
       required: false
+    },
+    isNonMeetingChannelEvent: {
+      type: Boolean,
+      required: false
     }
   }
 )

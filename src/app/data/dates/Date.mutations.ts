@@ -14,14 +14,17 @@ export class DateMutationResolver {
         @Arg('userId', type => String) userId: string,
         @Arg('title', type => String) title: string,
         @Arg('start', type => String) start: string,
-        @Arg('end', type => String) end: string
+        @Arg('end', type => String) end: string,
+        @Arg('channelId', type => String, { nullable: true }) channelId?: string
     ) {
         try {
             await DateModel.create({
-                userId,
+                userId: channelId && channelId !== '' ? undefined : userId,
                 title,
                 start: new Date(start),
-                end: new Date(end)
+                end: new Date(end),
+                isNonMeetingChannelEvent: channelId && channelId !== '' ? true : false,
+                scheduledMeetingForChannelId: channelId && channelId !== '' ? channelId : undefined
             })
             return true;
         } catch (e) {

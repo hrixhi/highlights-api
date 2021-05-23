@@ -74,7 +74,9 @@ export class AttendanceMutationResolver {
         @Arg('channelId', type => String) channelId: string
     ) {
         try {
+            // What if user joins 2 minutes before start time.... to do
             const date = await DateModel.findOne({
+                isNonMeetingChannelEvent: { $ne: true },
                 scheduledMeetingForChannelId: channelId,
                 start: { $lte: new Date() },
                 end: { $gte: new Date() }
