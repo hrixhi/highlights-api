@@ -97,6 +97,16 @@ export class SubscriptionMutationResolver {
 							userId, channelId: channel._id
 						})
 
+						// Check if channel owner, if yes then update creatorUnsubscribed: true
+						if (channel.createdBy.toString().trim() === userId.toString().trim()) {
+							console.log("creatorUnsubscribed", "false")
+							await ChannelModel.updateOne({
+								_id: channel._id
+							}, {
+								creatorUnsubscribed: false
+							})
+						}
+
 						return 'subscribed'
 					} else {
 						// Incorrect password
@@ -150,6 +160,16 @@ export class SubscriptionMutationResolver {
 					await SubscriptionModel.create({
 						userId, channelId: channel._id
 					})
+					// Check if channel owner, if yes then update creatorUnsubscribed: true
+					if (channel.createdBy.toString().trim() === userId.toString().trim()) {
+						console.log("creatorUnsubscribed", "false")
+						await ChannelModel.updateOne({
+							_id: channel._id
+						}, {
+							creatorUnsubscribed: false
+						})
+					}
+					
 					return 'subscribed'
 				}
 			} else {
@@ -200,6 +220,24 @@ export class SubscriptionMutationResolver {
 				unsubscribedAt: new Date(),
 				keepContent
 			})
+
+			// Check if user is Channel owner 
+			const channelObj = await ChannelModel.findById(channelId);
+
+			// If user is channel creator, update creatorUnsubscribed: true
+			console.log(channelObj && channelObj.createdBy);
+
+			console.log(userId);
+			
+			if (channelObj && channelObj.createdBy.toString().trim() === userId.toString().trim()) {
+				console.log("creatorUnsubscribed", "true")
+				await ChannelModel.updateOne({
+					_id: channelId
+				}, {
+					creatorUnsubscribed: true
+				})
+			}
+
 			return true
 		} catch (e) {
 			console.log(e)

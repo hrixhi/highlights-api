@@ -23,7 +23,8 @@ export class ChannelQueryResolver {
   ) {
     try {
       return await ChannelModel.find({
-        createdBy: userId
+        createdBy: userId,
+        creatorUnsubscribed: { $ne: true }
       });
     } catch (e) {
       console.log(e)

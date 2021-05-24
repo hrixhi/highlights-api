@@ -18,4 +18,7 @@ export class ChannelObject {
   @Field(type => Boolean, { nullable: true })
   public meetingOn?: boolean;
 
+  @Field(type => Boolean, { nullable: true })
+  public creatorUnsubscribed?: boolean;
+
 }
