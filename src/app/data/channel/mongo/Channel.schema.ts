@@ -17,6 +17,10 @@ const schema = new Schema(
     meetingOn: {
       type: Boolean,
       required: false
+    },
+    creatorUnsubscribed: {
+      type: Boolean,
+      required: false
     }
   }
 );

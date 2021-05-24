@@ -6,6 +6,7 @@ export interface IChannelModel extends Document {
 	name: string;
 	password?: string;
 	meetingOn?: boolean;
+	creatorUnsubscribed?: boolean;
 }
 
 export const ChannelModel: Model<IChannelModel> = model<IChannelModel>(
