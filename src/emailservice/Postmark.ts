@@ -7,7 +7,7 @@ export class EmailService {
             "From": "info@cuesapp.co",
             "To": email,
             "Subject": "CUES - You have been added to the " + orgName + " organisation.",
-            "TextBody": "Visit www.cuesapp.co or our iOS/Android applications to log in. You will be notified if you are added to any courses."
+            "TextBody": "Visit web.cuesapp.co or our iOS/Android applications to log in. You will be notified if you are added to any courses."
         });
     }
 
@@ -16,7 +16,7 @@ export class EmailService {
             "From": "info@cuesapp.co",
             "To": email,
             "Subject": "CUES - You have been added to the " + orgName + " organisation.",
-            "TextBody": "Welcome to Cues! Visit www.cuesapp.co or our iOS/Android applications to login using email: " + email + " & password: " + password + " (You will be notified when you are added to any courses). If you are a new user, you must update your personal details by accessing your profile."
+            "TextBody": "Welcome to Cues! Visit web.cuesapp.co or our iOS/Android applications to login using email: " + email + " & password: " + password + " (You will be notified when you are added to any courses). If you are a new user, you must update your personal details by accessing your profile."
         });
     }
 
@@ -25,7 +25,7 @@ export class EmailService {
             "From": "info@cuesapp.co",
             "To": email,
             "Subject": "CUES - You have been added to the " + channelName + " classroom.",
-            "TextBody": "Visit www.cuesapp.co or our iOS/Android applications to log in and view your course."
+            "TextBody": "Visit web.cuesapp.co or our iOS/Android applications to log in and view your course."
         });
     }
 
@@ -34,7 +34,7 @@ export class EmailService {
             "From": "info@cuesapp.co",
             "To": email,
             "Subject": "CUES - You have been added to the " + channelName + " classroom.",
-            "TextBody": "Welcome to Cues! Visit www.cuesapp.co or our iOS/Android applications to log in using email: " + email + " & password: " + password + " to view course. If you are a new user, you must update your personal details by accessing your profile."
+            "TextBody": "Welcome to Cues! Visit web.cuesapp.co or our iOS/Android applications to log in using email: " + email + " & password: " + password + " to view course. If you are a new user, you must update your personal details by accessing your profile."
         });
     }
 
@@ -43,7 +43,7 @@ export class EmailService {
             "From": "info@cuesapp.co",
             "To": email,
             "Subject": "CUES - Your password has been reset.",
-            "TextBody": "Visit www.cuesapp.co or our iOS/Android applications to log in using this temporary password which you should then update: " + password
+            "TextBody": "Visit web.cuesapp.co or our iOS/Android applications to log in using this temporary password which you should then update: " + password
         })
     }
 
