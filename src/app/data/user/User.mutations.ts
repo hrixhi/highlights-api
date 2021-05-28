@@ -332,10 +332,19 @@ export class UserMutationResolver {
 			const owner: any = await UserModel.findById(channel.createdBy)
 			const schoolId = owner.schoolId ? owner.schoolId : undefined;
 
-			emails.map(async (email) => {
+			emails.forEach(async (email) => {
 				const user = await UserModel.findOne({ email })
 				// if user exists
 				if (user) {
+					// Check if user already exists in the channel
+					const subscriptionFound = await SubscriptionModel.findOne({
+						userId: user._id,
+						channelId: channel._id
+					})
+
+					if (subscriptionFound) {
+						return;
+					}
 					// if owner is part of org, user should be part of org
 					if (schoolId) {
 						if (user.schoolId && user.schoolId.toString().trim() === schoolId.toString().trim()) {
