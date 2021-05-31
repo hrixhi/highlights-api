@@ -336,7 +336,7 @@ export class UserMutationResolver {
 				const user = await UserModel.findOne({ email })
 				// if user exists
 				if (user) {
-					// Check if user already exists in the channel
+					// Check if user already exists in the channel (What if channel member is inactive? )
 					const subscriptionFound = await SubscriptionModel.findOne({
 						userId: user._id,
 						channelId: channel._id
@@ -356,7 +356,8 @@ export class UserMutationResolver {
 							if (pastSubs.length === 0) {
 								const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
 								channelCues.map(async (cue: any) => {
-									const duplicate = { ...cue }
+									const cueObject = cue.toObject()
+									const duplicate = { ...cueObject }
 									delete duplicate._id
 									delete duplicate.deletedAt
 									delete duplicate.__v
@@ -407,7 +408,8 @@ export class UserMutationResolver {
 						if (pastSubs.length === 0) {
 							const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
 							channelCues.map(async (cue: any) => {
-								const duplicate = { ...cue }
+								const cueObject = cue.toObject()
+								const duplicate = { ...cueObject }
 								delete duplicate._id
 								delete duplicate.deletedAt
 								delete duplicate.__v
@@ -477,10 +479,12 @@ export class UserMutationResolver {
 							userId: newUser._id,
 							channelId: channel._id
 						})
+
 						if (pastSubs.length === 0) {
 							const channelCues = await CueModel.find({ channelId: channel._id })
 							channelCues.map(async (cue: any) => {
-								const duplicate = { ...cue }
+								const cueObject = cue.toObject()
+								const duplicate = { ...cueObject }
 								delete duplicate._id
 								delete duplicate.deletedAt
 								delete duplicate.__v
@@ -491,6 +495,7 @@ export class UserMutationResolver {
 								duplicate.graded = false
 								const u = await ModificationsModel.create(duplicate)
 							})
+						
 						}
 						await SubscriptionModel.updateMany({
 							userId: newUser._id,

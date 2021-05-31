@@ -58,7 +58,8 @@ export class SubscriptionMutationResolver {
 						if (pastSubs.length === 0) {
 							const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
 							channelCues.map(async (cue: any) => {
-								const duplicate = { ...cue }
+								const cueObject = cue.toObject()
+								const duplicate = { ...cueObject }
 								delete duplicate._id
 								delete duplicate.deletedAt
 								delete duplicate.__v
