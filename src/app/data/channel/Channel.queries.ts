@@ -169,7 +169,15 @@ export class ChannelQueryResolver {
       const users: any = await UserModel.find({ _id: { $in: userIds } })
       const grades: any[] = []
 
-      users.map((u: any) => {
+      const channel: any = await ChannelModel.findById(channelId);
+      
+      // Filter channel owner data out
+      const filteredUsers = users.filter((u: any) => {
+        const user = u.toObject();
+        return user._id.toString() !== channel.createdBy.toString()
+      })
+
+      filteredUsers.map((u: any) => {
         const user = u.toObject()
         grades.push({
           userId: user._id,

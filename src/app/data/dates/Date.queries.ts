@@ -58,7 +58,7 @@ export class DateQueryResolver {
             const scheduledMeetings: any[] = await DateModel.find({
                 isNonMeetingChannelEvent: { $ne: true },
                 scheduledMeetingForChannelId: { $in: channelIdInputs },
-                end: { $lte: new Date() }
+                end: { $gte: new Date() }
             })
             scheduledMeetings.map((d: any) => {
                 const date = d.toObject()
