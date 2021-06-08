@@ -6,6 +6,7 @@ import { AttendanceModel } from './mongo/attendance.model';
 import { AttendanceObject } from './types/Attendance.type';
 import { ChannelAttendanceObject } from './types/ChannelAttendance.type';
 import { UserModel } from '../user/mongo/User.model';
+import { ChannelModel } from '../channel/mongo/Channel.model';
 /**
  * Attendance Query Endpoints
  */
@@ -89,6 +90,8 @@ export class AttendanceQueryResolver {
     ) {
         try {
 
+            const channel: any = await ChannelModel.findById(channelId);
+
             const channelSubscriptions: any[] = await SubscriptionModel.find({
                 channelId,
                 "deletedAt": null,
@@ -96,7 +99,9 @@ export class AttendanceQueryResolver {
 
             const userIds: string[] = channelSubscriptions.map(sub => sub.userId)
 
-            const channelUsers: any[] = await UserModel.find({ _id: { $in: userIds } })
+            const filteredUserIds: string[] = userIds.filter(userId => userId.toString() !== channel.createdBy.toString()) 
+
+            const channelUsers: any[] = await UserModel.find({ _id: { $in: filteredUserIds } })
 
             const attendanceObject: any = {}
 
