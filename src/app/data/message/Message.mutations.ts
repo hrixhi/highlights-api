@@ -22,6 +22,8 @@ export class MessageMutationResolver {
         message: string,
         @Arg("channelId", type => String)
         channelId: string,
+        @Arg("userId", type => String)
+        userId: string,
     ) {
         try {
             if (users.length === 0) {
@@ -41,7 +43,7 @@ export class MessageMutationResolver {
             await MessageModel.create({
                 groupId,
                 message,
-                sentBy: users[0],
+                sentBy: userId,
                 sentAt: new Date()
             })
             users.map(async (u, i) => {
