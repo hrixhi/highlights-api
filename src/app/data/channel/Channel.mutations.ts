@@ -118,15 +118,18 @@ export class ChannelMutationResolver {
 					})
 					const users = await UserModel.find({ _id: { $in: userIds } })
 					users.map(sub => {
-						if (!Expo.isExpoPushToken(sub.notificationId)) {
-							return
-						}
-						messages.push({
-							to: sub.notificationId,
-							sound: 'default',
-							subtitle: 'Meeting Started!',
-							title: channel.name,
-							data: { userId: sub._id },
+						const notificationIds = sub.notificationId.split('-')
+						notificationIds.map((notifId: any) => {
+							if (!Expo.isExpoPushToken(notifId)) {
+								return
+							}
+							messages.push({
+								to: notifId,
+								sound: 'default',
+								subtitle: 'Meeting Started!',
+								title: channel.name,
+								data: { userId: sub._id },
+							})
 						})
 					})
 					let chunks = notificationService.chunkPushNotifications(messages);

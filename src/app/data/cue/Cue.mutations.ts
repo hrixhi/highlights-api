@@ -99,18 +99,21 @@ export class CueMutationResolver {
 			// load subscribers
 			const subscribers = await UserModel.find({ _id: { $in: userIds } })
 			subscribers.map((sub) => {
-				if (!Expo.isExpoPushToken(sub.notificationId)) {
-					notSetUserIds.push(sub._id)
-					return
-				}
-				const { title, subtitle: body } = htmlStringParser(cue)
-				messages.push({
-					to: sub.notificationId,
-					sound: 'default',
-					subtitle: title,
-					title: channel.name,
-					body,
-					data: { userId: sub._id },
+				const notificationIds = sub.notificationId.split('-')
+				notificationIds.map((notifId: any) => {
+					if (!Expo.isExpoPushToken(notifId)) {
+						notSetUserIds.push(sub._id)
+						return
+					}
+					const { title, subtitle: body } = htmlStringParser(cue)
+					messages.push({
+						to: notifId,
+						sound: 'default',
+						subtitle: title,
+						title: channel.name,
+						body,
+						data: { userId: sub._id },
+					})
 				})
 			})
 
@@ -401,17 +404,22 @@ export class CueMutationResolver {
 			const user: any = await UserModel.findById(userId)
 			const messages: any[] = []
 			const notificationService = new Expo()
-			if (!Expo.isExpoPushToken(user.notificationId)) {
-				return true
-			}
-			const { title } = htmlStringParser(c.cue)
-			messages.push({
-				to: user.notificationId,
-				sound: 'default',
-				subtitle: (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
-				title: channel.name,
-				data: { userId: user._id },
+
+			const notificationIds = user.notificationId.split('-')
+			notificationIds.map((notifId: any) => {
+				if (!Expo.isExpoPushToken(notifId)) {
+					return
+				}
+				const { title } = htmlStringParser(c.cue)
+				messages.push({
+					to: notifId,
+					sound: 'default',
+					subtitle: (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
+					title: channel.name,
+					data: { userId: user._id },
+				})
 			})
+
 			let chunks = notificationService.chunkPushNotifications(messages);
 			for (let chunk of chunks) {
 				try {
@@ -449,17 +457,22 @@ export class CueMutationResolver {
 			const user: any = await UserModel.findById(userId)
 			const messages: any[] = []
 			const notificationService = new Expo()
-			if (!Expo.isExpoPushToken(user.notificationId)) {
-				return true
-			}
-			const { title } = htmlStringParser(cue.cue)
-			messages.push({
-				to: user.notificationId,
-				sound: 'default',
-				subtitle: 'Graded! ' + title,
-				title: channel.name,
-				data: { userId: user._id },
+
+			const notificationIds = user.notificationId.split('-')
+			notificationIds.map((notifId: any) => {
+				if (!Expo.isExpoPushToken(notifId)) {
+					return
+				}
+				const { title } = htmlStringParser(cue.cue)
+				messages.push({
+					to: notifId,
+					sound: 'default',
+					subtitle: 'Graded! ' + title,
+					title: channel.name,
+					data: { userId: user._id },
+				})
 			})
+
 			let chunks = notificationService.chunkPushNotifications(messages);
 			for (let chunk of chunks) {
 				try {
@@ -506,18 +519,23 @@ export class CueMutationResolver {
 				const user: any = await UserModel.findById(userId)
 				const messages: any[] = []
 				const notificationService = new Expo()
-				if (!Expo.isExpoPushToken(user.notificationId)) {
-					return true
-				}
+
 				const channel: any = await ChannelModel.findById(cue.channelId)
-				const { title, subtitle: body } = htmlStringParser(cue.cue)
-				messages.push({
-					to: user.notificationId,
-					sound: 'default',
-					subtitle: title,
-					title: channel.name,
-					data: { userId: user._id },
+				const notificationIds = user.notificationId.split('-')
+				notificationIds.map((notifId: any) => {
+					if (!Expo.isExpoPushToken(user.notificationId)) {
+						return
+					}
+					const { title, subtitle: body } = htmlStringParser(cue.cue)
+					messages.push({
+						to: user.notificationId,
+						sound: 'default',
+						subtitle: title,
+						title: channel.name,
+						data: { userId: user._id },
+					})
 				})
+
 				let chunks = notificationService.chunkPushNotifications(messages);
 				for (let chunk of chunks) {
 					try {

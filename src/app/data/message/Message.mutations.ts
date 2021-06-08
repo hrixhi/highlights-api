@@ -63,20 +63,23 @@ export class MessageMutationResolver {
             const userArr = await UserModel.find({ _id: { $in: userIds } })
             let senderName = ''
             userArr.map((sub: any, i: any) => {
-                if(i === 0) {
+                if (i === 0) {
                     senderName = sub.fullName;
                     return
                 }
-                if (!Expo.isExpoPushToken(sub.notificationId)) {
-                    return
-                }
-                const { title, subtitle: body } = htmlStringParser(message)
-                messages.push({
-                    to: sub.notificationId,
-                    sound: 'default',
-                    title: senderName,
-                    subtitle: title,
-                    data: { userId: sub._id },
+                const notificationIds = sub.notificationId.split('-')
+                notificationIds.map((notifId: any) => {
+                    if (!Expo.isExpoPushToken(notifId)) {
+                        return
+                    }
+                    const { title, subtitle: body } = htmlStringParser(message)
+                    messages.push({
+                        to: notifId,
+                        sound: 'default',
+                        title: senderName,
+                        subtitle: title,
+                        data: { userId: sub._id },
+                    })
                 })
             })
             let chunks = notificationService.chunkPushNotifications(messages);

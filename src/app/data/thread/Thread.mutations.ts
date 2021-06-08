@@ -67,17 +67,20 @@ export class ThreadMutationResolver {
 				const channel: any = await ChannelModel.findById(channelId)
 				const users = await UserModel.find({ _id: { $in: userIds } })
 				users.map(sub => {
-					if (!Expo.isExpoPushToken(sub.notificationId)) {
-						return
-					}
-					const { title, subtitle: body } = htmlStringParser(message)
-					messages.push({
-						to: sub.notificationId,
-						sound: 'default',
-						title: channel.name,
-						subtitle: title,
-						body,
-						data: { userId: sub._id },
+					const notificationIds = sub.notificationId.split('-')
+					notificationIds.map((notifId: any) => {
+						if (!Expo.isExpoPushToken(notifId)) {
+							return
+						}
+						const { title, subtitle: body } = htmlStringParser(message)
+						messages.push({
+							to: notifId,
+							sound: 'default',
+							title: channel.name,
+							subtitle: title,
+							body,
+							data: { userId: sub._id },
+						})
 					})
 				})
 				let chunks = notificationService.chunkPushNotifications(messages);
@@ -104,17 +107,22 @@ export class ThreadMutationResolver {
 					const user: any = await UserModel.findById(obj.createdBy)
 					const messages: any[] = []
 					const notificationService = new Expo()
-					if (!Expo.isExpoPushToken(user.notificationId)) {
-						return true
-					}
-					const { title, subtitle: body } = htmlStringParser(message)
-					messages.push({
-						to: user.notificationId,
-						sound: 'default',
-						subtitle: title,
-						title: obj.name,
-						data: { userId: user._id },
+
+					const notificationIds = user.notificationId.split('-')
+					notificationIds.map((notifId: any) => {
+						if (!Expo.isExpoPushToken(notifId)) {
+							return
+						}
+						const { title, subtitle: body } = htmlStringParser(message)
+						messages.push({
+							to: notifId,
+							sound: 'default',
+							subtitle: title,
+							title: obj.name,
+							data: { userId: user._id },
+						})
 					})
+
 					let chunks = notificationService.chunkPushNotifications(messages);
 					for (let chunk of chunks) {
 						try {
