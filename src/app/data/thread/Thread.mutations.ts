@@ -67,7 +67,7 @@ export class ThreadMutationResolver {
 				const channel: any = await ChannelModel.findById(channelId)
 				const users = await UserModel.find({ _id: { $in: userIds } })
 				users.map(sub => {
-					const notificationIds = sub.notificationId.split('-')
+					const notificationIds = sub.notificationId.split('-BREAK-')
 					notificationIds.map((notifId: any) => {
 						if (!Expo.isExpoPushToken(notifId)) {
 							return
@@ -76,7 +76,7 @@ export class ThreadMutationResolver {
 						messages.push({
 							to: notifId,
 							sound: 'default',
-							title: channel.name,
+							title: channel.name + (parentId ? ' - New Reply' : ' - New Thread'),
 							subtitle: title,
 							body,
 							data: { userId: sub._id },
@@ -108,7 +108,7 @@ export class ThreadMutationResolver {
 					const messages: any[] = []
 					const notificationService = new Expo()
 
-					const notificationIds = user.notificationId.split('-')
+					const notificationIds = user.notificationId.split('-BREAK-')
 					notificationIds.map((notifId: any) => {
 						if (!Expo.isExpoPushToken(notifId)) {
 							return
@@ -118,7 +118,7 @@ export class ThreadMutationResolver {
 							to: notifId,
 							sound: 'default',
 							subtitle: title,
-							title: obj.name,
+							title: obj.name + ' - Private Thread',
 							data: { userId: user._id },
 						})
 					})

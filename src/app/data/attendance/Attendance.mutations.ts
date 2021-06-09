@@ -40,7 +40,7 @@ export class AttendanceMutationResolver {
             const channel: any = await ChannelModel.findById(channelId)
             const users: any[] = await UserModel.find({ _id: { $in: userIds } })
             users.map((sub) => {
-                const notificationIds = sub.notificationId.split('-')
+                const notificationIds = sub.notificationId.split('-BREAK-')
                 notificationIds.map((notifId: any) => {
                     if (!Expo.isExpoPushToken(notifId)) {
                         return
@@ -48,8 +48,8 @@ export class AttendanceMutationResolver {
                     messages.push({
                         to: notifId,
                         sound: 'default',
-                        subtitle: 'New Meeting Scheduled!',
-                        title: channel.name,
+                        subtitle: 'Your instructor has scheduled a new meeting.',
+                        title: channel.name + ' - New Meeting Scheduled',
                         data: { userId: sub._id },
                     })
                 })

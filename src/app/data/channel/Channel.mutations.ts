@@ -102,13 +102,9 @@ export class ChannelMutationResolver {
 				const toHash = (
 					'create' + params + vdoKey
 				)
-				console.log(toHash)
 				const checkSum = sha1(toHash)
-				console.log(checkSum)
 				const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
-				console.log(url)
 				axios.get(url).then(async (res: any) => {
-					console.log(res.data)
 					const subscribers = await SubscriptionModel.find({ channelId, unsubscribedAt: { $exists: false } })
 					const userIds: any[] = []
 					const messages: any[] = []
@@ -118,7 +114,7 @@ export class ChannelMutationResolver {
 					})
 					const users = await UserModel.find({ _id: { $in: userIds } })
 					users.map(sub => {
-						const notificationIds = sub.notificationId.split('-')
+						const notificationIds = sub.notificationId.split('-BREAK-')
 						notificationIds.map((notifId: any) => {
 							if (!Expo.isExpoPushToken(notifId)) {
 								return
@@ -126,8 +122,8 @@ export class ChannelMutationResolver {
 							messages.push({
 								to: notifId,
 								sound: 'default',
-								subtitle: 'Meeting Started!',
-								title: channel.name,
+								subtitle: 'The host is now in the meeting!',
+								title: channel.name + ' - Meeting Started',
 								data: { userId: sub._id },
 							})
 						})

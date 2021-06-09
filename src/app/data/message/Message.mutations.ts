@@ -69,7 +69,7 @@ export class MessageMutationResolver {
                     senderName = sub.fullName;
                     return
                 }
-                const notificationIds = sub.notificationId.split('-')
+                const notificationIds = sub.notificationId.split('-BREAK-')
                 notificationIds.map((notifId: any) => {
                     if (!Expo.isExpoPushToken(notifId)) {
                         return
@@ -78,7 +78,7 @@ export class MessageMutationResolver {
                     messages.push({
                         to: notifId,
                         sound: 'default',
-                        title: senderName,
+                        title: 'New message from ' + senderName,
                         subtitle: title,
                         data: { userId: sub._id },
                     })

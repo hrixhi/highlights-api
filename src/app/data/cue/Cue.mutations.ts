@@ -99,7 +99,7 @@ export class CueMutationResolver {
 			// load subscribers
 			const subscribers = await UserModel.find({ _id: { $in: userIds } })
 			subscribers.map((sub) => {
-				const notificationIds = sub.notificationId.split('-')
+				const notificationIds = sub.notificationId.split('-BREAK-')
 				notificationIds.map((notifId: any) => {
 					if (!Expo.isExpoPushToken(notifId)) {
 						notSetUserIds.push(sub._id)
@@ -110,7 +110,7 @@ export class CueMutationResolver {
 						to: notifId,
 						sound: 'default',
 						subtitle: title,
-						title: channel.name,
+						title: channel.name + ' - New Cue',
 						body,
 						data: { userId: sub._id },
 					})
@@ -405,7 +405,7 @@ export class CueMutationResolver {
 			const messages: any[] = []
 			const notificationService = new Expo()
 
-			const notificationIds = user.notificationId.split('-')
+			const notificationIds = user.notificationId.split('-BREAK-')
 			notificationIds.map((notifId: any) => {
 				if (!Expo.isExpoPushToken(notifId)) {
 					return
@@ -415,7 +415,7 @@ export class CueMutationResolver {
 					to: notifId,
 					sound: 'default',
 					subtitle: (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
-					title: channel.name,
+					title: channel.name + ' - Submission Complete',
 					data: { userId: user._id },
 				})
 			})
@@ -458,7 +458,7 @@ export class CueMutationResolver {
 			const messages: any[] = []
 			const notificationService = new Expo()
 
-			const notificationIds = user.notificationId.split('-')
+			const notificationIds = user.notificationId.split('-BREAK-')
 			notificationIds.map((notifId: any) => {
 				if (!Expo.isExpoPushToken(notifId)) {
 					return
@@ -468,7 +468,7 @@ export class CueMutationResolver {
 					to: notifId,
 					sound: 'default',
 					subtitle: 'Graded! ' + title,
-					title: channel.name,
+					title: channel.name + ' Submission Graded',
 					data: { userId: user._id },
 				})
 			})
@@ -521,7 +521,7 @@ export class CueMutationResolver {
 				const notificationService = new Expo()
 
 				const channel: any = await ChannelModel.findById(cue.channelId)
-				const notificationIds = user.notificationId.split('-')
+				const notificationIds = user.notificationId.split('-BREAK-')
 				notificationIds.map((notifId: any) => {
 					if (!Expo.isExpoPushToken(user.notificationId)) {
 						return
@@ -531,7 +531,7 @@ export class CueMutationResolver {
 						to: user.notificationId,
 						sound: 'default',
 						subtitle: title,
-						title: channel.name,
+						title: channel.name + ' - New Cue',
 						data: { userId: user._id },
 					})
 				})
