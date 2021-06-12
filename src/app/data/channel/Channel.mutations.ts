@@ -97,14 +97,18 @@ export class ChannelMutationResolver {
 					'&autoStartRecording=false' +
 					'&meetingID=' + channelId +
 					'&moderatorPW=' + modPass +
-					'&name=' + channel.name +
+					'&name=' + encodeURIComponent(channel.name) +
 					'&record=false'
 				const toHash = (
 					'create' + params + vdoKey
 				)
 				const checkSum = sha1(toHash)
 				const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
+
+				console.log(url);
+				
 				axios.get(url).then(async (res: any) => {
+					console.log(res.data);
 					const subscribers = await SubscriptionModel.find({ channelId, unsubscribedAt: { $exists: false } })
 					const userIds: any[] = []
 					const messages: any[] = []

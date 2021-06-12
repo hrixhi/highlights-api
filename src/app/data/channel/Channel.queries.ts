@@ -111,6 +111,8 @@ export class ChannelQueryResolver {
           + '&password=' + (channel.createdBy.toString().trim() === user._id.toString().trim() ? modPass : atendeePass)
         const toHash = 'join' + params + vdoKey
         const checksum = sha1(toHash)
+
+        console.log((vdoURL + 'join?' + params + '&checksum=' + checksum))
         return (vdoURL + 'join?' + params + '&checksum=' + checksum)
       } else {
         return 'error'
