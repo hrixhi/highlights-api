@@ -6,6 +6,9 @@ import { MessageStatusModel } from '../message-status/mongo/message-status.model
 import { UserModel } from '../user/mongo/User.model';
 import { MessageModel } from './mongo/Message.model';
 
+import * as OneSignal from 'onesignal-node';  
+import { ChannelModel } from '../channel/mongo/Channel.model';
+
 /**
  * Message Mutation Endpoints
  */
@@ -84,6 +87,28 @@ export class MessageMutationResolver {
                     })
                 })
             })
+
+            // Web notifications
+
+            const sentByUser = await UserModel.findById(userId);
+
+            const fetchMessageChannel = await ChannelModel.findById(channelId);
+
+            const { title, subtitle: body } = htmlStringParser(message)
+
+			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+
+			const notification = {
+				contents: {
+					'en': (fetchMessageChannel && sentByUser) ? `${fetchMessageChannel.name}- ` + sentByUser.fullName + ": " + title  : "New message"
+				},
+				include_external_user_ids:  userIds
+			}
+
+			const response = await oneSignalClient.createNotification(notification)
+				
+            console.log(response)
+            
             let chunks = notificationService.chunkPushNotifications(messages);
             for (let chunk of chunks) {
                 try {
