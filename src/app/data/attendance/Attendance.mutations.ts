@@ -6,6 +6,7 @@ import { DateModel } from '../dates/mongo/dates.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { UserModel } from '../user/mongo/User.model';
 import { AttendanceModel } from './mongo/attendance.model';
+import * as OneSignal from 'onesignal-node';  
 
 /**
  * Attendance Mutation Endpoints
@@ -39,6 +40,21 @@ export class AttendanceMutationResolver {
             })
             const channel: any = await ChannelModel.findById(channelId)
             const users: any[] = await UserModel.find({ _id: { $in: userIds } })
+
+            // Web notifications
+
+			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+
+
+			const notification = {
+				contents: {
+					'en': `${channel.name}` + ' - New Meeting Scheduled'
+				},
+                include_external_user_ids:  userIds				
+            }
+
+			const response = await oneSignalClient.createNotification(notification)
+
             users.map((sub) => {
                 const notificationIds = sub.notificationId.split('-BREAK-')
                 notificationIds.map((notifId: any) => {

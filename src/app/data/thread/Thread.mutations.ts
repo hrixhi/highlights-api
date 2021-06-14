@@ -7,6 +7,9 @@ import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
 import { UserModel } from '../user/mongo/User.model';
 import { ThreadModel } from './mongo/Thread.model';
 
+import * as OneSignal from 'onesignal-node';  
+
+
 /**
  * Thread Mutation Endpoints
  */
@@ -83,6 +86,25 @@ export class ThreadMutationResolver {
 						})
 					})
 				})
+
+
+				 // Web notifications
+	 
+				 const { title, subtitle: body } = htmlStringParser(message)
+	 
+				 const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+	 
+				 const notification = {
+					 contents: {
+						 'en':  channel.name + (parentId ? ' - New Reply' : ' - New Thread') + ': ' + title,
+					 },
+					 include_external_user_ids:  userIds
+				 }
+	 
+				 const response = await oneSignalClient.createNotification(notification)
+					 
+				 console.log(response)
+
 				let chunks = notificationService.chunkPushNotifications(messages);
 				for (let chunk of chunks) {
 					try {

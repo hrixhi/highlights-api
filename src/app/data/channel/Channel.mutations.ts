@@ -4,6 +4,8 @@ import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import Expo from 'expo-server-sdk';
 import { UserModel } from '../user/mongo/User.model';
 import { htmlStringParser } from '@helper/HTMLParser';
+import * as OneSignal from 'onesignal-node';  
+
 
 /**
  * Channel Mutation Endpoints
@@ -116,6 +118,23 @@ export class ChannelMutationResolver {
 					subscribers.map(u => {
 						userIds.push(u.userId)
 					})
+
+					// Web notifications
+
+					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+
+
+					const notification = {
+						contents: {
+							'en': 'The host is now in the meeting! - ' + channel.name,
+						},
+						include_external_user_ids:  userIds
+					}
+
+					const response = await oneSignalClient.createNotification(notification)
+						
+					console.log(response)
+
 					const users = await UserModel.find({ _id: { $in: userIds } })
 					users.map(sub => {
 						const notificationIds = sub.notificationId.split('-BREAK-')

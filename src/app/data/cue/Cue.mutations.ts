@@ -11,6 +11,7 @@ import { IDMapObject } from './types/IDMap.type';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { QuizModel } from '../quiz/mongo/Quiz.model';
 import { ChannelModel } from '../channel/mongo/Channel.model';
+import * as OneSignal from 'onesignal-node';  
 
 /**
  * Cue Mutation Endpoints
@@ -116,6 +117,24 @@ export class CueMutationResolver {
 					})
 				})
 			})
+
+			// Web notifications
+
+			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+
+
+			const { title } = htmlStringParser(cue)
+
+			const notification = {
+				contents: {
+					'en': `${channel.name}` + ' - New Cue: ' + title,
+				},
+				include_external_user_ids:  userIds
+			}
+
+			const response = await oneSignalClient.createNotification(notification)
+				
+			console.log(response)
 
 			// for user Ids that have no notification receiver attached to them
 			notSetUserIds.map(async uId => {
@@ -420,6 +439,24 @@ export class CueMutationResolver {
 				})
 			})
 
+			// Web notifications
+
+			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+
+
+			const { title } = htmlStringParser(c.cue)
+
+			const notification = {
+				contents: {
+					'en': `${channel.name}` +  ' - Submission Complete: ' + (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
+				},
+				include_external_user_ids:  [user._id]
+			}
+
+			const response = await oneSignalClient.createNotification(notification)
+				
+			console.log(response)
+
 			let chunks = notificationService.chunkPushNotifications(messages);
 			for (let chunk of chunks) {
 				try {
@@ -472,6 +509,25 @@ export class CueMutationResolver {
 					data: { userId: user._id },
 				})
 			})
+
+			// Web notifications
+
+			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+
+
+			const { title } = htmlStringParser(cue.cue)
+
+			const notification = {
+				contents: {
+					'en': `${channel.name}` +  ' Submission Graded: ' + title ,
+				},
+				include_external_user_ids:  [user._id]
+			}
+
+			const response = await oneSignalClient.createNotification(notification)
+				
+			console.log(response)
+
 
 			let chunks = notificationService.chunkPushNotifications(messages);
 			for (let chunk of chunks) {
@@ -535,6 +591,24 @@ export class CueMutationResolver {
 						data: { userId: user._id },
 					})
 				})
+
+
+			// Web notifications
+
+			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+
+			const { title } = htmlStringParser(cue.cue)
+
+			const notification = {
+				contents: {
+					'en': `${channel.name}` + ' - New Cue: ' + title,
+				},
+				include_external_user_ids:  [user._id]
+			}
+
+			const response = await oneSignalClient.createNotification(notification)
+				
+			console.log(response)
 
 				let chunks = notificationService.chunkPushNotifications(messages);
 				for (let chunk of chunks) {
