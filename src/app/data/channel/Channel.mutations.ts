@@ -87,7 +87,6 @@ export class ChannelMutationResolver {
 				)
 				const checkSum = sha1(toHash)
 				axios.get(vdoURL + 'end?' + params + '&checksum=' + checkSum).then((res: any) => {
-					console.log(res.data);
 				}).catch((err: any) => {
 					console.log(err);
 				})
@@ -106,11 +105,8 @@ export class ChannelMutationResolver {
 				)
 				const checkSum = sha1(toHash)
 				const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
-
-				console.log(url);
 				
 				axios.get(url).then(async (res: any) => {
-					console.log(res.data);
 					const subscribers = await SubscriptionModel.find({ channelId, unsubscribedAt: { $exists: false } })
 					const userIds: any[] = []
 					const messages: any[] = []
