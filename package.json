@@ -50,6 +50,7 @@
 		"moment": "^2.29.1",
 		"mongoose": "^5.11.14",
 		"node-geocoder": "^3.27.0",
+		"onesignal-node": "^3.2.1",
 		"passport": "^0.4.1",
 		"passport-jwt": "^4.0.0",
 		"passport-local": "^1.0.0",

@@ -2,7 +2,6 @@ import { hashPassword, verifyPassword } from '@app/data/methods';
 import { UserModel } from '@app/data/user/mongo/User.model';
 import { EmailService } from '../../../emailservice/Postmark';
 import { Arg, Field, ObjectType } from 'type-graphql';
-import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator'
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import { CueModel } from '../cue/mongo/Cue.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
@@ -251,15 +250,11 @@ export class UserMutationResolver {
 
 				} else {
 					// create user with the school
-					const fullName = uniqueNamesGenerator({
-						dictionaries: [adjectives, colors, animals]
-					});
-					const displayName = uniqueNamesGenerator({
-						dictionaries: [adjectives, colors, animals]
-					});
-					const password = uniqueNamesGenerator({
-						dictionaries: [adjectives, colors, animals]
-					});
+					const username = email.split('@')[0] + Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()
+					const fullName = username
+					const displayName = username
+					const password = username + '@123'
+
 					const hash = await hashPassword(password)
 					await UserModel.create({
 						schoolId,
@@ -451,15 +446,10 @@ export class UserMutationResolver {
 				} else {
 					if (!schoolId) {
 						// create user
-						const fullName = uniqueNamesGenerator({
-							dictionaries: [adjectives, colors, animals]
-						});
-						const displayName = uniqueNamesGenerator({
-							dictionaries: [adjectives, colors, animals]
-						});
-						const password = uniqueNamesGenerator({
-							dictionaries: [adjectives, colors, animals]
-						});
+						const username = email.split('@')[0] + Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()
+						const fullName = username
+						const displayName = username
+						const password = username + '@123'
 						const hash = await hashPassword(password)
 						const newUser = await UserModel.create({
 							email,
@@ -493,7 +483,7 @@ export class UserMutationResolver {
 								duplicate.graded = false
 								const u = await ModificationsModel.create(duplicate)
 							})
-						
+
 						}
 						await SubscriptionModel.updateMany({
 							userId: newUser._id,
