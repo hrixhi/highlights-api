@@ -256,7 +256,7 @@ export class UserMutationResolver {
 					const password = username + '@123'
 
 					const hash = await hashPassword(password)
-					await UserModel.create({
+					const newUser = await UserModel.create({
 						schoolId,
 						email,
 						fullName,
@@ -268,6 +268,29 @@ export class UserMutationResolver {
 						sleepTo: to,
 						currentDraft: '',
 					})
+					// give default CUES
+					const defaultCues: any = await CueModel.find({
+						_is: {
+							$in: [
+								'60ab0dbf3e057c171516ee98',
+								'60ab0dbf3e057c171516ee99',
+								'60ab0dbf3e057c171516ee9a',
+								'60ab28013e057c171516eeb7'
+							]
+						}
+					})
+					const newCues: any[] = []
+					defaultCues.map((c: any) => {
+						const newCue = c.toObject()
+						delete newCue.__v
+						const updatedCue = {
+							...newCue,
+							createdBy: newUser._id,
+							date: new Date()
+						}
+						newCues.push(updatedCue)
+					})
+					await CueModel.insertMany(newCues)
 					// send email
 					const emailService = new EmailService()
 					const org: any = await SchoolsModel.findById(schoolId)
@@ -462,6 +485,32 @@ export class UserMutationResolver {
 							sleepTo: to,
 							currentDraft: '',
 						})
+
+						// give default CUES
+						const defaultCues: any = await CueModel.find({
+							_is: {
+								$in: [
+									'60ab0dbf3e057c171516ee98',
+									'60ab0dbf3e057c171516ee99',
+									'60ab0dbf3e057c171516ee9a',
+									'60ab28013e057c171516eeb7'
+								]
+							}
+						})
+
+						const newCues: any[] = []
+						defaultCues.map((c: any) => {
+							const newCue = c.toObject()
+							delete newCue.__v
+							const updatedCue = {
+								...newCue,
+								createdBy: newUser._id,
+								date: new Date()
+							}
+							newCues.push(updatedCue)
+						})
+						await CueModel.insertMany(newCues)
+
 						// Subscribe the user
 						const pastSubs = await SubscriptionModel.find({
 							userId: newUser._id,
