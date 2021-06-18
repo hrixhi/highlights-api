@@ -283,6 +283,7 @@ export class UserMutationResolver {
 					defaultCues.map((c: any) => {
 						const newCue = c.toObject()
 						delete newCue.__v
+						delete newCue._id
 						const updatedCue = {
 							...newCue,
 							createdBy: newUser._id,
@@ -502,6 +503,7 @@ export class UserMutationResolver {
 						defaultCues.map((c: any) => {
 							const newCue = c.toObject()
 							delete newCue.__v
+							delete newCue._id
 							const updatedCue = {
 								...newCue,
 								createdBy: newUser._id,
