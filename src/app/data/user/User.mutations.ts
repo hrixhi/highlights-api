@@ -270,7 +270,7 @@ export class UserMutationResolver {
 					})
 					// give default CUES
 					const defaultCues: any = await CueModel.find({
-						_is: {
+						_id: {
 							$in: [
 								'60ab0dbf3e057c171516ee98',
 								'60ab0dbf3e057c171516ee99',
@@ -489,7 +489,7 @@ export class UserMutationResolver {
 
 						// give default CUES
 						const defaultCues: any = await CueModel.find({
-							_is: {
+							_id: {
 								$in: [
 									'60ab0dbf3e057c171516ee98',
 									'60ab0dbf3e057c171516ee99',
