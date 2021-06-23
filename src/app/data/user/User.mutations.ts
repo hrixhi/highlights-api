@@ -137,10 +137,11 @@ export class UserMutationResolver {
 			const u = await UserModel.findOne({ email })
 			if (u) {
 				const newPassword = (Math.random() + Math.random()).toString(36).substring(7);
+				const password = newPassword
 				const hash = await hashPassword(newPassword)
 				await UserModel.updateOne({ email }, { password: hash })
 				const emailService = new EmailService()
-				emailService.resetPassword(email, newPassword)
+				emailService.resetPassword(email, password)
 				return true
 			} else {
 				return false
@@ -237,7 +238,8 @@ export class UserMutationResolver {
 
 			const notificationId = 'NOT_SET';
 
-			emails.map(async (email) => {
+			for (let i = 0; i < emails.length; i++) {
+				const email = emails[i]
 				const user = await UserModel.findOne({ email })
 				// if user exists
 				if (user) {
@@ -254,6 +256,7 @@ export class UserMutationResolver {
 					const fullName = username
 					const displayName = username
 					const password = username + '@123'
+					const dupPassword = password
 
 					const hash = await hashPassword(password)
 					const newUser = await UserModel.create({
@@ -295,10 +298,10 @@ export class UserMutationResolver {
 					// send email
 					const emailService = new EmailService()
 					const org: any = await SchoolsModel.findById(schoolId)
-					emailService.newAccountAddedToOrgConfirm(email, password, org.name)
+					emailService.newAccountAddedToOrgConfirm(email, dupPassword, org.name)
 				}
+			}
 
-			})
 			return true
 
 		} catch (e) {
