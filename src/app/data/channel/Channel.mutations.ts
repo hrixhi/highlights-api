@@ -4,7 +4,7 @@ import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import Expo from 'expo-server-sdk';
 import { UserModel } from '../user/mongo/User.model';
 import { htmlStringParser } from '@helper/HTMLParser';
-import * as OneSignal from 'onesignal-node';  
+import * as OneSignal from 'onesignal-node';
 
 
 /**
@@ -92,20 +92,21 @@ export class ChannelMutationResolver {
 				})
 			} else {
 				// create meeting on VDO server
+				const fullName = encodeURI(encodeURIComponent(channel.name.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
 				const params =
 					'allowStartStopRecording=true' +
 					'&attendeePW=' + atendeePass +
 					'&autoStartRecording=false' +
 					'&meetingID=' + channelId +
 					'&moderatorPW=' + modPass +
-					'&name=' + encodeURIComponent(channel.name) +
+					'&name=' + (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
 					'&record=false'
 				const toHash = (
 					'create' + params + vdoKey
 				)
 				const checkSum = sha1(toHash)
 				const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
-				
+
 				axios.get(url).then(async (res: any) => {
 					const subscribers = await SubscriptionModel.find({ channelId, unsubscribedAt: { $exists: false } })
 					const userIds: any[] = []
@@ -124,12 +125,10 @@ export class ChannelMutationResolver {
 						contents: {
 							'en': 'The host is now in the meeting! - ' + channel.name,
 						},
-						include_external_user_ids:  userIds
+						include_external_user_ids: userIds
 					}
 
 					const response = await oneSignalClient.createNotification(notification)
-						
-					console.log(response)
 
 					const users = await UserModel.find({ _id: { $in: userIds } })
 					users.map(sub => {
