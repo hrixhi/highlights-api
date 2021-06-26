@@ -102,14 +102,15 @@ export class ChannelQueryResolver {
                 const vdoKey = "bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI";
                 const atendeePass = channelId;
                 const modPass = channel.createdBy;
+                const fullName = encodeURIComponent(encodeURI(user.displayName.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
                 const params =
                     "fullName=" +
-                    encodeURIComponent(user.displayName) +
+                    (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
                     "&meetingID=" +
                     channelId +
                     "&password=" +
                     (channel.createdBy.toString().trim() ===
-                    user._id.toString().trim()
+                        user._id.toString().trim()
                         ? modPass
                         : atendeePass);
                 const toHash = "join" + params + vdoKey;
