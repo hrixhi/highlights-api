@@ -16,6 +16,9 @@ export class GroupObject {
     @Field(type => String, { nullable: true })
     public channelId?: string;
 
+    @Field(type => Boolean, { nullable: true })
+    public meetingOn?: boolean;
+
     @Field(type => Number)
     public async unreadMessages(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;

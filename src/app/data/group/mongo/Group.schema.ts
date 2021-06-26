@@ -9,6 +9,10 @@ const schema = new Schema(
     channelId: {
       type: String,
       required: false
+    },
+    meetingOn: {
+      type: Boolean,
+      required: false
     }
   }
 )
