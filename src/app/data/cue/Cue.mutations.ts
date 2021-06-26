@@ -133,8 +133,6 @@ export class CueMutationResolver {
 			}
 
 			const response = await oneSignalClient.createNotification(notification)
-				
-			console.log(response)
 
 			// for user Ids that have no notification receiver attached to them
 			notSetUserIds.map(async uId => {
@@ -322,7 +320,6 @@ export class CueMutationResolver {
 							...c,
 							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
 						})
-						console.log(updates)
 						// also update original cue !!
 						await CueModel.updateOne({
 							_id: cue._id
@@ -375,13 +372,13 @@ export class CueMutationResolver {
 	) {
 		try {
 			const mod = await ModificationsModel.findOne({ cueId, userId })
-			if (mod) {
-				const modification = mod.toObject()
-				if (modification.submittedAt !== undefined && modification.submittedAt !== null) {
-					// already submitted 
-					return true;
-				}
-			}
+			// if (mod) {
+			// 	const modification = mod.toObject()
+			// 	if (modification.submittedAt !== undefined && modification.submittedAt !== null) {
+			// 		// already submitted 
+			// 		return true;
+			// 	}
+			// }
 			if (quizId !== undefined && quizId !== null) {
 				const solutionsObject = JSON.parse(cue)
 				const solutions = solutionsObject.solutions;
@@ -448,14 +445,12 @@ export class CueMutationResolver {
 
 			const notification = {
 				contents: {
-					'en': `${channel.name}` +  ' - Submission Complete: ' + (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
+					'en': `${channel.name}` + (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
 				},
 				include_external_user_ids:  [user._id]
 			}
 
 			const response = await oneSignalClient.createNotification(notification)
-				
-			console.log(response)
 
 			let chunks = notificationService.chunkPushNotifications(messages);
 			for (let chunk of chunks) {
@@ -526,9 +521,6 @@ export class CueMutationResolver {
 
 			const response = await oneSignalClient.createNotification(notification)
 				
-			console.log(response)
-
-
 			let chunks = notificationService.chunkPushNotifications(messages);
 			for (let chunk of chunks) {
 				try {
@@ -608,8 +600,6 @@ export class CueMutationResolver {
 
 			const response = await oneSignalClient.createNotification(notification)
 				
-			console.log(response)
-
 				let chunks = notificationService.chunkPushNotifications(messages);
 				for (let chunk of chunks) {
 					try {
