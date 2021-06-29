@@ -250,6 +250,7 @@ export class CueMutationResolver {
 							endPlayAt: (cue.endPlayAt && cue.endPlayAt !== '') ? new Date(cue.endPlayAt) : null,
 						}
 						delete c._id;
+						delete c.original;
 						toBeCreated.push(c)
 						idMap.push({
 							oldId: cue._id,
@@ -282,6 +283,7 @@ export class CueMutationResolver {
 						delete c.submittedAt
 						delete c.createdBy
 						delete c.graded;
+						delete c.original;
 						// Channel cue
 						const mod = await ModificationsModel.findOne({ userId, cueId: cue._id })
 						if (mod) {
@@ -312,7 +314,17 @@ export class CueMutationResolver {
 						delete c.submittedAt
 						delete c.createdBy
 						const tempCue = c.cue
-						delete c.cue
+						const tempOriginal = c.original;
+						delete c.cue;
+						delete c.original;
+
+						await CueModel.updateOne({
+							_id: cue._id
+						}, {
+							...c,
+							cue: tempOriginal,
+							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
+						})
 
 						const updates = await ModificationsModel.updateMany({
 							cueId: cue._id,
@@ -324,12 +336,6 @@ export class CueMutationResolver {
 						// get the cue back to the main owner
 						await ModificationsModel.updateOne({ _id: userId }, { cue: tempCue })
 						// also update original cue !!
-						await CueModel.updateOne({
-							_id: cue._id
-						}, {
-							...c,
-							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
-						})
 
 					}
 				} else {

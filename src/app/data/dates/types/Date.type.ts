@@ -4,8 +4,12 @@ import { Field, ObjectType } from 'type-graphql';
 @ObjectType()
 export class EventObject {
 
-  @Field()
-  public title: string;
+  @Field(type => String, { nullable: true })
+  public async title() {
+    const localThis: any = this;
+    const { title } = localThis._doc || localThis;
+    return title ? title : ''
+  }
 
   @Field()
   public start: Date;
