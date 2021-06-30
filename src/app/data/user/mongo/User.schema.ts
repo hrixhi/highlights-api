@@ -42,6 +42,18 @@ const schema = new Schema(
     schoolId: {
       type: Types.ObjectId,
       required: false
+    },
+    role: {
+      type: String,
+      required: false
+    },
+    grade: {
+      type: String,
+      required: false
+    },
+    section: {
+      type: String,
+      required: false
     }
   },
   SchemaTimestamps

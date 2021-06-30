@@ -12,6 +12,7 @@ import { DateQueryResolver } from './dates/Date.queries'
 import { GroupQueryResolver } from './group/Group.queries'
 import { AttendanceQueryResolver } from './attendance/Attendance.queries'
 import { QuizQueryResolver } from './quiz/Quiz.queries'
+import { SchoolQueryResolver } from './school/School.queries'
 
 @Resolver()
 export class AppQueryResolver {
@@ -78,6 +79,11 @@ export class AppQueryResolver {
   @Query(returns => QuizQueryResolver)
   public quiz() {
     return new QuizQueryResolver();
+  }
+
+  @Query(returns => SchoolQueryResolver)
+  public school() {
+    return new SchoolQueryResolver();
   }
 
 }

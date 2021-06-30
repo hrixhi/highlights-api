@@ -12,6 +12,9 @@ export interface IUserModel extends Document {
 	sleepTo?: string;
 	currentDraft?: string;
 	schoolId?: string;
+	role?: string;
+	grade?: string;
+	section?: string;
 }
 
 export const UserModel: Model<IUserModel> = model<IUserModel>(

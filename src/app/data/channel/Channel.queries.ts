@@ -32,6 +32,32 @@ export class ChannelQueryResolver {
         }
     }
 
+    @Field(type => [ChannelObject], {
+        description: "Returns list of channels belonging to channel.",
+        nullable: true
+    })
+    public async findBySchoolId(
+        @Arg("schoolId", type => String)
+        schoolId: string
+    ) {
+        try {
+            const users = await UserModel.find({ schoolId })
+            const userIds: any[] = []
+            users.map((u: any) => {
+                userIds.push(u._id)
+            })
+
+            const channels = await ChannelModel.find({
+                createdBy: { $in: userIds }
+            })
+            
+            return channels
+        } catch (e) {
+            console.log(e);
+            return [];
+        }
+    }
+
     @Field(type => String, {
         description:
             'Returns "private", "public", "non-existant" statuses for a channel'

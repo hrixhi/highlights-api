@@ -318,14 +318,22 @@ export class CueMutationResolver {
 						delete c.cue;
 						delete c.original;
 
-						await CueModel.updateOne({
-							_id: cue._id
-						}, {
-							...c,
-							cue: tempOriginal,
-							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
-						})
-
+						if (tempOriginal === undefined || tempOriginal === null) {
+							await CueModel.updateOne({
+								_id: cue._id
+							}, {
+								...c,
+								gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
+							})
+						} else {
+							await CueModel.updateOne({
+								_id: cue._id
+							}, {
+								...c,
+								cue: tempOriginal,
+								gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
+							})
+						}
 						const updates = await ModificationsModel.updateMany({
 							cueId: cue._id,
 							userId: { $in: userIds }

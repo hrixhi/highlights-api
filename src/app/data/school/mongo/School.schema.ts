@@ -9,6 +9,18 @@ const schema = new Schema(
     password: {
       type: String,
       required: true
+    },
+    logo: {
+      type: String,
+      required: false
+    },
+    allowStudentChannelCreation: {
+      type: Boolean,
+      required: false
+    },
+    recoveryEmail: {
+      type: String,
+      required: false
     }
   }
 )
