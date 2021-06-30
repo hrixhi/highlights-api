@@ -5,6 +5,7 @@ import Expo from 'expo-server-sdk';
 import { UserModel } from '../user/mongo/User.model';
 import { htmlStringParser } from '@helper/HTMLParser';
 import * as OneSignal from 'onesignal-node';
+import { GroupModel } from '../group/mongo/Group.model';
 
 
 /**
@@ -158,6 +159,130 @@ export class ChannelMutationResolver {
 					console.log(err);
 				})
 			}
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
+	@Field(type => Boolean, {
+		description: 'Used when you want to allow or disallow people from joining meeting.'
+	})
+	public async editPersonalMeeting(
+		@Arg('users', type => [String]) users: string[],
+		@Arg('meetingOn', type => Boolean) meetingOn: boolean,
+		@Arg('channelId', type => String) channelId: string,
+	) {
+		try {
+
+			const groupDoc = await GroupModel.findOne({
+				users: { $all: users }
+			});
+			let groupId = "";
+			if (groupDoc) {
+				groupId = groupDoc._id;
+			} else {
+				const newGroup = await GroupModel.create({
+					users,
+					channelId
+				});
+				groupId = newGroup._id;
+			}
+
+			await GroupModel.updateOne({ _id: groupId }, { meetingOn })
+			const channelDoc: any = await ChannelModel.findById(channelId)
+
+
+			const channel = channelDoc.toObject()
+			const axios = require('axios')
+			const sha1 = require('sha1');
+			const vdoURL = 'https://my1.vdo.click/bigbluebutton/api/'
+			const vdoKey = 'bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI'
+
+			if (!meetingOn) {
+				// end meeting on VDO server
+				const params = 'password=' + groupId +
+					'&meetingID=' + groupId
+
+				const toHash = (
+					'end' + params + vdoKey
+				)
+				const checkSum = sha1(toHash)
+				axios.get(vdoURL + 'end?' + params + '&checksum=' + checkSum).then((res: any) => {
+				}).catch((err: any) => {
+					console.log(err);
+				})
+			} else {
+				// create meeting on VDO server
+				const fullName = Math.floor(Math.random() * (9999 - 1000 + 1) + 100).toString()
+				const params =
+					'allowStartStopRecording=true' +
+					'&attendeePW=' + 'password' +	// attendee pass but we dont have attendees, only mods
+					'&autoStartRecording=false' +
+					'&meetingID=' + groupId +
+					'&moderatorPW=' + groupId +
+					'&name=' + fullName +
+					'&record=false'
+				const toHash = (
+					'create' + params + vdoKey
+				)
+				const checkSum = sha1(toHash)
+				const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
+
+				axios.get(url).then(async (res: any) => {
+					const messages: any[] = []
+					const notificationService = new Expo()
+					const userDocs = await UserModel.find({ _id: { $in: users } })
+
+					let participantNames = ''
+					userDocs.map((u: any, index: any) => {
+						const sub = u.toObject()
+						if (index === userDocs.length - 1) {
+							participantNames += sub.displayName
+						} else {
+							participantNames += (sub.displayName + ', ')
+						}
+					})
+
+					// Web notifications
+					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+					const notification = {
+						contents: {
+							'en': channel.name + ' - Private meeting initiated with ' + participantNames
+						},
+						include_external_user_ids: users
+					}
+					const response = await oneSignalClient.createNotification(notification)
+					userDocs.map(u => {
+						const sub = u.toObject()
+						const notificationIds = sub.notificationId.split('-BREAK-')
+						notificationIds.map((notifId: any) => {
+							if (!Expo.isExpoPushToken(notifId)) {
+								return
+							}
+							messages.push({
+								to: notifId,
+								sound: 'default',
+								subtitle: participantNames,
+								title: channel.name + ' - Private meeting initiated',
+								data: { userId: sub._id },
+							})
+						})
+					})
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+						} catch (e) {
+							console.error(e);
+						}
+					}
+				}).catch((err: any) => {
+					console.log(err);
+				})
+			}
+
 			return true
 		} catch (e) {
 			console.log(e)

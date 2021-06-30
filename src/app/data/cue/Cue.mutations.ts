@@ -11,7 +11,7 @@ import { IDMapObject } from './types/IDMap.type';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { QuizModel } from '../quiz/mongo/Quiz.model';
 import { ChannelModel } from '../channel/mongo/Channel.model';
-import * as OneSignal from 'onesignal-node';  
+import * as OneSignal from 'onesignal-node';
 
 /**
  * Cue Mutation Endpoints
@@ -129,12 +129,10 @@ export class CueMutationResolver {
 				contents: {
 					'en': `${channel.name}` + ' - New Cue: ' + title,
 				},
-				include_external_user_ids:  userIds
+				include_external_user_ids: userIds
 			}
 
 			const response = await oneSignalClient.createNotification(notification)
-				
-			console.log(response)
 
 			// for user Ids that have no notification receiver attached to them
 			notSetUserIds.map(async uId => {
@@ -252,6 +250,7 @@ export class CueMutationResolver {
 							endPlayAt: (cue.endPlayAt && cue.endPlayAt !== '') ? new Date(cue.endPlayAt) : null,
 						}
 						delete c._id;
+						delete c.original;
 						toBeCreated.push(c)
 						idMap.push({
 							oldId: cue._id,
@@ -284,6 +283,7 @@ export class CueMutationResolver {
 						delete c.submittedAt
 						delete c.createdBy
 						delete c.graded;
+						delete c.original;
 						// Channel cue
 						const mod = await ModificationsModel.findOne({ userId, cueId: cue._id })
 						if (mod) {
@@ -313,8 +313,27 @@ export class CueMutationResolver {
 						delete c.graded
 						delete c.submittedAt
 						delete c.createdBy
-						delete c.cue
+						const tempCue = c.cue
+						const tempOriginal = c.original;
+						delete c.cue;
+						delete c.original;
 
+						if (tempOriginal === undefined || tempOriginal === null) {
+							await CueModel.updateOne({
+								_id: cue._id
+							}, {
+								...c,
+								gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
+							})
+						} else {
+							await CueModel.updateOne({
+								_id: cue._id
+							}, {
+								...c,
+								cue: tempOriginal,
+								gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
+							})
+						}
 						const updates = await ModificationsModel.updateMany({
 							cueId: cue._id,
 							userId: { $in: userIds }
@@ -322,14 +341,9 @@ export class CueMutationResolver {
 							...c,
 							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
 						})
-						console.log(updates)
+						// get the cue back to the main owner
+						await ModificationsModel.updateOne({ _id: userId }, { cue: tempCue })
 						// also update original cue !!
-						await CueModel.updateOne({
-							_id: cue._id
-						}, {
-							...c,
-							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
-						})
 
 					}
 				} else {
@@ -375,13 +389,13 @@ export class CueMutationResolver {
 	) {
 		try {
 			const mod = await ModificationsModel.findOne({ cueId, userId })
-			if (mod) {
-				const modification = mod.toObject()
-				if (modification.submittedAt !== undefined && modification.submittedAt !== null) {
-					// already submitted 
-					return true;
-				}
-			}
+			// if (mod) {
+			// 	const modification = mod.toObject()
+			// 	if (modification.submittedAt !== undefined && modification.submittedAt !== null) {
+			// 		// already submitted 
+			// 		return true;
+			// 	}
+			// }
 			if (quizId !== undefined && quizId !== null) {
 				const solutionsObject = JSON.parse(cue)
 				const solutions = solutionsObject.solutions;
@@ -448,14 +462,12 @@ export class CueMutationResolver {
 
 			const notification = {
 				contents: {
-					'en': `${channel.name}` +  ' - Submission Complete: ' + (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
+					'en': `${channel.name}` + (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
 				},
-				include_external_user_ids:  [user._id]
+				include_external_user_ids: [user._id]
 			}
 
 			const response = await oneSignalClient.createNotification(notification)
-				
-			console.log(response)
 
 			let chunks = notificationService.chunkPushNotifications(messages);
 			for (let chunk of chunks) {
@@ -519,15 +531,12 @@ export class CueMutationResolver {
 
 			const notification = {
 				contents: {
-					'en': `${channel.name}` +  ' Submission Graded: ' + title ,
+					'en': `${channel.name}` + ' Submission Graded: ' + title,
 				},
-				include_external_user_ids:  [user._id]
+				include_external_user_ids: [user._id]
 			}
 
 			const response = await oneSignalClient.createNotification(notification)
-				
-			console.log(response)
-
 
 			let chunks = notificationService.chunkPushNotifications(messages);
 			for (let chunk of chunks) {
@@ -593,22 +602,20 @@ export class CueMutationResolver {
 				})
 
 
-			// Web notifications
+				// Web notifications
 
-			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+				const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
 
-			const { title } = htmlStringParser(cue.cue)
+				const { title } = htmlStringParser(cue.cue)
 
-			const notification = {
-				contents: {
-					'en': `${channel.name}` + ' - New Cue: ' + title,
-				},
-				include_external_user_ids:  [user._id]
-			}
+				const notification = {
+					contents: {
+						'en': `${channel.name}` + ' - New Cue: ' + title,
+					},
+					include_external_user_ids: [user._id]
+				}
 
-			const response = await oneSignalClient.createNotification(notification)
-				
-			console.log(response)
+				const response = await oneSignalClient.createNotification(notification)
 
 				let chunks = notificationService.chunkPushNotifications(messages);
 				for (let chunk of chunks) {

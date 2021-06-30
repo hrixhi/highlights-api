@@ -6,6 +6,7 @@ import { ModificationsModel } from "../modification/mongo/Modification.model";
 import { UserModel } from "../user/mongo/User.model";
 import { GradeObject } from "../modification/types/Modification.type";
 import { CueObject } from "../cue/types/Cue.type";
+import { GroupModel } from "../group/mongo/Group.model";
 
 /**
  * Channel Query Endpoints
@@ -25,6 +26,32 @@ export class ChannelQueryResolver {
                 createdBy: userId,
                 creatorUnsubscribed: { $ne: true }
             });
+        } catch (e) {
+            console.log(e);
+            return [];
+        }
+    }
+
+    @Field(type => [ChannelObject], {
+        description: "Returns list of channels belonging to channel.",
+        nullable: true
+    })
+    public async findBySchoolId(
+        @Arg("schoolId", type => String)
+        schoolId: string
+    ) {
+        try {
+            const users = await UserModel.find({ schoolId })
+            const userIds: any[] = []
+            users.map((u: any) => {
+                userIds.push(u._id)
+            })
+
+            const channels = await ChannelModel.find({
+                createdBy: { $in: userIds }
+            })
+            
+            return channels
         } catch (e) {
             console.log(e);
             return [];
@@ -121,6 +148,67 @@ export class ChannelQueryResolver {
             }
         } catch (e) {
             return "error";
+        }
+    }
+
+    @Field(type => String, {
+        description: "Returns meeting link."
+    })
+    public async getPersonalMeetingLink(
+        @Arg("users", type => [String])
+        users: string[],
+        @Arg("userId", type => String)
+        userId: string
+    ) {
+        try {
+            const u: any = await UserModel.findById(userId);
+            const groupDoc: any = await GroupModel.findOne({
+                users: { $all: users }
+            });
+            const groupId = groupDoc._id
+            if (u) {
+                const user = u.toObject();
+                const sha1 = require("sha1");
+                const vdoURL = "https://my1.vdo.click/bigbluebutton/api/";
+                const vdoKey = "bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI";
+                const fullName = encodeURIComponent(encodeURI(user.displayName.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
+                const params =
+                    "fullName=" +
+                    (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
+                    "&meetingID=" +
+                    groupId +
+                    "&password=" + groupId
+                const toHash = "join" + params + vdoKey;
+                const checksum = sha1(toHash);
+                return vdoURL + "join?" + params + "&checksum=" + checksum;
+            } else {
+                return "error";
+            }
+        } catch (e) {
+            return "error";
+        }
+    }
+
+    @Field(type => Boolean, {
+        description: "Returns meeting link status."
+    })
+    public async getPersonalMeetingLinkStatus(
+        @Arg("users", type => [String])
+        users: string[]
+    ) {
+        try {
+            const groupDoc: any = await GroupModel.findOne({
+                users: { $all: users }
+            });
+            if (groupDoc) {
+                const group = groupDoc.toObject()
+                if (group && group.meetingOn) {
+                    return true
+                }
+            }
+            return false;
+        } catch (e) {
+            return false;
         }
     }
 

@@ -12,7 +12,11 @@ export class EventObject {
   }
 
   @Field(type => String, { nullable: true })
-  public title: string;
+  public async title() {
+    const localThis: any = this;
+    const { title } = localThis._doc || localThis;
+    return title ? title : ''
+  }
 
   @Field()
   public start: Date;

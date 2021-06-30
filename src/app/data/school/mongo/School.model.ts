@@ -4,6 +4,9 @@ import { schoolSchema } from './School.schema';
 export interface ISchoolsModel extends Document {
 	name: string;
 	password: string;
+	logo?: string;
+	allowStudentChannelCreation?: boolean;
+	recoveryEmail?: string;
 }
 
 export const SchoolsModel: Model<ISchoolsModel> = model<ISchoolsModel>(

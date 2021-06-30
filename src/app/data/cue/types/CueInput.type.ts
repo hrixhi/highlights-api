@@ -48,6 +48,9 @@ export class CueInputObject {
   public score: string;
 
   @Field({ nullable: true })
+  public original: string;
+
+  @Field({ nullable: true })
   public graded: boolean;
 
   @Field({ nullable: true })

@@ -226,7 +226,13 @@ export class UserMutationResolver {
 		@Arg('emails', type => [String])
 		emails: string[],
 		@Arg('schoolId', type => String)
-		schoolId: string
+		schoolId: string,
+		@Arg('role', type => String)
+		role: string,
+		@Arg('grade', type => String)
+		grade: string,
+		@Arg('section', type => String)
+		section: string
 	) {
 		try {
 
@@ -244,7 +250,12 @@ export class UserMutationResolver {
 				// if user exists
 				if (user) {
 					// Then assign that school to the user
-					await UserModel.updateOne({ _id: user._id }, { schoolId })
+					await UserModel.updateOne({ _id: user._id }, {
+						schoolId,
+						role,
+						grade: role === 'instructor' || grade === '-' ? undefined : (grade),
+						section: role === 'instructor' || section === '-' ? undefined : section
+					})
 					// send email
 					const emailService = new EmailService()
 					const org: any = await SchoolsModel.findById(schoolId)
@@ -270,6 +281,9 @@ export class UserMutationResolver {
 						sleepFrom: from,
 						sleepTo: to,
 						currentDraft: '',
+						role,
+						grade: role === 'instructor' || grade === '-' ? undefined : (grade),
+						section: role === 'instructor' || section === '-' ? undefined : section
 					})
 					// give default CUES
 					const defaultCues: any = await CueModel.find({
@@ -322,8 +336,42 @@ export class UserMutationResolver {
 				const user = await UserModel.findOne({ email, schoolId })
 				if (user) {
 					// remove school from user
-					await UserModel.updateOne({ _id: user._id }, { schoolId: undefined })
+					await UserModel.updateOne({ _id: user._id }, {
+						schoolId: undefined,
+						role: undefined,
+						grade: undefined,
+						section: undefined
+					})
 					// remove school subscriptions
+				}
+			})
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
+	@Field(type => Boolean)
+	public async updateOrgUser(
+		@Arg('emails', type => [String])
+		emails: string[],
+		@Arg('role', type => String)
+		role: string,
+		@Arg('grade', type => String)
+		grade: string,
+		@Arg('section', type => String)
+		section: string
+	) {
+		try {
+			emails.map(async (email) => {
+				const user = await UserModel.findOne({ email })
+				if (user) {
+					await UserModel.updateOne({ _id: user._id }, {
+						role,
+						grade: role === 'instructor' || grade === '-' ? undefined : (grade),
+						section: role === 'instructor' || section === '-' ? undefined : section
+					})
 				}
 			})
 			return true

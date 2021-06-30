@@ -11,6 +11,7 @@ import { ThreadStatusMutationResolver } from './thread-status/ThreadStatus.mutat
 import { DateMutationResolver } from './dates/Date.mutations'
 import { AttendanceMutationResolver } from './attendance/Attendance.mutations'
 import { QuizMutationResolver } from './quiz/Quiz.mutations'
+import { SchoolMutationResolver } from './school/School.mutations'
 
 @Resolver()
 export class AppMutationResolver {
@@ -73,6 +74,11 @@ export class AppMutationResolver {
   @Mutation(returns => QuizMutationResolver)
   public quiz() {
     return new QuizMutationResolver();
+  }
+
+  @Mutation(returns => SchoolMutationResolver)
+  public school() {
+    return new SchoolMutationResolver();
   }
 
 }

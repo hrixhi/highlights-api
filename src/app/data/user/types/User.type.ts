@@ -72,4 +72,13 @@ export class UserObject {
     return group._id
   }
 
+  @Field({ nullable: true })
+  public grade?: string;
+
+  @Field({ nullable: true })
+  public section?: string;
+
+  @Field({ nullable: true })
+  public role?: string;
+
 }
