@@ -1,32 +1,47 @@
-import { Schema, Types } from 'mongoose';
+import { Schema, Types } from "mongoose";
 
-const schema = new Schema(
-  {
+const schema = new Schema({
     userId: {
-      type: Types.ObjectId,
-      required: false
+        type: Types.ObjectId,
+        required: false
     },
     title: {
-      type: String,
-      required: true
+        type: String,
+        required: false
     },
     start: {
-      type: Date,
-      required: true
+        type: Date,
+        required: true
     },
     end: {
-      type: Date,
-      required: true
+        type: Date,
+        required: true
     },
     scheduledMeetingForChannelId: {
-      type: Types.ObjectId,
-      required: false
+        type: Types.ObjectId,
+        required: false
     },
     isNonMeetingChannelEvent: {
-      type: Boolean,
-      required: false
+        type: Boolean,
+        required: false
+    },
+    // New Features
+    description: {
+        type: String,
+        required: false
+    },
+    recordMeeting: {
+        type: Boolean,
+        required: true
+    },
+    recordingLink: {
+        type: String,
+        required: false
+    },
+    recurringId: {
+        type: String,
+        required: false
     }
-  }
-)
+});
 
 export const dateSchema = schema;

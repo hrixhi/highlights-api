@@ -64,7 +64,7 @@ export class DateQueryResolver {
                 const date = d.toObject()
                 dates.push({
                     ...date,
-                    title: 'Meeting',
+                    title: date.title,
                     dateId: date._id
                 })
             })
