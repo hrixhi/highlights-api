@@ -5,7 +5,7 @@ import { Field, ObjectType } from 'type-graphql';
 export class EventObject {
 
   @Field(type => String, { nullable: true }) 
-  public async id() {
+  public async eventId() {
     const localThis: any = this;
     const { _id } = localThis._doc || localThis;
     return _id ? _id : ""
