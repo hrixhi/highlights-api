@@ -10,6 +10,7 @@ export class EventObject {
     const { _id } = localThis._doc || localThis;
     return _id ? _id : ""
   }
+  
 
   @Field(type => String, { nullable: true })
   public async title() {
