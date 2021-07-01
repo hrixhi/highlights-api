@@ -1,6 +1,12 @@
 import { Arg, Field, ObjectType } from "type-graphql";
 import { DateModel } from "./mongo/dates.model";
 import { nanoid } from "nanoid";
+import { ChannelModel } from '../channel/mongo/Channel.model';
+import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
+import { UserModel } from '../user/mongo/User.model';
+
+import * as OneSignal from 'onesignal-node';  
+import Expo from 'expo-server-sdk';
 
 /**
  * Date Mutation Endpoints
@@ -120,6 +126,65 @@ export class DateMutationResolver {
                     recordMeeting,
                 });
             }
+
+            // IF no channel just return 
+
+            if (!channelId) return true
+
+
+            // Notifications
+            const messages: any[] = []
+            const userIds: any[] = []
+
+            const subscriptions = await SubscriptionModel.find({
+                $and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
+            })
+            subscriptions.map((s) => {
+                userIds.push(s.userId)
+            })
+
+            const channel: any = await ChannelModel.findById(channelId)
+            const users: any[] = await UserModel.find({ _id: { $in: userIds } })
+
+            // Web notifications
+
+			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+
+
+			const notification = {
+				contents: {
+					'en': `${channel.name}` + ' - New event Scheduled ' + title
+				},
+                include_external_user_ids:  userIds				
+            }
+
+			const response = await oneSignalClient.createNotification(notification)
+
+            users.map((sub) => {
+                const notificationIds = sub.notificationId.split('-BREAK-')
+                notificationIds.map((notifId: any) => {
+                    if (!Expo.isExpoPushToken(notifId)) {
+                        return
+                    }
+                    messages.push({
+                        to: notifId,
+                        sound: 'default',
+                        subtitle: 'Your instructor has scheduled a new event.',
+                        title: channel.name + ' - New event Scheduled ' + title,
+                        data: { userId: sub._id },
+                    })
+                })
+            })
+            const notificationService = new Expo()
+            let chunks = notificationService.chunkPushNotifications(messages);
+            for (let chunk of chunks) {
+                try {
+                    await notificationService.sendPushNotificationsAsync(chunk);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
             return true;
         } catch (e) {
             return false;
