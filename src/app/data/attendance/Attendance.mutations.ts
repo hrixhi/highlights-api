@@ -94,11 +94,19 @@ export class AttendanceMutationResolver {
     ) {
         try {
             // What if user joins 2 minutes before start time.... to do
+            // Subtract 10 minutes from start to capture attendance 
+            const current = new Date()
+            // const minus10 = new Date(current.getTime() - (1000 * 60 * 10))
+            const plus10 = new Date(current.getTime() + (1000 * 60 * 10))
+
+            // If meeting from 10:00 to 11:00
+            // Try to join at 9:55 then look for start date less than 10:05, therefore captured
+
             const date = await DateModel.findOne({
                 isNonMeetingChannelEvent: { $ne: true },
                 scheduledMeetingForChannelId: channelId,
-                start: { $lte: new Date() },
-                end: { $gte: new Date() }
+                start: { $lte: plus10 },
+                end: { $gte: current }
             })
             if (date) {
                 const att = await AttendanceModel.findOne({
