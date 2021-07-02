@@ -182,7 +182,8 @@ export class UserMutationResolver {
 					fullName,
 					displayName,
 					password: hash,
-					email
+					email,
+					lastLoginAt: new Date()
 				})
 			return ""
 		} catch (e) {
@@ -344,6 +345,62 @@ export class UserMutationResolver {
 					})
 					// remove school subscriptions
 				}
+			})
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
+	@Field(type => Boolean)
+	public async deleteById(
+		@Arg('ids', type => [String])
+		ids: string[],
+		@Arg('schoolId', type => String)
+		schoolId: string
+	) {
+		try {
+			await UserModel.updateMany({
+				schoolId, _id: { $in: ids }
+			}, {
+				deletedAt: new Date()
+			})
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
+	@Field(type => Boolean)
+	public async changeInactiveStatus(
+		@Arg('inactive', type => Boolean)
+		inactive: boolean,
+		@Arg('userId', type => String)
+		userId: string
+	) {
+		try {
+			await UserModel.updateOne({ _id: userId }, { inactive })
+			return true
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+	}
+
+	@Field(type => Boolean)
+	public async deleteByEmail(
+		@Arg('emails', type => [String])
+		emails: string[],
+		@Arg('schoolId', type => String)
+		schoolId: string
+	) {
+		try {
+			await UserModel.updateMany({
+				schoolId, email: { $in: emails }
+			}, {
+				deletedAt: new Date()
 			})
 			return true
 		} catch (e) {

@@ -15,6 +15,9 @@ export interface IUserModel extends Document {
 	role?: string;
 	grade?: string;
 	section?: string;
+	deletedAt?: Date;
+	inactive?: boolean;
+	lastLoginAt?: Date;
 }
 
 export const UserModel: Model<IUserModel> = model<IUserModel>(

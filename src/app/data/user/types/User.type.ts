@@ -81,4 +81,10 @@ export class UserObject {
   @Field({ nullable: true })
   public role?: string;
 
+  @Field(type => Date, { nullable: true })
+  public lastLoginAt?: Date;
+
+  @Field({ nullable: true })
+  public inactive?: boolean;
+
 }

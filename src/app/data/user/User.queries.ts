@@ -38,7 +38,7 @@ export class UserQueryResolver {
       subscriptions.map(subscriber => {
         ids.push(subscriber.userId);
       });
-      return await UserModel.find({ _id: { $in: ids } });
+      return await UserModel.find({ _id: { $in: ids }, deletedAt: { $exists: false } });
     } catch (e) {
       console.log(e);
       return [];
@@ -55,8 +55,24 @@ export class UserQueryResolver {
     try {
       const user: any = await UserModel.findOne({ email });
       if (user) {
+
+        if (user.deletedAt) {
+          return {
+            user: null,
+            error: "User account terminated by school administrator."
+          };
+        }
+
+        if (user.inactive) {
+          return {
+            user: null,
+            error: "Account inactive. Contact school administrator."
+          };
+        }
+
         const passwordCorrect = await verifyPassword(password, user.password);
         if (passwordCorrect) {
+          await UserModel.updateOne({ _id: user._id }, { lastLoginAt: new Date() })
           return {
             user,
             error: ""
@@ -87,7 +103,7 @@ export class UserQueryResolver {
     schoolId: string
   ) {
     try {
-      return await UserModel.find({ schoolId });
+      return await UserModel.find({ schoolId, deletedAt: { $exists: false } });
     } catch (e) {
       return [];
     }

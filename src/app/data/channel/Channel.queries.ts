@@ -48,9 +48,10 @@ export class ChannelQueryResolver {
             })
 
             const channels = await ChannelModel.find({
-                createdBy: { $in: userIds }
+                createdBy: { $in: userIds },
+                creatorUnsubscribed: { $ne: true }
             })
-            
+
             return channels
         } catch (e) {
             console.log(e);

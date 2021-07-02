@@ -54,6 +54,18 @@ const schema = new Schema(
     section: {
       type: String,
       required: false
+    },
+    deletedAt: {
+      type: Date,
+      required: false
+    },
+    lastLoginAt: {
+      type: Date,
+      required: false
+    },
+    inactive: {
+      type: Boolean,
+      required: false
     }
   },
   SchemaTimestamps
