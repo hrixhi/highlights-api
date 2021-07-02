@@ -6,7 +6,10 @@ import { ModificationsModel } from "../modification/mongo/Modification.model";
 import { UserModel } from "../user/mongo/User.model";
 import { GradeObject } from "../modification/types/Modification.type";
 import { CueObject } from "../cue/types/Cue.type";
+import { SubmissionStatisticObject } from "./types/SubmissionStatistic.type";
 import { GroupModel } from "../group/mongo/Group.model";
+
+import * as ss from "simple-statistics";
 
 /**
  * Channel Query Endpoints
@@ -222,6 +225,92 @@ export class ChannelQueryResolver {
         try {
             return await CueModel.find({ channelId, submission: true });
         } catch (e) {
+            return [];
+        }
+    }
+
+    @Field(type => [SubmissionStatisticObject], {
+        description: "Returns a list of submission cues."
+    })
+    public async getSubmissionCuesStatistics(
+        @Arg("channelId", type => String)
+        channelId: string
+    ) {
+        try {
+            // const submissionCues = await CueModel.find({ channelId, submission: true });
+
+            const gradedData: any = await ModificationsModel.find({
+                channelId,
+                submission: true
+            });
+
+
+            // Construct the total statistics - Minimum, Median, Maximum, Mean, STD Deviation
+
+            // Need an array of scores for all the submission Cues
+
+            // test with channel id 60ab11233e057c171516eea4
+
+
+            let cueScores: any = {}
+            
+            gradedData.forEach((mod: any) => {
+                const modification = mod.toObject();
+
+                if (modification.score !== undefined)  {
+                    if  (cueScores[modification.cueId]) {
+                        cueScores[modification.cueId].push(modification.score)
+                    } else {
+                        cueScores[modification.cueId] = [modification.score]
+                    }
+                }
+
+            })
+
+            let statistics: any[] = [];
+
+            const cues = Object.keys(cueScores)
+
+            console.log(cueScores);
+
+            for (let i = 0; i < cues.length; i++) {
+
+                let cueId = cues[i];
+
+                const scores = cueScores[cueId];
+
+                const max = ss.max(scores);
+
+                const min = ss.min(scores);
+
+                const mean = ss.mean(scores);
+
+                const median = ss.median(scores);
+
+                const std = ss.standardDeviation(scores);
+
+                const submissionCount = scores.length;
+
+                statistics.push({
+                    cueId,
+                    max,
+                    min,
+                    mean: mean.toFixed(1),
+                    median: median.toFixed(1),
+                    std: std.toFixed(2),
+                    submissionCount
+                })
+            }
+
+            // console.log(statistics);
+           
+
+            return statistics
+
+
+
+        } catch (e) {
+            console.log(e)
             return [];
         }
     }
