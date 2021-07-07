@@ -42,6 +42,9 @@ export class CueInputObject {
   public deadline: string;
 
   @Field({ nullable: true })
+  public initiateAt: string;
+
+  @Field({ nullable: true })
   public gradeWeight: string;
 
   @Field({ nullable: true })

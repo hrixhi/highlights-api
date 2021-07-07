@@ -17,6 +17,7 @@ export interface IModificationsModel extends Document {
 	cueId: any;
 	submission?: boolean;
 	deadline?: Date;
+	initiateAt?: Date;
 	gradeWeight?: number;
 	submittedAt?: Date;
 	score?: number;

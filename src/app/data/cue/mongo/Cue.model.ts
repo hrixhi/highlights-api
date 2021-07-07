@@ -15,6 +15,7 @@ export interface ICueModel extends Document {
 	// New - for submission and grades
 	submission?: boolean;
 	deadline?: Date;
+	initiateAt?: Date;
 	gradeWeight?: number;
 	// not stored in modification
 	// does not need type object

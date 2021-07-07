@@ -40,6 +40,7 @@ export class StatusQueryResolver {
                             graded: mod.graded,
                             submission: mod.cue,
                             score: mod.score,
+                            submittedAt: mod.submittedAt && mod.submittedAt !== "" ? mod.submittedAt : "",
                             status: mod.graded ? 'graded' : 'submitted'
                         })
                     } else {

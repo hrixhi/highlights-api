@@ -17,9 +17,14 @@ const problemSchema = new Schema(
       type: String,
       required: true
     },
+    questionType: {
+      type: String,
+      required: false,
+      // Add more question Types here such as True and False, Fill in the blanks, etc. Undefined would be MCQs
+    },
     options: {
       type: [answerSchema],
-      required: true
+      required: false
     },
     points: {
       type: Number,
@@ -36,6 +41,10 @@ const schema = new Schema(
     },
     duration: {
       type: Number,
+      required: false
+    },
+    shuffleQuiz: {
+      type: Boolean,
       required: false
     }
   }

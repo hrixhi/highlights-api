@@ -73,6 +73,9 @@ export class CueQueryResolver {
       const channelCues: any[] = await ModificationsModel.find({
         userId
       })
+      
+      const filterInitiateAt = channelCues.filter((cue:any) => cue.initiateAt !== null)
+      console.log(filterInitiateAt)
       const allCues: any[] = [...localCues, ...channelCues]
       return allCues
     } catch (e) {
