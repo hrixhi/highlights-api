@@ -6,7 +6,7 @@ import { DateModel } from '../dates/mongo/dates.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { UserModel } from '../user/mongo/User.model';
 import { AttendanceModel } from './mongo/attendance.model';
-import * as OneSignal from 'onesignal-node';  
+import * as OneSignal from 'onesignal-node';
 
 /**
  * Attendance Mutation Endpoints
@@ -15,7 +15,7 @@ import * as OneSignal from 'onesignal-node';
 export class AttendanceMutationResolver {
 
     @Field(type => Boolean, {
-        description: 'Used when you want to update unread messages count.'
+        description: 'Used when you want to create new meeting.'
     })
     public async create(
         @Arg('channelId', type => String) channelId: string,
@@ -43,17 +43,16 @@ export class AttendanceMutationResolver {
 
             // Web notifications
 
-			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+            const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
 
-
-			const notification = {
-				contents: {
-					'en': `${channel.name}` + ' - New Meeting Scheduled'
-				},
-                include_external_user_ids:  userIds				
+            const notification = {
+                contents: {
+                    'en': `${channel.name}` + ' - New Meeting Scheduled'
+                },
+                include_external_user_ids: userIds
             }
 
-			const response = await oneSignalClient.createNotification(notification)
+            const response = await oneSignalClient.createNotification(notification)
 
             users.map((sub) => {
                 const notificationIds = sub.notificationId.split('-BREAK-')
@@ -98,10 +97,8 @@ export class AttendanceMutationResolver {
             const current = new Date()
             // const minus10 = new Date(current.getTime() - (1000 * 60 * 10))
             const plus10 = new Date(current.getTime() + (1000 * 60 * 10))
-
             // If meeting from 10:00 to 11:00
             // Try to join at 9:55 then look for start date less than 10:05, therefore captured
-
             const date = await DateModel.findOne({
                 isNonMeetingChannelEvent: { $ne: true },
                 scheduledMeetingForChannelId: channelId,

@@ -71,6 +71,7 @@
 		"type-graphql": "^0.17.6",
 		"unique-names-generator": "^4.4.0",
 		"unrequired": "^0.2.0",
+		"xml2js": "^0.4.23",
 		"zeromq": "^5.2.0"
 	},
 	"devDependencies": {

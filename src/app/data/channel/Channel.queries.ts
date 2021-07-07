@@ -10,6 +10,7 @@ import { SubmissionStatisticObject } from "./types/SubmissionStatistic.type";
 import { GroupModel } from "../group/mongo/Group.model";
 
 import * as ss from "simple-statistics";
+import { LectureRecording } from "../dates/types/Date.type";
 
 /**
  * Channel Query Endpoints
@@ -254,12 +255,12 @@ export class ChannelQueryResolver {
 
 
             let cueScores: any = {}
-            
+
             gradedData.forEach((mod: any) => {
                 const modification = mod.toObject();
 
-                if (modification.score !== undefined)  {
-                    if  (cueScores[modification.cueId]) {
+                if (modification.score !== undefined) {
+                    if (cueScores[modification.cueId]) {
                         cueScores[modification.cueId].push(modification.score)
                     } else {
                         cueScores[modification.cueId] = [modification.score]
@@ -304,7 +305,7 @@ export class ChannelQueryResolver {
             }
 
             // console.log(statistics);
-           
+
 
             return statistics
 
@@ -416,4 +417,56 @@ export class ChannelQueryResolver {
             return false;
         }
     }
+
+    @Field(type => [LectureRecording], {
+        description: "Returns true if channel name exists."
+    })
+    public async getRecordings(
+        @Arg("channelId", type => String)
+        channelId: string
+    ) {
+        try {
+
+            const axios = require('axios')
+            const sha1 = require('sha1');
+            const vdoURL = 'https://my1.vdo.click/bigbluebutton/api/'
+            const vdoKey = 'bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI'
+            let params =
+                'meetingID=' + channelId
+            const toHash = (
+                'getRecordings' + params + vdoKey
+            )
+            const checkSum = sha1(toHash)
+            const url = vdoURL + 'getRecordings?' + params + '&checksum=' + checkSum
+            const data = await axios.get(url)
+
+            const xml2js = require('xml2js');
+            const parser = new xml2js.Parser();
+            const json = await parser.parseStringPromise(data.data);
+            const unparsedRecordings = json.response.recordings[0].recording
+            if (!unparsedRecordings) {
+                return []
+            }
+            const parsedRecordings: any = []
+            unparsedRecordings.map((item: any) => {
+                const startTime = new Date(0)
+                startTime.setUTCMilliseconds(item.startTime[0])
+                const endTime = new Date(0)
+                endTime.setUTCMilliseconds(item.endTime[0])
+                parsedRecordings.push({
+                    recordID: item.recordID[0],
+                    startTime,
+                    endTime,
+                    url: item.playback[0].format[0].url[0],
+                    thumbnail: item.playback[0].format[0].preview[0].images[0].image[0]._
+                })
+            })
+            return parsedRecordings;
+
+        } catch (e) {
+            console.log(e)
+            return [];
+        }
+    }
+
 }

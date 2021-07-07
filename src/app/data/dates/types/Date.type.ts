@@ -10,7 +10,6 @@ export class EventObject {
     const { _id } = localThis._doc || localThis;
     return _id ? _id : ""
   }
-  
 
   @Field(type => String, { nullable: true })
   public async title() {
@@ -49,7 +48,6 @@ export class EventObject {
     }
   }
 
-
   @Field(type => String, { nullable: true })
   public dateId?: string;
 
@@ -67,5 +65,25 @@ export class EventObject {
 
   @Field(type => String, { nullable: true })
   public recurringId?: string;
+
+}
+
+@ObjectType()
+export class LectureRecording {
+
+  @Field(type => String, { nullable: true })
+  public recordID: string;
+
+  @Field(type => String, { nullable: true })
+  public url?: string;
+
+  @Field(type => Date, { nullable: true })
+  public startTime?: Date;
+
+  @Field(type => Date, { nullable: true })
+  public endTime?: Date;
+
+  @Field(type => String, { nullable: true })
+  public thumbnail?: string;
 
 }

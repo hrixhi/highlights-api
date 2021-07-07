@@ -6,6 +6,7 @@ import { UserModel } from '../user/mongo/User.model';
 import { htmlStringParser } from '@helper/HTMLParser';
 import * as OneSignal from 'onesignal-node';
 import { GroupModel } from '../group/mongo/Group.model';
+import { DateModel } from '../dates/mongo/dates.model';
 
 
 /**
@@ -101,7 +102,7 @@ export class ChannelMutationResolver {
 					'&meetingID=' + channelId +
 					'&moderatorPW=' + modPass +
 					'&name=' + (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
-					'&record=false'
+					'&record=true'
 				const toHash = (
 					'create' + params + vdoKey
 				)
@@ -220,6 +221,8 @@ export class ChannelMutationResolver {
 					'allowStartStopRecording=true' +
 					'&attendeePW=' + 'password' +	// attendee pass but we dont have attendees, only mods
 					'&autoStartRecording=false' +
+					'&clientURL=web.cuesapp.co' +
+					'&logoutURL=web.cuesapp.co' +
 					'&meetingID=' + groupId +
 					'&moderatorPW=' + groupId +
 					'&name=' + fullName +
@@ -308,6 +311,37 @@ export class ChannelMutationResolver {
 			console.log(e)
 			return false
 		}
+	}
+
+	@Field(type => Boolean, {
+		description: 'Used when you want to allow or disallow people from joining meeting.'
+	})
+	public async deleteRecording(
+		@Arg('recordID', type => String) recordID: string
+	) {
+
+		try {
+
+			const axios = require('axios')
+			const sha1 = require('sha1');
+			const vdoURL = 'https://my1.vdo.click/bigbluebutton/api/'
+			const vdoKey = 'bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI'
+			let params =
+				'recordID=' + recordID
+
+			const toHash = (
+				'deleteRecordings' + params + vdoKey
+			)
+			const checkSum = sha1(toHash)
+			const url = vdoURL + 'deleteRecordings?' + params + '&checksum=' + checkSum
+			await axios.get(url)
+			return true
+
+		} catch (e) {
+			console.log(e)
+			return false
+		}
+
 	}
 
 }
