@@ -16,9 +16,12 @@ export class QuizMutationResolver {
         @Arg('quiz', type => QuizInputObject) quiz: QuizInputObject,
     ) {
         try {
+
+            console.log(quiz.shuffleQuiz)
             const parsedQuiz: any = {
                 ...quiz,
-                duration: quiz.duration ? Number(quiz.duration) : null
+                duration: quiz.duration ? Number(quiz.duration) : null,
+                shuffleQuiz: quiz.shuffleQuiz,
             }
             quiz.problems.map((p, i) => {
                 parsedQuiz.problems[i].points = Number(p.points)
@@ -26,6 +29,8 @@ export class QuizMutationResolver {
             const newQuiz = await QuizModel.create({
                 ...parsedQuiz
             })
+
+            console.log(newQuiz)
             return newQuiz._id
         } catch (e) {
             return 'error'

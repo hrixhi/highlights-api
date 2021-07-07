@@ -20,6 +20,9 @@ class ProblemInputObject {
   @Field(type => String)
   public points: string;
 
+  @Field(type => String,  { nullable: true })
+  public questionType: string;
+
   @Field(type => [AnswerInputObject])
   public options: AnswerInputObject[];
 
@@ -33,5 +36,8 @@ export class QuizInputObject {
 
   @Field(type => String, { nullable: true })
   public duration?: string;
+
+  @Field(type => Boolean, { nullable: true })
+  public shuffleQuiz?: boolean;
 
 }

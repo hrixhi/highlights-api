@@ -33,6 +33,7 @@ export class CueMutationResolver {
 		@Arg('submission', type => Boolean) submission: boolean,
 		@Arg('gradeWeight', type => String) gradeWeight: string,
 		@Arg('deadline', { nullable: true }) deadline?: string,
+		@Arg('initiateAt', { nullable: true }) initiateAt?: string,
 		@Arg('endPlayAt', { nullable: true }) endPlayAt?: string,
 		@Arg('customCategory', { nullable: true }) customCategory?: string,
 		@Arg('shareWithUserIds', type => [String], { nullable: true }) shareWithUserIds?: string[]
@@ -52,6 +53,7 @@ export class CueMutationResolver {
 				createdBy,
 				gradeWeight: Number(gradeWeight),
 				deadline: (deadline && deadline !== '') ? new Date(deadline) : null,
+				initiateAt: (initiateAt && initiateAt !== '') ? new Date(initiateAt) : null,
 				submission
 			}
 
@@ -276,6 +278,7 @@ export class CueMutationResolver {
 					if (cue.createdBy.toString().trim() !== userId.toString().trim()) {
 						// Deleting these because they should not be changed...
 						delete c.deadline
+						delete c.initiateAt
 						delete c.gradeWeight
 						delete c.submission
 
@@ -396,6 +399,9 @@ export class CueMutationResolver {
 			// 		return true;
 			// 	}
 			// }
+
+			let isQuizFullyGraded = false;
+
 			if (quizId !== undefined && quizId !== null) {
 				const solutionsObject = JSON.parse(cue)
 				const solutions = solutionsObject.solutions;
@@ -404,10 +410,29 @@ export class CueMutationResolver {
 				let score = 0;
 				let total = 0;
 				const quiz = quizDoc.toObject()
-				quiz.problems.map((problem: any, i: any) => {
+
+				let isSubjective = false;
+
+				// Add an array for Individual Scores for era
+				solutionsObject.problemScores = [];
+
+
+				quiz.problems.forEach((problem: any, i: any) => {
+
+					// Increment total points
 					total += (problem.points !== null && problem.points !== undefined ? problem.points : 1);
+					
+					// Add more types here which require checking
+					if (problem.questionType && problem.questionType === "freeResponse") {
+						isSubjective = true;	
+						solutionsObject.problemScores.push("");
+						return;																														
+					}
+
+					// Add check for partial grading later for MCQs
 					let correctAnswers = 0;
 					let totalAnswers = 0;
+
 					problem.options.map((option: any, j: any) => {
 						if (option.isCorrect && solutions[i].selected[j].isSelected) {
 							// correct answers
@@ -423,11 +448,16 @@ export class CueMutationResolver {
 							totalAnswers += 1;
 						}
 					})
-					score += Number(
-						((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
-					)
+
+					const calculatedScore = ((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
+
+					solutionsObject.problemScores.push(calculatedScore);
+					score += Number(calculatedScore)
 				})
-				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue, graded: true, score: Number(((score / total) * 100).toFixed(2)) })
+				// If not subjective then graded should be set to true
+				isQuizFullyGraded = !isSubjective;
+				console.log(JSON.stringify(solutionsObject))
+				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue: JSON.stringify(solutionsObject), graded: !isSubjective, score: Number(((score / total) * 100).toFixed(2)) })
 			} else {
 				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue })
 			}
@@ -447,7 +477,7 @@ export class CueMutationResolver {
 				messages.push({
 					to: notifId,
 					sound: 'default',
-					subtitle: (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
+					subtitle: (quizId !== undefined && quizId !== null && isQuizFullyGraded ? 'Graded! ' : 'Submitted! ') + title,
 					title: channel.name + ' - Submission Complete',
 					data: { userId: user._id },
 				})
@@ -462,7 +492,7 @@ export class CueMutationResolver {
 
 			const notification = {
 				contents: {
-					'en': `${channel.name}` + (quizId !== undefined && quizId !== null ? 'Graded! ' : 'Submitted! ') + title,
+					'en': `${channel.name}` + (quizId !== undefined && quizId !== null && isQuizFullyGraded ? 'Graded! ' : 'Submitted! ') + title,
 				},
 				include_external_user_ids: [user._id]
 			}
@@ -478,6 +508,54 @@ export class CueMutationResolver {
 				}
 			}
 			return true
+		} catch (e) {
+			console.log(e)
+			return false;
+		}
+	}
+
+	@Field(type => Boolean)
+	public async gradeQuiz(
+		@Arg('userId', type => String)
+		userId: string,
+		@Arg('cueId', type => String)
+		cueId: string,
+		@Arg('problemScores', type => [String]!)
+		problemScores: string[],
+		@Arg('score', type => Number)
+		score?: number
+	) {
+		try {
+			const mod = await ModificationsModel.findOne({ cueId, userId })
+
+			console.log(mod);
+
+			if (!mod) return false;
+
+			if (mod.cue) {
+				const submissionObj = JSON.parse(mod.cue);
+
+				submissionObj.problemScores = problemScores;
+
+				const update  = await ModificationsModel.updateOne({
+					cueId,
+					userId
+				}, {
+					score,
+					graded: true,
+					cue: JSON.stringify(submissionObj)
+				})
+
+				console.log(update)
+
+
+				return true;
+
+			}
+
+			return false;
+			
+
 		} catch (e) {
 			console.log(e)
 			return false;

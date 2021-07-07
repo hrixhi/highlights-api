@@ -126,6 +126,9 @@ export class CueObject {
   public deadline: Date;
 
   @Field({ nullable: true })
+  public initiateAt: Date;
+
+  @Field({ nullable: true })
   public gradeWeight: number;
 
   @Field({ nullable: true })

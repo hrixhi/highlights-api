@@ -4,6 +4,7 @@ import { quizSchema } from './Quiz.schema';
 export interface IQuizModel extends Document {
 	problems: any;
 	duration?: any;
+	shuffleQuiz?: any;
 }
 
 export const QuizModel: Model<IQuizModel> = model<IQuizModel>(

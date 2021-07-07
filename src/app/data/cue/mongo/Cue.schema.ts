@@ -51,6 +51,10 @@ const schema = new Schema(
       type: Date,
       required: false
     },
+    initiateAt: {
+      type: Date,
+      required: false
+    },
     gradeWeight: {
       type: Number,
       required: false
