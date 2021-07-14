@@ -36,6 +36,22 @@ export class ChannelQueryResolver {
         }
     }
 
+    @Field(type => ChannelObject, {
+        description: "Returns channel by id.",
+        nullable: true
+    })
+    public async findById(
+        @Arg("channelId", type => String)
+        channelId: string
+    ) {
+        try {
+            return await ChannelModel.findById(channelId)
+        } catch (e) {
+            console.log(e);
+            return null;
+        }
+    }
+
     @Field(type => [ChannelObject], {
         description: "Returns list of channels belonging to channel.",
         nullable: true
@@ -143,6 +159,42 @@ export class ChannelQueryResolver {
                     "&password=" +
                     (channel.createdBy.toString().trim() ===
                         user._id.toString().trim()
+                        ? modPass
+                        : atendeePass);
+                const toHash = "join" + params + vdoKey;
+                const checksum = sha1(toHash);
+                return vdoURL + "join?" + params + "&checksum=" + checksum;
+            } else {
+                return "error";
+            }
+        } catch (e) {
+            return "error";
+        }
+    }
+
+    @Field(type => String, {
+        description: "Returns meeting link that can be shared."
+    })
+    public async getSharableLink(
+        @Arg("channelId", type => String)
+        channelId: string,
+        @Arg("moderator", type => Boolean)
+        moderator: boolean
+    ) {
+        try {
+            const c: any = await ChannelModel.findById(channelId);
+            if (c) {
+                const channel = c.toObject();
+                const sha1 = require("sha1");
+                const vdoURL = "https://my1.vdo.click/bigbluebutton/api/";
+                const vdoKey = "bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI";
+                const atendeePass = channelId;
+                const modPass = channel.createdBy;
+                const fullName = moderator ? 'instructor' : 'guest'
+                const params =
+                    "fullName=" + fullName +
+                    "&meetingID=" + channelId +
+                    "&password=" + (moderator
                         ? modPass
                         : atendeePass);
                 const toHash = "join" + params + vdoKey;
@@ -467,6 +519,29 @@ export class ChannelQueryResolver {
             console.log(e)
             return [];
         }
+    }
+
+    @Field(type => Boolean, {
+        description: "Returns true if channel can be deleted/is temporary."
+    })
+    public async isChannelTemporary(
+        @Arg("channelId", type => String)
+        channelId: string
+    ) {
+        try {
+            const c = await ChannelModel.findById(channelId)
+            if (c) {
+                const channel = c.toObject()
+                if (channel.temporary) {
+                    return true
+                }
+            }
+            return false
+        } catch (e) {
+            console.log(e)
+            return false
+        }
+
     }
 
 }

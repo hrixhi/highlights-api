@@ -23,6 +23,24 @@ export class UserQueryResolver {
     return result;
   }
 
+  @Field(type => String, {
+    description: "Returns a user role.",
+    nullable: true
+  })
+  public async getRole(
+    @Arg("userId", type => String)
+    userId: string
+  ) {
+    const u: any = await UserModel.findById(userId);
+    if (u) {
+      const user = u.toObject()
+      if (user.role && user.role !== '') {
+        return user.role
+      }
+    }
+    return '';
+  }
+
   @Field(type => [UserObject], {
     description: "Returns list of users by channelId."
   })

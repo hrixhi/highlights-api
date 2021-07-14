@@ -60,4 +60,7 @@ export class ChannelObject {
   @Field(type => Boolean, { nullable: true })
   public creatorUnsubscribed?: boolean;
 
+  @Field(type => Boolean, { nullable: true })
+  public temporary?: boolean;
+
 }

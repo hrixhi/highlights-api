@@ -21,7 +21,8 @@ export class ChannelMutationResolver {
 	public async create(
 		@Arg('name', type => String) name: string,
 		@Arg('createdBy', type => String) createdBy: string,
-		@Arg('password', { nullable: true }) password?: string
+		@Arg('password', { nullable: true }) password?: string,
+		@Arg('temporary', { nullable: true }) temporary?: boolean
 	) {
 		try {
 			// name should be valid
@@ -37,12 +38,12 @@ export class ChannelMutationResolver {
 				if (exists) {
 					return 'exists'
 				}
-
 				// create channel
 				const channel = await ChannelModel.create({
 					name: name.toString().trim(),
 					password,
-					createdBy
+					createdBy,
+					temporary: temporary ? true : false
 				})
 				await SubscriptionModel.create({
 					userId: createdBy,
@@ -300,11 +301,16 @@ export class ChannelMutationResolver {
 		@Arg('channelId', type => String) channelId: string,
 		@Arg('name', type => String) name: string,
 		@Arg('password', type => String, { nullable: true }) password?: string,
+		@Arg('temporary', type => Boolean, { nullable: true }) temporary?: boolean,
 	) {
 		try {
 			await ChannelModel.updateOne(
 				{ _id: channelId },
-				{ name, password: password && password !== '' ? password : undefined }
+				{
+					name,
+					password: password && password !== '' ? password : undefined,
+					temporary: temporary ? true : false
+				}
 			)
 			return true
 		} catch (e) {

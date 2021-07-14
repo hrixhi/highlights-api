@@ -1,8 +1,10 @@
-import { UserModel } from '@app/data/user/mongo/User.model';
 import { Field, ObjectType } from 'type-graphql';
 
 @ObjectType()
 export class SchoolObject {
+
+    @Field()
+    public _id: string;
 
     @Field()
     public name: string;

@@ -21,6 +21,10 @@ const schema = new Schema(
     creatorUnsubscribed: {
       type: Boolean,
       required: false
+    },
+    temporary: {
+      type: Boolean,
+      required: false
     }
   }
 );
