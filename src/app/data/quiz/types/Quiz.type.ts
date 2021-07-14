@@ -19,13 +19,16 @@ class ProblemObject {
   public question: string;
 
   @Field(type => String, { nullable: true})
-  public questionType: string;
+  public questionType?: string;
 
   @Field(type => [AnswerObject])
   public options: AnswerObject[];
 
   @Field(type => Number)
   public points: Number;
+
+  @Field(type => Boolean, { nullable: true })
+  public required?: boolean;
 
 }
 
@@ -40,5 +43,11 @@ export class QuizObject {
 
   @Field(type => Boolean, { nullable: true })
   public shuffleQuiz?: boolean;
+
+  @Field(type => String, { nullable: true })
+  public instructions?: string;
+
+  @Field(type => String, { nullable: true })
+  public headers?: string;
 
 }

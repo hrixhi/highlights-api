@@ -143,4 +143,7 @@ export class CueObject {
   @Field({ nullable: true })
   public comment: string;
 
+  @Field({ nullable: true })
+  public releaseSubmission: boolean
+
 }

@@ -59,6 +59,10 @@ const schema = new Schema(
       type: Number,
       required: false
     },
+    releaseSubmission: {
+      type: Boolean,
+      required: false
+    },
     limitedShares: {
       type: Boolean,
       required: false
