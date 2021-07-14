@@ -23,7 +23,7 @@ export interface IModificationsModel extends Document {
 	score?: number;
 	graded?: boolean;
 	comment?: string;
-
+	releaseSubmission?: boolean;
 }
 
 export const ModificationsModel: Model<IModificationsModel> = model<IModificationsModel>(

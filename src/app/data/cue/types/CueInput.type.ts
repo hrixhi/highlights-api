@@ -47,8 +47,9 @@ export class CueInputObject {
   @Field({ nullable: true })
   public gradeWeight: string;
 
+  // This was an error => Changed it from string to number
   @Field({ nullable: true })
-  public score: string;
+  public score?: number;
 
   @Field({ nullable: true })
   public original: string;
@@ -58,5 +59,8 @@ export class CueInputObject {
 
   @Field({ nullable: true })
   public submittedAt: Date;
+
+  @Field({ nullable: true })
+  public releaseSubmission?: boolean
 
 }

@@ -29,6 +29,10 @@ const problemSchema = new Schema(
     points: {
       type: Number,
       required: true
+    },
+    required: {
+      type: Boolean,
+      required: false
     }
   }
 )
@@ -45,6 +49,14 @@ const schema = new Schema(
     },
     shuffleQuiz: {
       type: Boolean,
+      required: false
+    },
+    instructions: {
+      type: String,
+      required: false
+    },
+    headers: {
+      type: String,
       required: false
     }
   }

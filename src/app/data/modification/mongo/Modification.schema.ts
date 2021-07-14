@@ -82,7 +82,11 @@ const schema = new Schema(
     gradeWeight: {
       type: Number,
       required: false
-    }
+    },
+    releaseSubmission: {
+      type: Boolean,
+      required: false
+    },
   }
 )
 

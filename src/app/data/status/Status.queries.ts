@@ -41,7 +41,8 @@ export class StatusQueryResolver {
                             submission: mod.cue,
                             score: mod.score,
                             submittedAt: mod.submittedAt && mod.submittedAt !== "" ? mod.submittedAt : "",
-                            status: mod.graded ? 'graded' : 'submitted'
+                            status: mod.graded ? 'graded' : 'submitted',
+                            releaseSubmission: (mod.releaseSubmission !== null && mod.releaseSubmission !== undefined) ? mod.releaseSubmission : false
                         })
                     } else {
                         statusArray.push(status)

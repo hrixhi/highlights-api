@@ -5,6 +5,8 @@ export interface IQuizModel extends Document {
 	problems: any;
 	duration?: any;
 	shuffleQuiz?: any;
+	instructions?: string;
+	headers?: string;
 }
 
 export const QuizModel: Model<IQuizModel> = model<IQuizModel>(
