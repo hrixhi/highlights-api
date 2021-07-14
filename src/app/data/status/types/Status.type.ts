@@ -58,4 +58,8 @@ export class StatusObject {
   @Field({nullable: true})
   public comment: string;
 
+  @Field({ nullable: true })
+  public releaseSubmission: boolean;
+
+
 }

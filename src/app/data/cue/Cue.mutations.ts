@@ -455,8 +455,7 @@ export class CueMutationResolver {
 					score += Number(calculatedScore)
 				})
 				// If not subjective then graded should be set to true
-				isQuizFullyGraded = !isSubjective;
-				console.log(JSON.stringify(solutionsObject))
+				isQuizFullyGraded = !isSubjective
 				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue: JSON.stringify(solutionsObject), graded: !isSubjective, score: Number(((score / total) * 100).toFixed(2)) })
 			} else {
 				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue })
@@ -522,13 +521,15 @@ export class CueMutationResolver {
 		cueId: string,
 		@Arg('problemScores', type => [String]!)
 		problemScores: string[],
-		@Arg('score', type => Number)
-		score?: number
+		@Arg('problemComments', type => [String]!)
+		problemComments: string[],
+		@Arg('score', type => Number, { nullable: true })
+		score?: number,
+		@Arg('comment', type => String, { nullable: true })
+		comment?: string
 	) {
 		try {
 			const mod = await ModificationsModel.findOne({ cueId, userId })
-
-			console.log(mod);
 
 			if (!mod) return false;
 
@@ -536,18 +537,17 @@ export class CueMutationResolver {
 				const submissionObj = JSON.parse(mod.cue);
 
 				submissionObj.problemScores = problemScores;
+				submissionObj.problemComments = problemComments;
 
 				const update  = await ModificationsModel.updateOne({
 					cueId,
 					userId
 				}, {
-					score,
+					score: Number(score),
+					comment: comment && comment !== '' ? comment : '',
 					graded: true,
 					cue: JSON.stringify(submissionObj)
 				})
-
-				console.log(update)
-
 
 				return true;
 
@@ -628,6 +628,35 @@ export class CueMutationResolver {
 		} catch (e) {
 			console.log(e)
 			return false;
+		}
+	}
+
+	@Field(type => Boolean)
+	public async editReleaseSubmission(
+		@Arg('cueId', type => String)
+		cueId: string,
+		@Arg('releaseSubmission', type => Boolean)
+		releaseSubmission: boolean
+	) {
+		try {
+
+			const updateCue = await CueModel.updateOne({
+				_id: cueId
+			}, {
+				releaseSubmission
+			})
+
+			const updateModifications = await ModificationsModel.updateMany({
+				cueId
+			}, {
+				releaseSubmission
+			})
+			// Add notification here for releasing Submission => If graded say that Grades released or else submission visible 
+
+			return true
+		} catch (e) {
+			console.log(e);
+			return false
 		}
 	}
 
