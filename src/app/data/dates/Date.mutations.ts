@@ -54,10 +54,6 @@ export class DateMutationResolver {
         @Arg("repeatTill", type => String, { nullable: true }) repeatTill?: string
     ) {
         try {
-            console.log("description", description);
-
-            console.log("userId", userId)
-
             // isNonMeetingChannelEvent is set to undefined to differentiate meetings from events
 
             if (repeatTill && frequency) {
@@ -229,9 +225,6 @@ export class DateMutationResolver {
         @Arg("frequency", type => String) frequency: string,
         @Arg("repeatTill", type => String) repeatTill: string
     ) {
-        console.log("start", start);
-        console.log("frequency", frequency);
-        console.log("repeatTill", repeatTill);
 
         const currentDate = new Date(start);
 
@@ -248,7 +241,6 @@ export class DateMutationResolver {
             switch (frequency) {
                 case "1-W":
                     loopDate.setDate(loopDate.getDate() + 7);
-                    console.log("After 1 week", loopDate);
                     break;
                 case "2-W":
                     loopDate.setDate(loopDate.getDate() + 14);

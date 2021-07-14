@@ -273,8 +273,6 @@ export class ChannelQueryResolver {
 
             const cues = Object.keys(cueScores)
 
-            console.log(cueScores);
-
             for (let i = 0; i < cues.length; i++) {
 
                 let cueId = cues[i];
@@ -303,9 +301,6 @@ export class ChannelQueryResolver {
                     submissionCount
                 })
             }
-
-            // console.log(statistics);
-
 
             return statistics
 
