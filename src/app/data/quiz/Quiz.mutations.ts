@@ -17,7 +17,6 @@ export class QuizMutationResolver {
     ) {
         try {
 
-            console.log(quiz.shuffleQuiz)
             const parsedQuiz: any = {
                 ...quiz,
                 duration: quiz.duration ? Number(quiz.duration) : null,
@@ -30,7 +29,6 @@ export class QuizMutationResolver {
                 ...parsedQuiz
             })
 
-            console.log(newQuiz)
             return newQuiz._id
         } catch (e) {
             return 'error'

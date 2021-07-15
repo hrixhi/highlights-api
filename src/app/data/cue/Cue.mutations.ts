@@ -651,7 +651,73 @@ export class CueMutationResolver {
 			}, {
 				releaseSubmission
 			})
-			// Add notification here for releasing Submission => If graded say that Grades released or else submission visible 
+
+			const fetchCue = await CueModel.findById(cueId);
+
+			// Add notification here for releasing Submission => If graded say that Grades available or else submission available 
+			if (releaseSubmission && fetchCue) {
+				const { submission, channelId, gradeWeight, cue } = fetchCue;
+				
+				const notificationService = new Expo()
+				let userIds: string[] = []
+				const messages: any[] = []
+
+				const fetchChannel = await ChannelModel.findById(channelId);
+
+				if (!fetchChannel || !submission) return;
+
+				const subscriptions = await SubscriptionModel.find({
+					$and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
+				})
+
+				subscriptions.map((s) => {
+					userIds.push(s.userId)
+				})
+
+				const { title, subtitle: body } = htmlStringParser(cue)
+
+				const subscribers = await UserModel.find({ _id: { $in: userIds } })
+
+				subscribers.map((sub) => {
+					const notificationIds = sub.notificationId.split('-BREAK-')
+					notificationIds.map((notifId: any) => {
+						if (!Expo.isExpoPushToken(notifId)) {
+							return
+						}
+						messages.push({
+							to: notifId,
+							sound: 'default',
+							subtitle: title,
+							title: fetchChannel.name + ' - ' + title + ' ',
+							body: (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Submission available"),
+							data: { userId: sub._id },
+						})
+					})
+				})
+
+				let chunks = notificationService.chunkPushNotifications(messages);
+				for (let chunk of chunks) {
+					try {
+						let ticketChunk = await notificationService.sendPushNotificationsAsync(chunk);
+					} catch (e) {
+						console.error(e);
+					}
+				}
+
+				// Web notifications
+
+				const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+
+				const notification = {
+					contents: {
+						'en': fetchChannel.name + ' - ' + title + ' ' + (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Submission available"),
+					},
+					include_external_user_ids: userIds
+				}
+
+				const response = await oneSignalClient.createNotification(notification)
+
+			}
 
 			return true
 		} catch (e) {
