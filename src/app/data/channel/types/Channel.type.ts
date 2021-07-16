@@ -19,6 +19,9 @@ export class ChannelObject {
     const localThis: any = this;
     const { createdBy, owners } = localThis._doc || localThis;
     if (owners) {
+      if (!context.user) {
+        return createdBy
+      }
       const anotherOwner = owners.find((item: any) => {
         return item === context.user!._id
       })
