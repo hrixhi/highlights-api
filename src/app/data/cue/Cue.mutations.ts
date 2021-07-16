@@ -39,7 +39,24 @@ export class CueMutationResolver {
 		@Arg('shareWithUserIds', type => [String], { nullable: true }) shareWithUserIds?: string[]
 	) {
 		try {
+
+			let createdByToUse = createdBy;
+
 			const channel: any = await ChannelModel.findById(channelId)
+
+			if (!channel) return false;
+
+			const { owners  = [] } = channel;
+
+			if (owners.length > 0) {
+				const anotherOwner = owners.find((item: any) => {
+					return item === createdBy;
+				})
+			    if (anotherOwner) {
+					createdByToUse = channel.createdBy
+		        } 
+			}
+
 			const c = {
 				cue,
 				color: Number(color),
@@ -50,7 +67,7 @@ export class CueMutationResolver {
 				date: new Date(),
 				endPlayAt: (endPlayAt && endPlayAt !== '') ? new Date(endPlayAt) : null,
 				channelId,
-				createdBy,
+				createdBy: createdByToUse,
 				gradeWeight: Number(gradeWeight),
 				deadline: (deadline && deadline !== '') ? new Date(deadline) : null,
 				initiateAt: (initiateAt && initiateAt !== '') ? new Date(initiateAt) : null,

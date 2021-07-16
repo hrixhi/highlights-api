@@ -37,8 +37,20 @@ export class CueObject {
   @Field()
   public color: number;
 
-  @Field()
-  public createdBy: string;
+  @Field(type => String, { nullable: true })
+  public async createdBy(@Ctx() context: IGraphQLContext) {
+    const localThis: any = this;
+    const { createdBy, owners } = localThis._doc || localThis;
+    if (owners && createdBy !== context.user!._id) {
+      const anotherOwner = owners.find((item: any) => {
+        return item === context.user!._id
+      })
+      if (anotherOwner) {
+        return anotherOwner
+      }
+    }
+    return createdBy
+  }
 
   @Field({ nullable: true })
   public channelId: string;

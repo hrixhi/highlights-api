@@ -1,5 +1,6 @@
 import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
-import { Field, ObjectType } from 'type-graphql';
+import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
+import { Ctx, Field, ObjectType } from 'type-graphql';
 
 @ObjectType()
 export class EventObject {
@@ -37,11 +38,23 @@ export class EventObject {
   }
 
   @Field(type => String, { nullable: true })
-  public async createdBy() {
+  public async createdBy(@Ctx() context: IGraphQLContext) {
     const localThis: any = this;
     const { scheduledMeetingForChannelId } = localThis._doc || localThis;
     if (scheduledMeetingForChannelId) {
+
       const channel = await ChannelModel.findById(scheduledMeetingForChannelId)
+
+      if (channel && channel.owners && context.user && channel.createdBy !== context.user!._id) {
+
+        const anotherOwner = channel.owners.find((item: any) => {
+          return item === context.user!._id
+        })
+        if (anotherOwner) {
+          return anotherOwner
+        }
+      }
+
       return channel ? channel.createdBy : ''
     } else {
       return ''
