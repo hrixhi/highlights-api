@@ -25,6 +25,10 @@ const schema = new Schema(
     temporary: {
       type: Boolean,
       required: false
+    },
+    owners: {
+      type: [String],
+      required: false
     }
   }
 );

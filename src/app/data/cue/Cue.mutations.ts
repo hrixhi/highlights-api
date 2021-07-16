@@ -124,7 +124,6 @@ export class CueMutationResolver {
 
 			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
 
-
 			const { title } = htmlStringParser(cue)
 
 			const notification = {

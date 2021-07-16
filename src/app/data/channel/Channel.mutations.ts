@@ -7,6 +7,10 @@ import { htmlStringParser } from '@helper/HTMLParser';
 import * as OneSignal from 'onesignal-node';
 import { GroupModel } from '../group/mongo/Group.model';
 import { DateModel } from '../dates/mongo/dates.model';
+import { CueModel } from '../cue/mongo/Cue.model';
+import { ModificationsModel } from '../modification/mongo/Modification.model';
+import { ThreadModel } from '../thread/mongo/Thread.model';
+import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
 
 
 /**
@@ -300,18 +304,264 @@ export class ChannelMutationResolver {
 	public async update(
 		@Arg('channelId', type => String) channelId: string,
 		@Arg('name', type => String) name: string,
+		@Arg('owners', type => [String]) owners: string[],
 		@Arg('password', type => String, { nullable: true }) password?: string,
 		@Arg('temporary', type => Boolean, { nullable: true }) temporary?: boolean,
+		@Arg('unsubscribe', type => Boolean, { nullable: true }) unsubscribe?: boolean,
 	) {
 		try {
-			await ChannelModel.updateOne(
-				{ _id: channelId },
-				{
-					name,
-					password: password && password !== '' ? password : undefined,
-					temporary: temporary ? true : false
+
+			const c = await ChannelModel.findById(channelId)
+			if (c) {
+				const channel = c.toObject()
+				const name = channel.name
+				const password = channel.password
+				const oldOwners = channel.owners ? channel.owners : []
+
+				const toAdd: any[] = []
+				const toRemove: any[] = []
+
+				// group old owners
+				oldOwners.map((old) => {
+					const found = owners.find((o: any) => {
+						return o === old
+					})
+					if (!found) {
+						toRemove.push(old)
+					}
+				})
+
+				// group new owners
+				owners.map(newId => {
+					const found = oldOwners.find((o: any) => {
+						return o === newId
+					})
+					if (!found) {
+						toAdd.push(newId)
+					}
+				})
+
+
+				if (unsubscribe) {
+					// unsub
+					const keepContent = false
+					toRemove.map(async (userId) => {
+						let subObject = await SubscriptionModel.findOne({
+							userId,
+							channelId,
+							unsubscribedAt: { $exists: false }
+						})
+						if (!subObject) {
+							if (keepContent) {
+								return
+							} else {
+								// if erase content unsub is done after a keep content unsub
+								subObject = await SubscriptionModel.findOne({
+									userId,
+									channelId,
+									unsubscribedAt: { $exists: true },
+									keepContent: true
+								})
+								if (!subObject) {
+									return
+								}
+							}
+
+						}
+						// otherwise unsub
+						await SubscriptionModel.updateOne({
+							_id: subObject._id
+						}, {
+							unsubscribedAt: new Date(),
+							keepContent
+						})
+
+						// Check if user is Channel owner 
+						const channelObj = await ChannelModel.findById(channelId);
+
+						// If user is channel creator, update creatorUnsubscribed: true
+
+						if (channelObj && channelObj.createdBy.toString().trim() === userId.toString().trim()) {
+							await ChannelModel.updateOne({
+								_id: channelId
+							}, {
+								creatorUnsubscribed: true
+							})
+						}
+
+					})
 				}
-			)
+
+				// subscribe new owners
+				toAdd.map(async (userId) => {
+					const channel = await ChannelModel.findOne({ name })
+					if (channel) {
+						const sub = await SubscriptionModel.findOne({
+							userId,
+							channelId: channel._id,
+							unsubscribedAt: { $exists: false }
+						})
+						if (sub) {
+							return
+						}
+						if (channel.password && channel.password !== '') {
+
+							if (password === undefined || password === null || password === '') {
+								return
+							}
+							// Private
+							if (channel.password.toString().trim() === password.toString().trim()) {
+
+								// check org
+								const owner = await UserModel.findById(channel.createdBy)
+								if (owner && owner.schoolId && owner.schoolId !== '') {
+									const u = await UserModel.findById(userId)
+									if (u && (!u.schoolId || u.schoolId.toString().trim() !== owner.schoolId.toString().trim())) {
+										// not same school
+										return
+									}
+								}
+
+								// Correct password - subscribed!
+								// Clear any old subscriptions with kc = true
+								const pastSubs = await SubscriptionModel.find({
+									userId,
+									channelId: channel._id
+								})
+								if (pastSubs.length === 0) {
+									const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
+									channelCues.map(async (cue: any) => {
+										const cueObject = cue.toObject()
+										const duplicate = { ...cueObject }
+										delete duplicate._id
+										delete duplicate.deletedAt
+										delete duplicate.__v
+										duplicate.cueId = cue._id
+										duplicate.cue = ''
+										duplicate.userId = userId
+										duplicate.score = 0;
+										duplicate.graded = false
+										const u = await ModificationsModel.create(duplicate)
+									})
+								}
+
+								const threads = await ThreadModel.find({
+									channelId: channel._id,
+									isPrivate: false
+								})
+								threads.map(async (t) => {
+									const thread = t.toObject()
+									await ThreadStatusModel.create({
+										userId,
+										channelId: channel._id,
+										cueId: thread.cueId ? thread.cueId : null,
+										threadId: thread.parentId ? thread.parentId : thread._id
+									})
+								})
+
+								await SubscriptionModel.updateMany({
+									userId,
+									channelId: channel._id,
+									unsubscribedAt: { $exists: true }
+								}, {
+									keepContent: false
+								})
+								// subscribe 
+								await SubscriptionModel.create({
+									userId, channelId: channel._id
+								})
+
+								// Check if channel owner, if yes then update creatorUnsubscribed: true
+								if (channel.createdBy.toString().trim() === userId.toString().trim()) {
+									await ChannelModel.updateOne({
+										_id: channel._id
+									}, {
+										creatorUnsubscribed: false
+									})
+								}
+
+								return
+							} else {
+								// Incorrect password
+								return
+							}
+
+						} else {
+							// Public
+							const owner = await UserModel.findById(channel.createdBy)
+							if (owner && owner.schoolId && owner.schoolId !== '') {
+								const u = await UserModel.findById(userId)
+								if (u && (!u.schoolId || u.schoolId.toString().trim() !== owner.schoolId.toString().trim())) {
+									// not same school
+									return
+								}
+							}
+
+							const pastSubs = await SubscriptionModel.find({
+								userId,
+								channelId: channel._id
+							})
+							if (pastSubs.length === 0) {
+								const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
+								channelCues.map(async (cue: any) => {
+									const obj = cue.toObject()
+									const duplicate = { ...obj }
+									delete duplicate._id
+									delete duplicate.deletedAt
+									delete duplicate.__v
+									duplicate.cue = ''
+									duplicate.cueId = cue._id
+									duplicate.userId = userId
+									const u = await ModificationsModel.create(duplicate)
+								})
+							}
+
+							const threads = await ThreadModel.find({
+								channelId: channel._id,
+								isPrivate: false
+							})
+							threads.map(async (t) => {
+								const thread = t.toObject()
+								await ThreadStatusModel.create({
+									userId,
+									channelId: channel._id,
+									cueId: thread.cueId ? thread.cueId : null,
+									threadId: thread.parentId ? thread.parentId : thread._id
+								})
+							})
+
+							await SubscriptionModel.create({
+								userId, channelId: channel._id
+							})
+							// Check if channel owner, if yes then update creatorUnsubscribed: true
+							if (channel.createdBy.toString().trim() === userId.toString().trim()) {
+								await ChannelModel.updateOne({
+									_id: channel._id
+								}, {
+									creatorUnsubscribed: false
+								})
+							}
+
+							return
+						}
+					} else {
+						// Channel does not exist
+						return;
+					}
+				})
+
+				await ChannelModel.updateOne(
+					{ _id: channelId },
+					{
+						name,
+						password: password && password !== '' ? password : undefined,
+						temporary: temporary ? true : false,
+						owners
+					}
+				)
+			} else {
+				return false
+			}
 			return true
 		} catch (e) {
 			console.log(e)

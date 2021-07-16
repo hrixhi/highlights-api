@@ -27,7 +27,11 @@ export class ChannelQueryResolver {
     ) {
         try {
             return await ChannelModel.find({
-                createdBy: userId,
+                $or: [{
+                    createdBy: userId,
+                }, {
+                    owners: userId,
+                }],
                 creatorUnsubscribed: { $ne: true }
             });
         } catch (e) {

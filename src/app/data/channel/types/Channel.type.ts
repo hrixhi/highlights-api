@@ -1,7 +1,7 @@
 import { SubscriptionModel } from '@app/data/subscription/mongo/Subscription.model';
 import { UserModel } from '@app/data/user/mongo/User.model';
-import { Field, ObjectType } from 'type-graphql';
-
+import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
+import { Ctx, Field, ObjectType } from 'type-graphql';
 @ObjectType()
 export class ChannelObject {
 
@@ -14,20 +14,48 @@ export class ChannelObject {
   @Field({ nullable: true })
   public password: string;
 
-  @Field()
-  public createdBy: string;
+  @Field(type => String, { nullable: true })
+  public async createdBy(@Ctx() context: IGraphQLContext) {
+    const localThis: any = this;
+    const { createdBy, owners } = localThis._doc || localThis;
+    if (owners) {
+      const anotherOwner = owners.find((item: any) => {
+        return item === context.user!._id
+      })
+      if (anotherOwner) {
+        return anotherOwner
+      }
+    }
+    return createdBy
+  }
 
   @Field(type => String, { nullable: true })
-  public async createdByUsername() {
+  public async createdByUsername(@Ctx() context: IGraphQLContext) {
     const localThis: any = this;
-    const { createdBy } = localThis._doc || localThis;
+    const { createdBy, owners } = localThis._doc || localThis;
     const u: any = await UserModel.findById(createdBy)
+    if (owners) {
+      const anotherOwner = owners.find((item: any) => {
+        return item === context.user!._id
+      })
+      if (anotherOwner) {
+        const u2: any = await UserModel.findById(anotherOwner)
+        if (u2) {
+          const user = u2.toObject()
+          return user.displayName
+        } else {
+          return ''
+        }
+      }
+    }
+
     if (u) {
       const user = u.toObject()
       return user.displayName
     } else {
-      return '-'
+      return ''
     }
+
   }
 
   @Field(type => String, { nullable: true })
@@ -62,5 +90,8 @@ export class ChannelObject {
 
   @Field(type => Boolean, { nullable: true })
   public temporary?: boolean;
+
+  @Field(type => [String], { nullable: true })
+  public owners?: string[];
 
 }

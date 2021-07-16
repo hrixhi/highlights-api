@@ -1,5 +1,6 @@
 import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
-import { Field, ObjectType } from 'type-graphql';
+import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
+import { Ctx, Field, ObjectType } from 'type-graphql';
 
 @ObjectType()
 export class SubscriptionObject {
@@ -22,11 +23,25 @@ export class SubscriptionObject {
   }
 
   @Field(type => String)
-  public async channelCreatedBy() {
+  public async channelCreatedBy(@Ctx() context: IGraphQLContext) {
     const localThis: any = this;
     const { channelId } = localThis._doc || localThis;
-    const channel = await ChannelModel.findById(channelId)
-    return channel ? channel.createdBy : ''
+    const c = await ChannelModel.findById(channelId)
+    if (c) {
+      const channel = c.toObject()
+      if (channel.owners) {
+        console.log(channel.owners)
+        console.log(context.user)
+        const anotherOwner = channel.owners.find((item: any) => {
+          return item.toString().trim() === context.user!._id.toString().trim()
+        })
+        if (anotherOwner) {
+          return anotherOwner
+        }
+      }
+      return channel.createdBy
+    }
+    return ''
   }
 
   @Field(type => Boolean, { nullable: true })
