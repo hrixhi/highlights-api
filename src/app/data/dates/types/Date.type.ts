@@ -66,6 +66,8 @@ export class EventObject {
   @Field(type => String, { nullable: true })
   public recurringId?: string;
 
+  @Field(type => Boolean, { nullable: true })
+  public meeting?: boolean;
 }
 
 @ObjectType()

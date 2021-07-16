@@ -42,7 +42,7 @@ export class DateQueryResolver {
                     start: cue.deadline,
                     end: cue.deadline,
                     scheduledMeetingForChannelId: cue.channelId,
-                    // channelName: channelNames[cue.channelId]
+                    meeting: false,
                 })
             })
             const addedDates: any[] = await DateModel.find({ userId })
@@ -52,7 +52,8 @@ export class DateQueryResolver {
                     dateId: date._id,
                     title: date.title,
                     start: date.start,
-                    end: date.end
+                    end: date.end,
+                    meeting: false,
                 })
             })
             const scheduledMeetings: any[] = await DateModel.find({
@@ -65,7 +66,8 @@ export class DateQueryResolver {
                 dates.push({
                     ...date,
                     title: date.title,
-                    dateId: date._id
+                    dateId: date._id,
+                    meeting: true,
                 })
             })
             const nonMeetingChannelEvents: any[] = await DateModel.find({
@@ -77,7 +79,8 @@ export class DateQueryResolver {
                 dates.push({
                     ...date,
                     title: date.title,
-                    dateId: 'channel'
+                    dateId: 'channel',
+                    meeting: true,
                 })
             })
             return dates;
