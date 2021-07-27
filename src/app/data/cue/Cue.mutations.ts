@@ -597,49 +597,6 @@ export class CueMutationResolver {
 				comment: comment && comment !== '' ? comment : '',
 				graded: true
 			})
-			const user: any = await UserModel.findById(userId)
-			const messages: any[] = []
-			const notificationService = new Expo()
-
-			const notificationIds = user.notificationId.split('-BREAK-')
-			notificationIds.map((notifId: any) => {
-				if (!Expo.isExpoPushToken(notifId)) {
-					return
-				}
-				const { title } = htmlStringParser(cue.cue)
-				messages.push({
-					to: notifId,
-					sound: 'default',
-					subtitle: 'Graded! ' + title,
-					title: channel.name + ' Submission Graded',
-					data: { userId: user._id },
-				})
-			})
-
-			// Web notifications
-
-			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
-
-
-			const { title } = htmlStringParser(cue.cue)
-
-			const notification = {
-				contents: {
-					'en': `${channel.name}` + ' Submission Graded: ' + title,
-				},
-				include_external_user_ids: [user._id]
-			}
-
-			const response = await oneSignalClient.createNotification(notification)
-
-			let chunks = notificationService.chunkPushNotifications(messages);
-			for (let chunk of chunks) {
-				try {
-					await notificationService.sendPushNotificationsAsync(chunk);
-				} catch (e) {
-					console.error(e);
-				}
-			}
 			return true
 		} catch (e) {
 			console.log(e)
