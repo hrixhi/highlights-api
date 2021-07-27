@@ -9,6 +9,7 @@ export interface IChannelModel extends Document {
 	creatorUnsubscribed?: boolean;
 	temporary?: boolean;
 	owners?: string[];
+	colorCode?: string;
 }
 
 export const ChannelModel: Model<IChannelModel> = model<IChannelModel>(

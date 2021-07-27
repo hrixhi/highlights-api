@@ -287,6 +287,25 @@ export class ChannelQueryResolver {
         }
     }
 
+    @Field(type => String, {
+        description: "Returns a list of submission cues."
+    })
+    public async getChannelColorCode(
+        @Arg("channelId", type => String)
+        channelId: string
+    ) {
+        try {
+            const channel = await ChannelModel.findById(channelId);
+            if (channel && channel.colorCode !== undefined && channel.colorCode !== null) {
+                return channel.colorCode
+            } else {
+                return ""
+            }
+        } catch (e) {
+            return "";
+        }
+    }
+
     @Field(type => [SubmissionStatisticObject], {
         description: "Returns a list of submission cues."
     })

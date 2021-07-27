@@ -29,6 +29,10 @@ const schema = new Schema(
     owners: {
       type: [String],
       required: false
+    },
+    colorCode: {
+      type: String,
+      required: false
     }
   }
 );

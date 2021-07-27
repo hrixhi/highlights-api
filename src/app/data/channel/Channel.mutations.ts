@@ -308,6 +308,7 @@ export class ChannelMutationResolver {
 		@Arg('password', type => String, { nullable: true }) password?: string,
 		@Arg('temporary', type => Boolean, { nullable: true }) temporary?: boolean,
 		@Arg('unsubscribe', type => Boolean, { nullable: true }) unsubscribe?: boolean,
+		@Arg('colorCode', type => String, { nullable: true }) colorCode?: string,
 	) {
 		try {
 
@@ -556,7 +557,8 @@ export class ChannelMutationResolver {
 						name,
 						password: password && password !== '' ? password : undefined,
 						temporary: temporary ? true : false,
-						owners
+						owners,
+						colorCode: colorCode ? colorCode : ""
 					}
 				)
 			} else {

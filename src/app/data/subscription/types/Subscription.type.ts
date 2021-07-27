@@ -44,6 +44,21 @@ export class SubscriptionObject {
     return ''
   }
 
+  @Field(type => String)
+  public async colorCode(@Ctx() context: IGraphQLContext) {
+    const localThis: any = this;
+    const { channelId } = localThis._doc || localThis;
+    const c = await ChannelModel.findById(channelId)
+    if (c) {
+      const channel = c.toObject()
+      if (channel.colorCode) {
+        return channel.colorCode
+      }
+      return ""
+    }
+    return ''
+  }
+
   @Field(type => Boolean, { nullable: true })
   public inactive?: boolean;
 

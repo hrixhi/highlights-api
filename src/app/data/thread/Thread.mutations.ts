@@ -8,6 +8,7 @@ import { UserModel } from "../user/mongo/User.model";
 import { ThreadModel } from "./mongo/Thread.model";
 
 import * as OneSignal from "onesignal-node";
+import { CueModel } from "../cue/mongo/Cue.model";
 
 /**
  * Thread Mutation Endpoints
@@ -61,6 +62,22 @@ export class ThreadMutationResolver {
                         channelId
                     });
                 });
+
+                let cueTitle = "";
+
+                if (cueId !== "NULL") {
+                    const fetchCue = await CueModel.findById(cueId);
+
+                    if (!fetchCue) {
+                        return;
+                    }
+
+                    const { title } = htmlStringParser(fetchCue.cue)
+
+                    cueTitle = title;
+
+                } 
+
                 const userIds: any[] = [];
                 const messages: any[] = [];
                 const notificationService = new Expo();
@@ -82,10 +99,10 @@ export class ThreadMutationResolver {
                             to: notifId,
                             sound: "default",
                             title:
-                                channel.name +
+                                channel.name + (cueId === "NULL" ? "- New Discussion " : "- New Comment ") +
                                 (parentId
-                                    ? " - New Discussion Thread"
-                                    : " - New Discussion Reply"),
+                                    ? "Thread"
+                                    : "Reply"),
                             subtitle: title,
                             body,
                             data: { userId: sub._id }

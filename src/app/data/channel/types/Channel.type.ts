@@ -94,4 +94,7 @@ export class ChannelObject {
   @Field(type => [String], { nullable: true })
   public owners?: string[];
 
+  @Field(type => String, { nullable: true }) 
+  public colorCode?: string;
+
 }
