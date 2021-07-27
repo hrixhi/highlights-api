@@ -18,10 +18,7 @@ export class ChannelObject {
   public async createdBy(@Ctx() context: IGraphQLContext) {
     const localThis: any = this;
     const { createdBy, owners } = localThis._doc || localThis;
-    if (owners) {
-      if (!context.user) {
-        return createdBy
-      }
+    if (owners && context.user) {
       const anotherOwner = owners.find((item: any) => {
         return item === context.user!._id
       })
@@ -37,7 +34,7 @@ export class ChannelObject {
     const localThis: any = this;
     const { createdBy, owners } = localThis._doc || localThis;
     const u: any = await UserModel.findById(createdBy)
-    if (owners) {
+    if (owners && context.user) {
       const anotherOwner = owners.find((item: any) => {
         return item === context.user!._id
       })
