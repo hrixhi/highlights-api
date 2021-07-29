@@ -41,6 +41,22 @@ export class ChannelQueryResolver {
     }
 
     @Field(type => ChannelObject, {
+        description: "Returns channel by name.",
+        nullable: true
+    })
+    public async findByName(
+        @Arg("name", type => String)
+        name: string
+    ) {
+        try {
+            return await ChannelModel.findOne({ name })
+        } catch (e) {
+            console.log(e);
+            return [];
+        }
+    }
+
+    @Field(type => ChannelObject, {
         description: "Returns channel by id.",
         nullable: true
     })
