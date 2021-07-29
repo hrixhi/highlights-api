@@ -172,6 +172,295 @@ export class ChannelMutationResolver {
 		}
 	}
 
+	@Field(type => String, {
+		description: 'Used when you want to allow or disallow people from joining meeting.'
+	})
+	public async meetingRequest(
+		@Arg('channelId', type => String) channelId: string,
+		@Arg('isOwner', type => Boolean) isOwner: boolean,
+		@Arg('userId', type => String) userId: string
+	) {
+		try {
+
+			const u: any = await UserModel.findById(userId);
+			const c: any = await ChannelModel.findById(channelId);
+			if (u && c) {
+				const user = u.toObject();
+				const channel = c.toObject();
+
+				const sha1 = require("sha1");
+				const axios = require('axios')
+				const vdoURL = "https://my1.vdo.click/bigbluebutton/api/";
+				const vdoKey = "bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI";
+				const atendeePass = channelId;
+				const modPass = channel.createdBy;
+
+				const lastRecordedMeetingId = channelId
+				let createMeeting = true
+				// check if meeting is in session
+				const linkParams = "meetingID=" + lastRecordedMeetingId
+				const Hash = "isMeetingRunning" + linkParams + vdoKey;
+				const Checksum = sha1(Hash);
+				const res = await axios.get(vdoURL + 'isMeetingRunning?' + linkParams + '&checksum=' + Checksum)
+				const xml2js = require('xml2js');
+				const parser = new xml2js.Parser();
+				const json = await parser.parseStringPromise(res.data);
+				if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
+					const running = json.response.running[0]
+					if (running === 'true') {
+						createMeeting = false
+					}
+				}
+
+				if (createMeeting) {
+					// create meeting only if not owner
+					if (!isOwner) {
+						return 'error'
+					}
+
+					const fullName = encodeURI(encodeURIComponent(channel.name.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
+					const params =
+						'allowStartStopRecording=true' +
+						'&attendeePW=' + atendeePass +
+						'&autoStartRecording=false' +
+						'&meetingID=' + channelId +
+						'&moderatorPW=' + modPass +
+						'&name=' + (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
+						'&record=true'
+					const toHash = (
+						'create' + params + vdoKey
+					)
+					const checkSum = sha1(toHash)
+					const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
+
+					axios.get(url).then(async (res: any) => {
+
+						const xml2js = require('xml2js');
+						const parser = new xml2js.Parser();
+						const json = await parser.parseStringPromise(res.data);
+
+						if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
+							const meetingId = json.response.meetingID[0]
+							console.log(meetingId)
+							await ChannelModel.updateOne({ _id: channelId }, { lastRecordedMeetingId: meetingId })
+						}
+
+						const subscribers = await SubscriptionModel.find({ channelId, unsubscribedAt: { $exists: false } })
+						const userIds: any[] = []
+						const messages: any[] = []
+						const notificationService = new Expo()
+						subscribers.map(u => {
+							userIds.push(u.userId)
+						})
+
+						// Web notifications
+						const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+						const notification = {
+							contents: {
+								'en': 'The host is now in the meeting! - ' + channel.name,
+							},
+							include_external_user_ids: userIds
+						}
+
+						const response = await oneSignalClient.createNotification(notification)
+						const users = await UserModel.find({ _id: { $in: userIds } })
+						users.map(sub => {
+							const notificationIds = sub.notificationId.split('-BREAK-')
+							notificationIds.map((notifId: any) => {
+								if (!Expo.isExpoPushToken(notifId)) {
+									return
+								}
+								messages.push({
+									to: notifId,
+									sound: 'default',
+									subtitle: 'The host is now in the meeting!',
+									title: channel.name + ' - Meeting Started',
+									data: { userId: sub._id },
+								})
+							})
+						})
+						let chunks = notificationService.chunkPushNotifications(messages);
+						for (let chunk of chunks) {
+							try {
+								await notificationService.sendPushNotificationsAsync(chunk);
+							} catch (e) {
+								console.error(e);
+							}
+						}
+					}).catch((err: any) => {
+						console.log(err);
+					})
+
+				}
+
+				const fullName = encodeURIComponent(encodeURI(user.displayName.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
+				const params =
+					"fullName=" +
+					(fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
+					"&meetingID=" +
+					channelId +
+					"&password=" +
+					(channel.createdBy.toString().trim() ===
+						user._id.toString().trim()
+						? modPass
+						: atendeePass);
+				const toHash = "join" + params + vdoKey;
+				const checksum = sha1(toHash);
+
+				return vdoURL + "join?" + params + "&checksum=" + checksum;
+			}
+			return 'error'
+		} catch (e) {
+			return 'error'
+		}
+	}
+
+	@Field(type => String, {
+		description: 'Used when you want to allow or disallow people from joining meeting.'
+	})
+	public async personalMeetingRequest(
+		@Arg('channelId', type => String) channelId: string,
+		@Arg('userId', type => String) userId: string,
+		@Arg('users', type => [String]) users: string[],
+	) {
+		try {
+
+			const c: any = await ChannelModel.findById(channelId);
+			const u: any = await UserModel.findById(userId)
+			if (c && u) {
+				const channel = c.toObject();
+				const user = u.toObject()
+
+				const sha1 = require("sha1");
+				const axios = require('axios')
+				const vdoURL = "https://my1.vdo.click/bigbluebutton/api/";
+				const vdoKey = "bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI";
+				const atendeePass = channelId;
+				const modPass = channel.createdBy;
+
+				const groupDoc = await GroupModel.findOne({
+					users: { $all: users }
+				});
+				let groupId = "";
+				if (groupDoc) {
+					groupId = groupDoc._id;
+				} else {
+					const newGroup = await GroupModel.create({
+						users,
+						channelId
+					});
+					groupId = newGroup._id;
+				}
+
+				const lastRecordedMeetingId = groupId
+				let createMeeting = true
+
+				const linkParams = "meetingID=" + lastRecordedMeetingId
+				const Hash = "isMeetingRunning" + linkParams + vdoKey;
+				const Checksum = sha1(Hash);
+				const res = await axios.get(vdoURL + 'isMeetingRunning?' + linkParams + '&checksum=' + Checksum)
+				const xml2js = require('xml2js');
+				const parser = new xml2js.Parser();
+				const json = await parser.parseStringPromise(res.data);
+				if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
+					const running = json.response.running[0]
+					if (running === 'true') {
+						createMeeting = false
+					}
+				}
+
+				if (createMeeting) {
+
+					const fullName = Math.floor(Math.random() * (9999 - 1000 + 1) + 100).toString()
+					const params =
+						'allowStartStopRecording=true' +
+						'&attendeePW=' + 'password' +	// attendee pass but we dont have attendees, only mods
+						'&autoStartRecording=false' +
+						'&clientURL=web.cuesapp.co' +
+						'&logoutURL=web.cuesapp.co' +
+						'&meetingID=' + groupId +
+						'&moderatorPW=' + groupId +
+						'&name=' + fullName +
+						'&record=false'
+					const toHash = (
+						'create' + params + vdoKey
+					)
+					const checkSum = sha1(toHash)
+					const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
+
+					axios.get(url).then(async (res: any) => {
+						const messages: any[] = []
+						const notificationService = new Expo()
+						const userDocs = await UserModel.find({ _id: { $in: users } })
+
+						let participantNames = ''
+						userDocs.map((u: any, index: any) => {
+							const sub = u.toObject()
+							if (index === userDocs.length - 1) {
+								participantNames += sub.displayName
+							} else {
+								participantNames += (sub.displayName + ', ')
+							}
+						})
+
+						// Web notifications
+						const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+						const notification = {
+							contents: {
+								'en': channel.name + ' - Private meeting initiated with ' + participantNames
+							},
+							include_external_user_ids: users
+						}
+						const response = await oneSignalClient.createNotification(notification)
+						userDocs.map(u => {
+							const sub = u.toObject()
+							const notificationIds = sub.notificationId.split('-BREAK-')
+							notificationIds.map((notifId: any) => {
+								if (!Expo.isExpoPushToken(notifId)) {
+									return
+								}
+								messages.push({
+									to: notifId,
+									sound: 'default',
+									subtitle: participantNames,
+									title: channel.name + ' - Private meeting initiated',
+									data: { userId: sub._id },
+								})
+							})
+						})
+						let chunks = notificationService.chunkPushNotifications(messages);
+						for (let chunk of chunks) {
+							try {
+								await notificationService.sendPushNotificationsAsync(chunk);
+							} catch (e) {
+								console.error(e);
+							}
+						}
+					}).catch((err: any) => {
+						console.log(err);
+					})
+
+				}
+
+				const fullName = encodeURIComponent(encodeURI(user.displayName.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
+				const params =
+					"fullName=" +
+					(fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
+					"&meetingID=" +
+					groupId +
+					"&password=" + groupId
+				const toHash = "join" + params + vdoKey;
+				const checksum = sha1(toHash);
+				return vdoURL + "join?" + params + "&checksum=" + checksum;
+
+			}
+			return 'error'
+		} catch (e) {
+			return 'error'
+		}
+	}
+
+
 	@Field(type => Boolean, {
 		description: 'Used when you want to allow or disallow people from joining meeting.'
 	})
