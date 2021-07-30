@@ -2,6 +2,7 @@ import { Arg, Field, ObjectType } from 'type-graphql';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { QuizModel } from './mongo/Quiz.model';
 import { QuizInputObject } from './types/QuizInput.type';
+import { CueModel } from '../cue/mongo/Cue.model';
 
 /**
  * Quiz Mutation Endpoints
@@ -30,6 +31,56 @@ export class QuizMutationResolver {
             })
 
             return newQuiz._id
+        } catch (e) {
+            return 'error'
+        }
+    }
+
+    @Field(type => Boolean, {
+        description: 'Update quiz and return its id'
+    })
+    public async modifyQuiz(
+        @Arg('cueId', type => String) cueId: string,
+        @Arg('quiz', type => QuizInputObject) quiz: QuizInputObject,
+    ) {
+        try {
+
+            const parsedQuiz: any = {
+                ...quiz,
+            }
+            quiz.problems.map((p, i) => {
+                parsedQuiz.problems[i].points = Number(p.points)
+            })
+
+            // Fetch Cue and get quizId first
+
+            const fetchCue = await CueModel.findById({
+                _id: cueId
+            })
+
+            if (!fetchCue) {
+                return false;
+            }
+
+            if (fetchCue.cue) {
+                const parsed = JSON.parse(fetchCue.cue) 
+
+                const updateQuiz = await QuizModel.updateOne({
+                    _id: parsed.quizId
+                }, {
+                    $set: {
+                        problems: quiz.problems,
+                        headers: quiz.headers,
+                        instructions: quiz.instructions
+                    }
+                })
+
+                if (updateQuiz.nModified > 0) {
+                    return true
+                }
+            }
+
+            return false;
         } catch (e) {
             return 'error'
         }

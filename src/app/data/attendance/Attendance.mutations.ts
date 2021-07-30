@@ -126,4 +126,46 @@ export class AttendanceMutationResolver {
         }
     }
 
+    @Field(type => Boolean, {
+        description: 'Used to mark as class start.'
+    })
+    public async modifyAttendance(
+        @Arg('dateId', type => String) dateId: string,
+        @Arg('userId', type => String) userId: string,
+        @Arg('channelId', type => String) channelId: string,
+        @Arg('markPresent', type => Boolean) markPresent: boolean
+    ) {
+        try {
+            
+            if (markPresent) {
+                const att = await AttendanceModel.findOne({
+                    userId,
+                    dateId,
+                    channelId
+                })
+                if (!att) {
+                    await AttendanceModel.create({
+                        userId,
+                        dateId: dateId,
+                        channelId
+                    })
+                }
+            } else {
+                const att = await AttendanceModel.findOne({
+                    userId,
+                    dateId,
+                    channelId
+                })
+                if (att) {
+                    await AttendanceModel.deleteOne({
+                        _id: att._id
+                    })
+                }
+            }
+            return true
+        } catch (e) {
+            return false
+        }
+    }
+
 }
