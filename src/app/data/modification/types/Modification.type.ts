@@ -9,6 +9,9 @@ export class ScoreObject {
     @Field({ nullable: true })
     public score: string;
 
+    @Field({ nullable: true })
+    public submittedAt: string;
+
     @Field()
     public gradeWeight: string;
 
