@@ -26,7 +26,8 @@ export class ChannelMutationResolver {
 		@Arg('name', type => String) name: string,
 		@Arg('createdBy', type => String) createdBy: string,
 		@Arg('password', { nullable: true }) password?: string,
-		@Arg('temporary', { nullable: true }) temporary?: boolean
+		@Arg('temporary', { nullable: true }) temporary?: boolean,
+		@Arg('colorCode', { nullable: true }) colorCode?: string,
 	) {
 		try {
 			// name should be valid
@@ -47,7 +48,8 @@ export class ChannelMutationResolver {
 					name: name.toString().trim(),
 					password,
 					createdBy,
-					temporary: temporary ? true : false
+					temporary: temporary ? true : false,
+					colorCode
 				})
 				await SubscriptionModel.create({
 					userId: createdBy,

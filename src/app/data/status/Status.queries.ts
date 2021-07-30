@@ -29,6 +29,8 @@ export class StatusQueryResolver {
                     if (status.userId.toString().trim() === cueObject.createdBy.toString().trim()) {
                         return
                     }
+
+                    
                     const mod: any = modifications.find((m: any) => {
                         const modification = m.toObject()
                         return modification.userId.toString().trim() === s.userId.toString().trim()
@@ -41,6 +43,7 @@ export class StatusQueryResolver {
                             submission: mod.cue,
                             score: mod.score,
                             submittedAt: mod.submittedAt && mod.submittedAt !== "" ? mod.submittedAt : "",
+                            deadline: cueObject.deadline && cueObject.deadline !== "" ? cueObject.deadline : "",
                             status: mod.graded ? 'graded' : 'submitted',
                             releaseSubmission: (mod.releaseSubmission !== null && mod.releaseSubmission !== undefined) ? mod.releaseSubmission : false
                         })

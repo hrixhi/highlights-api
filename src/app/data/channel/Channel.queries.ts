@@ -425,7 +425,8 @@ export class ChannelQueryResolver {
                         score: modification.score,
                         gradeWeight: modification.gradeWeight,
                         cueId: modification.cueId,
-                        graded: modification.graded
+                        graded: modification.graded,
+                        submittedAt: modification.submittedAt
                     });
                 } else {
                     userIds.push(modification.userId);
@@ -434,7 +435,8 @@ export class ChannelQueryResolver {
                             score: modification.score,
                             gradeWeight: modification.gradeWeight,
                             cueId: modification.cueId,
-                            graded: modification.graded
+                            graded: modification.graded,
+                            submittedAt: modification.submittedAt
                         }
                     ];
                 }

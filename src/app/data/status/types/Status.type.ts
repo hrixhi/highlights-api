@@ -50,6 +50,9 @@ export class StatusObject {
   public submittedAt: string;
 
   @Field({ nullable: true })
+  public deadline: string;
+
+  @Field({ nullable: true })
   public graded: boolean;
 
   @Field({ nullable: true })
