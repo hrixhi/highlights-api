@@ -264,6 +264,7 @@ export class UserMutationResolver {
 							grade: role === "instructor" || grade === "-" ? undefined : grade,
 							section:
 								role === "instructor" || section === "-" ? undefined : section,
+							deletedAt: undefined
 						}
 					);
 					// send email
