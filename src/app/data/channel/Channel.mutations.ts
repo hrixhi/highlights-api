@@ -75,14 +75,13 @@ export class ChannelMutationResolver {
 	) {
 		try {
 
-
 			await ChannelModel.updateOne({ _id: channelId }, { meetingOn })
 			const channel: any = await ChannelModel.findById(channelId)
 
 			const axios = require('axios')
 			const sha1 = require('sha1');
-			const vdoURL = 'https://my1.vdo.click/bigbluebutton/api/'
-			const vdoKey = 'bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI'
+			const vdoURL = 'https://my2.vdo.click/bigbluebutton/api/'
+			const vdoKey = 'KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU'
 			const atendeePass = channelId
 			const modPass: any = channel.createdBy
 
@@ -192,8 +191,8 @@ export class ChannelMutationResolver {
 
 				const sha1 = require("sha1");
 				const axios = require('axios')
-				const vdoURL = "https://my1.vdo.click/bigbluebutton/api/";
-				const vdoKey = "bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI";
+				const vdoURL = "https://my2.vdo.click/bigbluebutton/api/";
+				const vdoKey = "KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU";
 				const atendeePass = channelId;
 				const modPass = channel.createdBy;
 
@@ -335,8 +334,8 @@ export class ChannelMutationResolver {
 
 				const sha1 = require("sha1");
 				const axios = require('axios')
-				const vdoURL = "https://my1.vdo.click/bigbluebutton/api/";
-				const vdoKey = "bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI";
+				const vdoURL = "https://my2.vdo.click/bigbluebutton/api/";
+				const vdoKey = "KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU";
 				const atendeePass = channelId;
 				const modPass = channel.createdBy;
 
@@ -494,8 +493,8 @@ export class ChannelMutationResolver {
 			const channel = channelDoc.toObject()
 			const axios = require('axios')
 			const sha1 = require('sha1');
-			const vdoURL = 'https://my1.vdo.click/bigbluebutton/api/'
-			const vdoKey = 'bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI'
+			const vdoURL = 'https://my2.vdo.click/bigbluebutton/api/'
+			const vdoKey = 'KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU'
 
 			if (!meetingOn) {
 				// end meeting on VDO server
@@ -852,6 +851,91 @@ export class ChannelMutationResolver {
 						colorCode: colorCode ? colorCode : ""
 					}
 				)
+
+				// So we can use the variable names again
+				// Added as mod
+				if (true) {
+					const subtitle = 'Your role has been updated.'
+					const title = channel.name + ' - Added as moderator!'
+					const messages: any[] = []
+					const subscribersAdded = await UserModel.find({ _id: { $in: toAdd } })
+					subscribersAdded.map((sub) => {
+						const notificationIds = sub.notificationId.split('-BREAK-')
+						notificationIds.map((notifId: any) => {
+							if (!Expo.isExpoPushToken(notifId)) {
+								return
+							}
+							messages.push({
+								to: notifId,
+								sound: 'default',
+								subtitle: subtitle,
+								title: title,
+								body: '',
+								data: { userId: sub._id },
+							})
+						})
+					})
+					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+					const notification = {
+						contents: {
+							'en': title,
+						},
+						include_external_user_ids: toAdd
+					}
+					const notificationService = new Expo()
+					await oneSignalClient.createNotification(notification)
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+						} catch (e) {
+							console.error(e);
+						}
+					}
+				}
+
+				// Removed as mod notification
+				// So we can use the variable names again
+				if (true) {
+					const subtitle = 'Your role has been updated.'
+					const title = channel.name + ' - Removed as moderator!'
+					const messages: any[] = []
+					const subscribersAdded = await UserModel.find({ _id: { $in: toRemove } })
+					subscribersAdded.map((sub) => {
+						const notificationIds = sub.notificationId.split('-BREAK-')
+						notificationIds.map((notifId: any) => {
+							if (!Expo.isExpoPushToken(notifId)) {
+								return
+							}
+							messages.push({
+								to: notifId,
+								sound: 'default',
+								subtitle: subtitle,
+								title: title,
+								body: '',
+								data: { userId: sub._id },
+							})
+						})
+					})
+					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+					const notification = {
+						contents: {
+							'en': title,
+						},
+						include_external_user_ids: toRemove
+					}
+					const notificationService = new Expo()
+					await oneSignalClient.createNotification(notification)
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+						} catch (e) {
+							console.error(e);
+						}
+					}
+				}
+
 			} else {
 				return false
 			}
@@ -873,8 +957,8 @@ export class ChannelMutationResolver {
 
 			const axios = require('axios')
 			const sha1 = require('sha1');
-			const vdoURL = 'https://my1.vdo.click/bigbluebutton/api/'
-			const vdoKey = 'bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI'
+			const vdoURL = 'https://my2.vdo.click/bigbluebutton/api/'
+			const vdoKey = 'KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU'
 			let params =
 				'recordID=' + recordID
 

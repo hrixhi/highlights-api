@@ -166,8 +166,8 @@ export class ChannelQueryResolver {
                 const user = u.toObject();
                 const channel = c.toObject();
                 const sha1 = require("sha1");
-                const vdoURL = "https://my1.vdo.click/bigbluebutton/api/";
-                const vdoKey = "bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI";
+                const vdoURL = "https://my2.vdo.click/bigbluebutton/api/";
+                const vdoKey = "KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU";
                 const atendeePass = channelId;
                 const modPass = channel.createdBy;
                 const fullName = encodeURIComponent(encodeURI(user.displayName.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
@@ -206,8 +206,8 @@ export class ChannelQueryResolver {
             if (c) {
                 const channel = c.toObject();
                 const sha1 = require("sha1");
-                const vdoURL = "https://my1.vdo.click/bigbluebutton/api/";
-                const vdoKey = "bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI";
+                const vdoURL = "https://my2.vdo.click/bigbluebutton/api/";
+                const vdoKey = "KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU";
                 const atendeePass = channelId;
                 const modPass = channel.createdBy;
                 const fullName = moderator ? 'instructor' : 'guest'
@@ -246,8 +246,8 @@ export class ChannelQueryResolver {
             if (u) {
                 const user = u.toObject();
                 const sha1 = require("sha1");
-                const vdoURL = "https://my1.vdo.click/bigbluebutton/api/";
-                const vdoKey = "bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI";
+                const vdoURL = "https://my2.vdo.click/bigbluebutton/api/";
+                const vdoKey = "KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU";
                 const fullName = encodeURIComponent(encodeURI(user.displayName.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
                 const params =
                     "fullName=" +
@@ -517,8 +517,8 @@ export class ChannelQueryResolver {
 
             const axios = require('axios')
             const sha1 = require('sha1');
-            const vdoURL = 'https://my1.vdo.click/bigbluebutton/api/'
-            const vdoKey = 'bLKw7EqEyEoUvigSbkFr7HDdkzofdbtxakwfccl1VrI'
+            const vdoURL = 'https://my2.vdo.click/bigbluebutton/api/'
+            const vdoKey = 'KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU'
             let params =
                 'meetingID=' + channelId
             const toHash = (

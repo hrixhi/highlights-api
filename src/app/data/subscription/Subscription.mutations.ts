@@ -1,9 +1,11 @@
+import Expo from 'expo-server-sdk';
 import { Arg, Field, ObjectType } from 'type-graphql';
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import { CueModel } from '../cue/mongo/Cue.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
 import { ThreadModel } from '../thread/mongo/Thread.model';
+import * as OneSignal from 'onesignal-node';
 import { UserModel } from '../user/mongo/User.model';
 import { SubscriptionModel } from './mongo/Subscription.model';
 /**
@@ -31,6 +33,47 @@ export class SubscriptionMutationResolver {
 				if (sub) {
 					return 'already-subbed'
 				}
+
+				const notify = async () => {
+					const subtitle = 'You have been added to the channel.'
+					const title = channel.name + ' - Subscribed!'
+					const messages: any[] = []
+					const subscribersAdded = await UserModel.find({ _id: userId })
+					subscribersAdded.map((sub) => {
+						const notificationIds = sub.notificationId.split('-BREAK-')
+						notificationIds.map((notifId: any) => {
+							if (!Expo.isExpoPushToken(notifId)) {
+								return
+							}
+							messages.push({
+								to: notifId,
+								sound: 'default',
+								subtitle: subtitle,
+								title: title,
+								body: '',
+								data: { userId: sub._id },
+							})
+						})
+					})
+					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+					const notification = {
+						contents: {
+							'en': title,
+						},
+						include_external_user_ids: [userId]
+					}
+					const notificationService = new Expo()
+					await oneSignalClient.createNotification(notification)
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+						} catch (e) {
+							console.error(e);
+						}
+					}
+				}
+
 				if (channel.password && channel.password !== '') {
 
 					if (password === undefined || password === null || password === '') {
@@ -107,6 +150,9 @@ export class SubscriptionMutationResolver {
 							})
 						}
 
+						// notify
+						notify()
+
 						return 'subscribed'
 					} else {
 						// Incorrect password
@@ -168,7 +214,8 @@ export class SubscriptionMutationResolver {
 							creatorUnsubscribed: false
 						})
 					}
-					
+
+					notify()
 					return 'subscribed'
 				}
 			} else {
@@ -190,50 +237,93 @@ export class SubscriptionMutationResolver {
 		@Arg('keepContent', type => Boolean) keepContent: boolean
 	) {
 		try {
-			let subObject = await SubscriptionModel.findOne({
-				userId,
-				channelId,
-				unsubscribedAt: { $exists: false }
-			})
-			if (!subObject) {
-				if (keepContent) {
-					return false
-				} else {
-					// if erase content unsub is done after a keep content unsub
-					subObject = await SubscriptionModel.findOne({
-						userId,
-						channelId,
-						unsubscribedAt: { $exists: true },
-						keepContent: true
-					})
-					if (!subObject) {
+
+			const c = await ChannelModel.findById(channelId)
+			if (c) {
+				const channel = c.toObject()
+				let subObject = await SubscriptionModel.findOne({
+					userId,
+					channelId,
+					unsubscribedAt: { $exists: false }
+				})
+				if (!subObject) {
+					if (keepContent) {
 						return false
+					} else {
+						// if erase content unsub is done after a keep content unsub
+						subObject = await SubscriptionModel.findOne({
+							userId,
+							channelId,
+							unsubscribedAt: { $exists: true },
+							keepContent: true
+						})
+						if (!subObject) {
+							return false
+						}
 					}
+
+				}
+				// otherwise unsub
+				await SubscriptionModel.updateOne({
+					_id: subObject._id
+				}, {
+					unsubscribedAt: new Date(),
+					keepContent
+				})
+
+				// Check if user is Channel owner 
+				const channelObj = await ChannelModel.findById(channelId);
+				
+				// If user is channel creator, update creatorUnsubscribed: true
+				if (channelObj && channelObj.createdBy.toString().trim() === userId.toString().trim()) {
+					await ChannelModel.updateOne({
+						_id: channelId
+					}, {
+						creatorUnsubscribed: true
+					})
 				}
 
-			}
-			// otherwise unsub
-			await SubscriptionModel.updateOne({
-				_id: subObject._id
-			}, {
-				unsubscribedAt: new Date(),
-				keepContent
-			})
-
-			// Check if user is Channel owner 
-			const channelObj = await ChannelModel.findById(channelId);
-
-			// If user is channel creator, update creatorUnsubscribed: true
-			
-			if (channelObj && channelObj.createdBy.toString().trim() === userId.toString().trim()) {
-				await ChannelModel.updateOne({
-					_id: channelId
-				}, {
-					creatorUnsubscribed: true
+				const subtitle = 'You have been removed from the channel.'
+				const title = channel.name + ' - Unsubscribed!'
+				const messages: any[] = []
+				const subscribersAdded = await UserModel.find({ _id: userId })
+				subscribersAdded.map((sub) => {
+					const notificationIds = sub.notificationId.split('-BREAK-')
+					notificationIds.map((notifId: any) => {
+						if (!Expo.isExpoPushToken(notifId)) {
+							return
+						}
+						messages.push({
+							to: notifId,
+							sound: 'default',
+							subtitle: subtitle,
+							title: title,
+							body: '',
+							data: { userId: sub._id },
+						})
+					})
 				})
+				const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+				const notification = {
+					contents: {
+						'en': title,
+					},
+					include_external_user_ids: [userId]
+				}
+				const notificationService = new Expo()
+				await oneSignalClient.createNotification(notification)
+				let chunks = notificationService.chunkPushNotifications(messages);
+				for (let chunk of chunks) {
+					try {
+						await notificationService.sendPushNotificationsAsync(chunk);
+					} catch (e) {
+						console.error(e);
+					}
+				}
+				return true
+			} else {
+				return false
 			}
-
-			return true
 		} catch (e) {
 			console.log(e)
 			return false
