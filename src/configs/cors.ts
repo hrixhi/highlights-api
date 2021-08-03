@@ -1,6 +1,6 @@
-import app from '@config/app';
+import app from "@config/app";
 
 export default {
-  origins: [app.frontEndUrl],
-  credentials: true
+	origin: [app.frontEndUrl, app.frontEndUrlLive],
+	credentials: true,
 };
