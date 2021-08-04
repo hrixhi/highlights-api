@@ -63,4 +63,7 @@ export class CueInputObject {
   @Field({ nullable: true })
   public releaseSubmission?: boolean
 
+  @Field({ nullable: true })
+  public active?: boolean
+
 }
