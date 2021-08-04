@@ -597,351 +597,207 @@ export class ChannelMutationResolver {
 		@Arg('owners', type => [String]) owners: string[],
 		@Arg('password', type => String, { nullable: true }) password?: string,
 		@Arg('temporary', type => Boolean, { nullable: true }) temporary?: boolean,
-		@Arg('unsubscribe', type => Boolean, { nullable: true }) unsubscribe?: boolean,
 		@Arg('colorCode', type => String, { nullable: true }) colorCode?: string,
 	) {
 		try {
 
-			const c = await ChannelModel.findById(channelId)
-			if (c) {
-				const channel = c.toObject()
-				const name = channel.name
-				const password = channel.password
-				const oldOwners = channel.owners ? channel.owners : []
+			const channel = await ChannelModel.findById(channelId);
 
-				const toAdd: any[] = []
-				const toRemove: any[] = []
+			if (!channel) return false;
 
-				// group old owners
-				oldOwners.map((old) => {
-					const found = owners.find((o: any) => {
-						return o === old
-					})
-					if (!found) {
-						toRemove.push(old)
-					}
+			const toAdd: any[] = []
+			const toRemove: any[] = []
+			const oldOwners = channel.owners ? channel.owners : []
+			const name = channel.name
+
+			// group old owners
+			oldOwners.map((old) => {
+				const found = owners.find((o: any) => {
+					return o === old
 				})
+				if (!found) {
+					toRemove.push(old)
+				}
+			})
 
-				// group new owners
-				owners.map(newId => {
-					const found = oldOwners.find((o: any) => {
-						return o === newId
-					})
-					if (!found) {
-						toAdd.push(newId)
-					}
+			// group new owners
+			owners.map(newId => {
+				const found = oldOwners.find((o: any) => {
+					return o === newId
 				})
+				if (!found) {
+					toAdd.push(newId)
+				}
+			})
 
+			// subscribe new owners
+			toAdd.map(async (userId: any) => {
+				const sub = await SubscriptionModel.findOne({
+					userId,
+					channelId: channel._id,
+					unsubscribedAt: { $exists: false }
+				})
+				if (sub) {
+					return
+				}
 
-				if (unsubscribe) {
-					// unsub
-					const keepContent = false
-					toRemove.map(async (userId) => {
-						let subObject = await SubscriptionModel.findOne({
-							userId,
-							channelId,
-							unsubscribedAt: { $exists: false }
-						})
-						if (!subObject) {
-							if (keepContent) {
-								return
-							} else {
-								// if erase content unsub is done after a keep content unsub
-								subObject = await SubscriptionModel.findOne({
-									userId,
-									channelId,
-									unsubscribedAt: { $exists: true },
-									keepContent: true
-								})
-								if (!subObject) {
-									return
-								}
-							}
-
-						}
-						// otherwise unsub
-						await SubscriptionModel.updateOne({
-							_id: subObject._id
-						}, {
-							unsubscribedAt: new Date(),
-							keepContent
-						})
-
-						// Check if user is Channel owner 
-						const channelObj = await ChannelModel.findById(channelId);
-
-						// If user is channel creator, update creatorUnsubscribed: true
-
-						if (channelObj && channelObj.createdBy.toString().trim() === userId.toString().trim()) {
-							await ChannelModel.updateOne({
-								_id: channelId
-							}, {
-								creatorUnsubscribed: true
-							})
-						}
-
+				const pastSubs = await SubscriptionModel.find({
+					userId,
+					channelId: channel._id
+				})
+				if (pastSubs.length === 0) {
+					const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
+					channelCues.map(async (cue: any) => {
+						const cueObject = cue.toObject()
+						const duplicate = { ...cueObject }
+						delete duplicate._id
+						delete duplicate.deletedAt
+						delete duplicate.__v
+						duplicate.cueId = cue._id
+						duplicate.cue = ''
+						duplicate.userId = userId
+						duplicate.score = 0;
+						duplicate.graded = false
+						const u = await ModificationsModel.create(duplicate)
 					})
 				}
 
-				// subscribe new owners
-				toAdd.map(async (userId) => {
-					const channel = await ChannelModel.findOne({ name })
-					if (channel) {
-						const sub = await SubscriptionModel.findOne({
-							userId,
-							channelId: channel._id,
-							unsubscribedAt: { $exists: false }
-						})
-						if (sub) {
-							return
-						}
-						if (channel.password && channel.password !== '') {
-
-							if (password === undefined || password === null || password === '') {
-								return
-							}
-							// Private
-							if (channel.password.toString().trim() === password.toString().trim()) {
-
-								// check org
-								const owner = await UserModel.findById(channel.createdBy)
-								if (owner && owner.schoolId && owner.schoolId !== '') {
-									const u = await UserModel.findById(userId)
-									if (u && (!u.schoolId || u.schoolId.toString().trim() !== owner.schoolId.toString().trim())) {
-										// not same school
-										return
-									}
-								}
-
-								// Correct password - subscribed!
-								// Clear any old subscriptions with kc = true
-								const pastSubs = await SubscriptionModel.find({
-									userId,
-									channelId: channel._id
-								})
-								if (pastSubs.length === 0) {
-									const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
-									channelCues.map(async (cue: any) => {
-										const cueObject = cue.toObject()
-										const duplicate = { ...cueObject }
-										delete duplicate._id
-										delete duplicate.deletedAt
-										delete duplicate.__v
-										duplicate.cueId = cue._id
-										duplicate.cue = ''
-										duplicate.userId = userId
-										duplicate.score = 0;
-										duplicate.graded = false
-										const u = await ModificationsModel.create(duplicate)
-									})
-								}
-
-								const threads = await ThreadModel.find({
-									channelId: channel._id,
-									isPrivate: false
-								})
-								threads.map(async (t) => {
-									const thread = t.toObject()
-									await ThreadStatusModel.create({
-										userId,
-										channelId: channel._id,
-										cueId: thread.cueId ? thread.cueId : null,
-										threadId: thread.parentId ? thread.parentId : thread._id
-									})
-								})
-
-								await SubscriptionModel.updateMany({
-									userId,
-									channelId: channel._id,
-									unsubscribedAt: { $exists: true }
-								}, {
-									keepContent: false
-								})
-								// subscribe 
-								await SubscriptionModel.create({
-									userId, channelId: channel._id
-								})
-
-								// Check if channel owner, if yes then update creatorUnsubscribed: true
-								if (channel.createdBy.toString().trim() === userId.toString().trim()) {
-									await ChannelModel.updateOne({
-										_id: channel._id
-									}, {
-										creatorUnsubscribed: false
-									})
-								}
-
-								return
-							} else {
-								// Incorrect password
-								return
-							}
-
-						} else {
-							// Public
-							const owner = await UserModel.findById(channel.createdBy)
-							if (owner && owner.schoolId && owner.schoolId !== '') {
-								const u = await UserModel.findById(userId)
-								if (u && (!u.schoolId || u.schoolId.toString().trim() !== owner.schoolId.toString().trim())) {
-									// not same school
-									return
-								}
-							}
-
-							const pastSubs = await SubscriptionModel.find({
-								userId,
-								channelId: channel._id
-							})
-							if (pastSubs.length === 0) {
-								const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
-								channelCues.map(async (cue: any) => {
-									const obj = cue.toObject()
-									const duplicate = { ...obj }
-									delete duplicate._id
-									delete duplicate.deletedAt
-									delete duplicate.__v
-									duplicate.cue = ''
-									duplicate.cueId = cue._id
-									duplicate.userId = userId
-									const u = await ModificationsModel.create(duplicate)
-								})
-							}
-
-							const threads = await ThreadModel.find({
-								channelId: channel._id,
-								isPrivate: false
-							})
-							threads.map(async (t) => {
-								const thread = t.toObject()
-								await ThreadStatusModel.create({
-									userId,
-									channelId: channel._id,
-									cueId: thread.cueId ? thread.cueId : null,
-									threadId: thread.parentId ? thread.parentId : thread._id
-								})
-							})
-
-							await SubscriptionModel.create({
-								userId, channelId: channel._id
-							})
-							// Check if channel owner, if yes then update creatorUnsubscribed: true
-							if (channel.createdBy.toString().trim() === userId.toString().trim()) {
-								await ChannelModel.updateOne({
-									_id: channel._id
-								}, {
-									creatorUnsubscribed: false
-								})
-							}
-
-							return
-						}
-					} else {
-						// Channel does not exist
-						return;
-					}
+				const threads = await ThreadModel.find({
+					channelId: channel._id,
+					isPrivate: false
+				})
+				threads.map(async (t) => {
+					const thread = t.toObject()
+					await ThreadStatusModel.create({
+						userId,
+						channelId: channel._id,
+						cueId: thread.cueId ? thread.cueId : null,
+						threadId: thread.parentId ? thread.parentId : thread._id
+					})
 				})
 
-				await ChannelModel.updateOne(
-					{ _id: channelId },
-					{
-						name,
-						password: password && password !== '' ? password : undefined,
-						temporary: temporary ? true : false,
-						owners,
-						colorCode: colorCode ? colorCode : ""
-					}
-				)
+				await SubscriptionModel.updateMany({
+					userId,
+					channelId: channel._id,
+					unsubscribedAt: { $exists: true }
+				}, {
+					keepContent: false
+				})
+				// subscribe 
+				await SubscriptionModel.create({
+					userId, channelId: channel._id
+				})
 
-				// So we can use the variable names again
-				// Added as mod
-				if (true) {
-					const subtitle = 'Your role has been updated.'
-					const title = channel.name + ' - Added as moderator!'
-					const messages: any[] = []
-					const subscribersAdded = await UserModel.find({ _id: { $in: toAdd } })
-					subscribersAdded.map((sub) => {
-						const notificationIds = sub.notificationId.split('-BREAK-')
-						notificationIds.map((notifId: any) => {
-							if (!Expo.isExpoPushToken(notifId)) {
-								return
-							}
-							messages.push({
-								to: notifId,
-								sound: 'default',
-								subtitle: subtitle,
-								title: title,
-								body: '',
-								data: { userId: sub._id },
-							})
-						})
+				// Check if channel owner, if yes then update creatorUnsubscribed: true
+				if (channel.createdBy.toString().trim() === userId.toString().trim()) {
+					await ChannelModel.updateOne({
+						_id: channel._id
+					}, {
+						creatorUnsubscribed: false
 					})
-					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
-					const notification = {
-						contents: {
-							'en': title,
-						},
-						include_external_user_ids: toAdd
-					}
-					const notificationService = new Expo()
-					await oneSignalClient.createNotification(notification)
-					let chunks = notificationService.chunkPushNotifications(messages);
-					for (let chunk of chunks) {
-						try {
-							await notificationService.sendPushNotificationsAsync(chunk);
-						} catch (e) {
-							console.error(e);
-						}
-					}
 				}
+			})
 
-				// Removed as mod notification
-				// So we can use the variable names again
-				if (true) {
-					const subtitle = 'Your role has been updated.'
-					const title = channel.name + ' - Removed as moderator!'
-					const messages: any[] = []
-					const subscribersAdded = await UserModel.find({ _id: { $in: toRemove } })
-					subscribersAdded.map((sub) => {
-						const notificationIds = sub.notificationId.split('-BREAK-')
-						notificationIds.map((notifId: any) => {
-							if (!Expo.isExpoPushToken(notifId)) {
-								return
-							}
-							messages.push({
-								to: notifId,
-								sound: 'default',
-								subtitle: subtitle,
-								title: title,
-								body: '',
-								data: { userId: sub._id },
-							})
-						})
+			// Update Channel settings
+			await ChannelModel.updateOne(
+				{ _id: channelId },
+				{
+					name,
+					password: password && password !== '' ? password : undefined,
+					temporary: temporary ? true : false,
+					owners,
+					colorCode: colorCode ? colorCode : ""
+				}
+			)
+
+
+			// Notify added owners
+
+			const subtitle = 'Your role has been updated.'
+			const title = channel.name + ' - Added as moderator!'
+			const messages: any[] = []
+			const subscribersAdded = await UserModel.find({ _id: { $in: toAdd } })
+			subscribersAdded.map((sub) => {
+				const notificationIds = sub.notificationId.split('-BREAK-')
+				notificationIds.map((notifId: any) => {
+					if (!Expo.isExpoPushToken(notifId)) {
+						return
+					}
+					messages.push({
+						to: notifId,
+						sound: 'default',
+						subtitle: subtitle,
+						title: title,
+						body: '',
+						data: { userId: sub._id },
 					})
-					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
-					const notification = {
-						contents: {
-							'en': title,
-						},
-						include_external_user_ids: toRemove
-					}
-					const notificationService = new Expo()
-					await oneSignalClient.createNotification(notification)
-					let chunks = notificationService.chunkPushNotifications(messages);
-					for (let chunk of chunks) {
-						try {
-							await notificationService.sendPushNotificationsAsync(chunk);
-						} catch (e) {
-							console.error(e);
-						}
-					}
-				}
+				})
+			})
 
-			} else {
-				return false
+			console.log("To Add", toAdd)
+			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+			const notification = {
+				contents: {
+					'en': title,
+				},
+				include_external_user_ids: [...toAdd]
 			}
-			return true
+			const notificationService = new Expo()
+			if (toAdd.length > 0) {
+				await oneSignalClient.createNotification(notification)
+			}
+			let chunks = notificationService.chunkPushNotifications(messages);
+			for (let chunk of chunks) {
+				try {
+					await notificationService.sendPushNotificationsAsync(chunk);
+				} catch (e) {
+					console.error(e);
+				}
+			}
+			
+			
+			const removeSubtitle = 'Your role has been updated.'
+			const removeTitle = channel.name + ' - Removed as moderator!'
+			const removeMessages: any[] = []
+			const subscribersRemoved = await UserModel.find({ _id: { $in: toRemove } })
+			subscribersRemoved.map((sub) => {
+				const notificationIds = sub.notificationId.split('-BREAK-')
+				notificationIds.map((notifId: any) => {
+					if (!Expo.isExpoPushToken(notifId)) {
+						return
+					}
+					removeMessages.push({
+						to: notifId,
+						sound: 'default',
+						subtitle: removeSubtitle,
+						title: removeTitle,
+						body: '',
+						data: { userId: sub._id },
+					})
+				})
+			})
+			console.log("To remove", toRemove)
+			const removeNotification = {
+				contents: {
+					'en': title,
+				},
+				include_external_user_ids: [...toRemove]
+			}
+			if (toRemove.length > 0) {
+				await oneSignalClient.createNotification(removeNotification)
+			}
+			let removeChunks = notificationService.chunkPushNotifications(removeMessages);
+			for (let chunk of removeChunks) {
+				try {
+					await notificationService.sendPushNotificationsAsync(chunk);
+				} catch (e) {
+					console.error(e);
+				}
+			}	
+			
+			return true;
 		} catch (e) {
-			console.log(e)
+			console.log("Channel update error", e)
 			return false
 		}
 	}

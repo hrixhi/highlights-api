@@ -92,6 +92,12 @@ export class AttendanceQueryResolver {
 
             const channel: any = await ChannelModel.findById(channelId);
 
+            let owners: any[] = [];
+      
+            if (channel) {
+                owners = channel.owners ? [...channel.owners, channel.createdBy.toString()] : [channel.createdBy.toString()]
+            }
+
             const channelSubscriptions: any[] = await SubscriptionModel.find({
                 channelId,
                 "deletedAt": null,
@@ -99,7 +105,7 @@ export class AttendanceQueryResolver {
 
             const userIds: string[] = channelSubscriptions.map(sub => sub.userId)
 
-            const filteredUserIds: string[] = userIds.filter(userId => userId.toString() !== channel.createdBy.toString()) 
+            const filteredUserIds: string[] = userIds.filter(userId => !owners.includes(userId.toString())) 
 
             const channelUsers: any[] = await UserModel.find({ _id: { $in: filteredUserIds } })
 

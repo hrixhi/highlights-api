@@ -48,7 +48,7 @@ export class EventObject {
       if (channel && channel.owners && context.user && channel.createdBy !== context.user!._id) {
 
         const anotherOwner = channel.owners.find((item: any) => {
-          return item === context.user!._id
+          return item === context.user!._id.toString()
         })
         if (anotherOwner) {
           return anotherOwner

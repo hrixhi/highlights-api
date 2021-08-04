@@ -662,7 +662,7 @@ export class CueMutationResolver {
 							sound: 'default',
 							subtitle: title,
 							title: fetchChannel.name + ' - ' + title + ' ',
-							body: (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Submission available"),
+							body: (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Scores available"),
 							data: { userId: sub._id },
 						})
 					})
@@ -683,7 +683,7 @@ export class CueMutationResolver {
 
 				const notification = {
 					contents: {
-						'en': fetchChannel.name + ' - ' + title + ' ' + (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Submission available"),
+						'en': fetchChannel.name + ' - ' + title + ' ' + (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Scores available"),
 					},
 					include_external_user_ids: userIds
 				}

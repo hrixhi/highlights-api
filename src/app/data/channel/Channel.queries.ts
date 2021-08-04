@@ -446,10 +446,17 @@ export class ChannelQueryResolver {
 
             const channel: any = await ChannelModel.findById(channelId);
 
-            // Filter channel owner data out
+            let owners: any[] = [];
+      
+            if (channel) {
+                owners = channel.owners ? [...channel.owners, channel.createdBy.toString()] : [channel.createdBy.toString()]
+            }
+
+            // Filter channel owners data out
             const filteredUsers = users.filter((u: any) => {
                 const user = u.toObject();
-                return user._id.toString() !== channel.createdBy.toString();
+                return !owners.includes(user._id.toString())
+                
             });
 
             filteredUsers.map((u: any) => {

@@ -82,6 +82,16 @@ export class ChannelObject {
     return subs.length
   }
 
+  @Field(type => String, { nullable: true })
+  public async channelCreator() {
+    const localThis: any = this;
+    const { createdBy } = localThis._doc || localThis;
+
+    if (createdBy) {
+      return createdBy
+    }
+  }
+
   @Field(type => Boolean, { nullable: true })
   public meetingOn?: boolean;
 
