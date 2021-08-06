@@ -608,7 +608,6 @@ export class ChannelMutationResolver {
 			const toAdd: any[] = []
 			const toRemove: any[] = []
 			const oldOwners = channel.owners ? channel.owners : []
-			const name = channel.name
 
 			// group old owners
 			oldOwners.map((old) => {
@@ -714,7 +713,7 @@ export class ChannelMutationResolver {
 			// Notify added owners
 
 			const subtitle = 'Your role has been updated.'
-			const title = channel.name + ' - Added as moderator!'
+			const title = name + ' - Added as moderator!'
 			const messages: any[] = []
 			const subscribersAdded = await UserModel.find({ _id: { $in: toAdd } })
 			subscribersAdded.map((sub) => {
@@ -757,7 +756,7 @@ export class ChannelMutationResolver {
 			
 			
 			const removeSubtitle = 'Your role has been updated.'
-			const removeTitle = channel.name + ' - Removed as moderator!'
+			const removeTitle = name + ' - Removed as moderator!'
 			const removeMessages: any[] = []
 			const subscribersRemoved = await UserModel.find({ _id: { $in: toRemove } })
 			subscribersRemoved.map((sub) => {
