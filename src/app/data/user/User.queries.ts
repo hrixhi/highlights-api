@@ -56,7 +56,7 @@ export class UserQueryResolver {
       subscriptions.map(subscriber => {
         ids.push(subscriber.userId);
       });
-      return await UserModel.find({ _id: { $in: ids }, deletedAt: { $exists: false } });
+      return await UserModel.find({ _id: { $in: ids }, deletedAt: undefined });
     } catch (e) {
       console.log(e);
       return [];
@@ -121,7 +121,9 @@ export class UserQueryResolver {
     schoolId: string
   ) {
     try {
-      return await UserModel.find({ schoolId, deletedAt: { $exists: false } });
+      const users =  await UserModel.find({ schoolId, deletedAt: undefined } );
+      console.log(users)
+      return users;
     } catch (e) {
       return [];
     }

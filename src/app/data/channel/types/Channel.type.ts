@@ -79,7 +79,8 @@ export class ChannelObject {
       channelId: _id,
       unsubscribedAt: { $exists: false }
     })
-    return subs.length
+    // Remove channel owner from total sub count
+    return subs.length - 1
   }
 
   @Field(type => String, { nullable: true })

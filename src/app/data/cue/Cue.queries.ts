@@ -110,11 +110,7 @@ export class CueQueryResolver {
 
       const sharedWith: any[] = [];
 
-      const filterOutOwners = subscribers.filter((sub: any) => {
-        return !owners.includes(sub.userId.toString())
-      })
-
-      filterOutOwners.map((s) => {
+      subscribers.map((s) => {
         const sub = s.toObject()
         const mod = modifications.find((m) => m.userId.toString().trim() === sub.userId.toString().trim())
         sharedWith.push({
