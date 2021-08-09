@@ -79,7 +79,18 @@ export class ChannelObject {
       channelId: _id,
       unsubscribedAt: { $exists: false }
     })
-    return subs.length
+    // Remove channel owner from total sub count
+    return subs.length - 1
+  }
+
+  @Field(type => String, { nullable: true })
+  public async channelCreator() {
+    const localThis: any = this;
+    const { createdBy } = localThis._doc || localThis;
+
+    if (createdBy) {
+      return createdBy
+    }
   }
 
   @Field(type => Boolean, { nullable: true })

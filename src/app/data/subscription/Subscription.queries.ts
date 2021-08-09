@@ -19,7 +19,8 @@ export class SubscriptionQueryResolver {
       return await SubscriptionModel.find({
         $and: [
           { userId },
-          { keepContent: { $ne: false } }
+          { keepContent: { $ne: false } },
+          { unsubscribedAt: { $exists: false } }
         ]
       })
     } catch (e) {

@@ -40,6 +40,7 @@ export class CueMutationResolver {
 	) {
 		try {
 
+			// This code flips the createdBy if a moderator and not the main channel owner is making the cue
 			let createdByToUse = createdBy;
 
 			const channel: any = await ChannelModel.findById(channelId)
@@ -56,6 +57,8 @@ export class CueMutationResolver {
 					createdByToUse = channel.createdBy
 		        } 
 			}
+
+			// < ----------- >
 
 			const c = {
 				cue,
@@ -662,7 +665,7 @@ export class CueMutationResolver {
 							sound: 'default',
 							subtitle: title,
 							title: fetchChannel.name + ' - ' + title + ' ',
-							body: (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Submission available"),
+							body: (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Scores available"),
 							data: { userId: sub._id },
 						})
 					})
@@ -683,7 +686,7 @@ export class CueMutationResolver {
 
 				const notification = {
 					contents: {
-						'en': fetchChannel.name + ' - ' + title + ' ' + (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Submission available"),
+						'en': fetchChannel.name + ' - ' + title + ' ' + (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Scores available"),
 					},
 					include_external_user_ids: userIds
 				}

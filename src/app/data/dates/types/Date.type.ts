@@ -38,6 +38,17 @@ export class EventObject {
   }
 
   @Field(type => String, { nullable: true })
+  public async channelId() {
+    const localThis: any = this;
+    const { scheduledMeetingForChannelId } = localThis._doc || localThis;
+    if (scheduledMeetingForChannelId) {
+      return scheduledMeetingForChannelId ? scheduledMeetingForChannelId : ''
+    } else {
+      return ''
+    }
+  }
+
+  @Field(type => String, { nullable: true })
   public async createdBy(@Ctx() context: IGraphQLContext) {
     const localThis: any = this;
     const { scheduledMeetingForChannelId } = localThis._doc || localThis;
@@ -48,7 +59,7 @@ export class EventObject {
       if (channel && channel.owners && context.user && channel.createdBy !== context.user!._id) {
 
         const anotherOwner = channel.owners.find((item: any) => {
-          return item === context.user!._id
+          return item === context.user!._id.toString()
         })
         if (anotherOwner) {
           return anotherOwner
@@ -78,6 +89,9 @@ export class EventObject {
 
   @Field(type => String, { nullable: true })
   public recurringId?: string;
+
+  @Field(type => String, { nullable: true })
+  public cueId?: string;
 
   @Field(type => Boolean, { nullable: true })
   public meeting?: boolean;

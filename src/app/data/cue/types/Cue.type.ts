@@ -2,8 +2,9 @@ import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
 import { StatusModel } from '@app/data/status/mongo/Status.model';
 import { ThreadStatusModel } from '@app/data/thread-status/mongo/thread-status.model';
 import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
-import { Ctx, Field, ObjectType } from 'type-graphql';
+import { Ctx, Field, ObjectType, Subscription } from 'type-graphql';
 import { CueModel } from '../mongo/Cue.model';
+import { SubscriptionModel } from '@app/data/subscription/mongo/Subscription.model';
 
 @ObjectType()
 export class CueObject {
@@ -40,17 +41,26 @@ export class CueObject {
   @Field(type => String, { nullable: true })
   public async createdBy(@Ctx() context: IGraphQLContext) {
     const localThis: any = this;
-    const { createdBy, owners } = localThis._doc || localThis;
-    if (owners && createdBy !== context.user!._id) {
-      const anotherOwner = owners.find((item: any) => {
-        return item === context.user!._id
-      })
-      if (anotherOwner) {
-        return anotherOwner
+    const { channelId, createdBy } = localThis._doc || localThis;
+    if (channelId) {
+
+      const channel = await ChannelModel.findById(channelId)
+
+      if (channel && channel.owners && context.user && channel.createdBy !== context.user!._id) {
+        const anotherOwner = channel.owners.find((item: any) => {
+          return item === context.user!._id.toString()
+        })
+        if (anotherOwner) {
+          return anotherOwner
+        }
       }
+
+      return createdBy
+    } else {
+      return createdBy
     }
-    return createdBy
   }
+
 
   @Field({ nullable: true })
   public channelId: string;
@@ -157,5 +167,25 @@ export class CueObject {
 
   @Field({ nullable: true })
   public releaseSubmission: boolean
+
+  @Field(type => Boolean, { nullable: true })
+  // returns null for personal notes but original cue
+  public async active() {
+    const localThis: any = this;
+    const { channelId, userId } = localThis._doc || localThis;
+    if (channelId) {
+      const activeSubscription = await SubscriptionModel.findOne({
+        channelId,
+        userId,
+        unsubscribedAt: { $exists: false }
+      })
+      if (activeSubscription) {
+        return true
+      }
+      return false
+    } else {
+      return true
+    }
+  }
 
 }

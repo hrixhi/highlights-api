@@ -3,6 +3,7 @@ import { StatusObject } from './types/Status.type';
 import { StatusModel } from './mongo/Status.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { CueModel } from '../cue/mongo/Cue.model';
+import { ChannelModel } from '../channel/mongo/Channel.model';
 
 /**
  * Status Query Endpoints
@@ -22,14 +23,25 @@ export class StatusQueryResolver {
             const statusArray: any[] = []
             if (cue) {
                 const cueObject = cue.toObject()
+
+                const channelId = cueObject.channelId
+
+                const fetchChannel = await ChannelModel.findById(channelId);
+
+                let owners: any[] = [];
+      
+                if (fetchChannel) {
+                    owners = fetchChannel.owners ? [...fetchChannel.owners, fetchChannel.createdBy.toString()] : [fetchChannel.createdBy.toString()]
+                }
+
                 const statuses: any[] = await StatusModel.find({ cueId })
                 const modifications: any[] = await ModificationsModel.find({ cueId })
                 statuses.map((s) => {
                     const status: any = s.toObject()
-                    if (status.userId.toString().trim() === cueObject.createdBy.toString().trim()) {
-                        return
-                    }
 
+                    if (owners.includes(status.userId.toString())) {
+                        return 
+                    }
                     
                     const mod: any = modifications.find((m: any) => {
                         const modification = m.toObject()

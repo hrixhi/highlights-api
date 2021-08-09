@@ -5,6 +5,7 @@ import { StatusModel } from '../status/mongo/Status.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { SharedWithObject } from './types/SharedWith';
+import { ChannelModel } from '../channel/mongo/Channel.model';
 
 /**
  * Cue Query Endpoints
@@ -93,11 +94,22 @@ export class CueQueryResolver {
     cueId?: string
   ) {
     try {
+
+      const fetchChannel = await ChannelModel.findById(channelId);
+
+      let owners: any[] = [];
+      
+      if (fetchChannel) {
+        owners = fetchChannel.owners ? [...fetchChannel.owners, fetchChannel.createdBy.toString()] : [fetchChannel.createdBy.toString()]
+      }
+
       const subscribers = await SubscriptionModel.find({
         channelId, unsubscribedAt: { $exists: false }
       })
       const modifications = cueId ? await ModificationsModel.find({ cueId }) : []
+
       const sharedWith: any[] = [];
+
       subscribers.map((s) => {
         const sub = s.toObject()
         const mod = modifications.find((m) => m.userId.toString().trim() === sub.userId.toString().trim())
