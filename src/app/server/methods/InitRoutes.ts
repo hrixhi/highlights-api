@@ -79,6 +79,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         req.pipe(busboy);
     });
     GQLServer.post("/api/multiupload", (req: any, res: any) => {
+        console.log('in api')
         // this body field is used for recognizition if attachment is EventImage, Asset or simillar.
         const typeOfUpload = req.body.typeOfUpload;
         const busboy = new Busboy({ headers: req.headers });
@@ -103,10 +104,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
             const s3 = new AWS.S3();
             // configuring parameters
-
-           
-
-         await uploadFiles(file,type,res);
+            await uploadFiles(file,type,res);
         });
         req.pipe(busboy);
     });
@@ -131,11 +129,12 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                         "_" +
                         basename(fileItem.name)
                 };
-                var result1 = await afterLoop(params);
+                var result1 = await afterLoop(params,res);
                 if(result1){
                     count=count+1
                     links.push(result1)
                     if(count==file.length){
+                        console.log('creating resp',links)
                          res.json({
                         status: "success",
                         url: links
@@ -147,8 +146,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
            
         })
     }
-    const afterLoop=async(params:any)=>{
-       
+    const afterLoop=async(params:any,res:any)=>{
         return new Promise(function (resolve, reject){
             AWS.config.update({
                 accessKeyId: "AKIAJS2WW55SPDVYG2GQ",
@@ -159,13 +157,14 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 // handle error
                 if (err) {
                     reject(err);
-                    
+                    res.json({
+                        status: "error",
+                        url: null
+                    });
                 }
                 // success
                 if (data) {
-                  
                         resolve(data.Location)
-                    
                 }
             });
         })

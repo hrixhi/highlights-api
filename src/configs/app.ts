@@ -4,6 +4,8 @@ export default {
 		level: "info",
 	},
 	frontEndUrl: "http://localhost:3000",
+	webLocalUrl:"http://localhost:19006",
+	webLive:"https://web.cuesapp.co",
 	frontEndUrlLive: "http://navrachana.cuesapp.co",
 };
 
