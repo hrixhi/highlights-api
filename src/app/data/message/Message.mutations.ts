@@ -63,9 +63,13 @@ export class MessageMutationResolver {
             const userIds: any[] = [];
             const messages: any[] = [];
             const notificationService = new Expo();
-            users.map(u => {
-                userIds.push(u);
-            });
+            users
+				.filter((userIdSingle) => {
+					userIdSingle !== userId ? true : false;
+				})
+				.map((u) => {
+					userIds.push(u);
+				});
             const userArr = await UserModel.find({ _id: { $in: userIds } });
 
             const sentByUser = await UserModel.findById(userId);
