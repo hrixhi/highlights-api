@@ -29,4 +29,26 @@ export class ThreadStatusQueryResolver {
         }
     }
 
+    @Field(type => Number, {
+        description: "Used to find one user by id."
+    })
+    public async getUnreadQACount(
+        @Arg("userId", type => String)
+        userId: string,
+        @Arg("cueId", type => String)
+        cueId: string,
+    ) {
+        try {
+            const statuses: any[] = await ThreadStatusModel.find({
+                userId,
+                cueId
+            })
+            return statuses.length
+        } catch (e) {
+            console.log(e)
+            return 0
+        }
+    }
+
 }
+
