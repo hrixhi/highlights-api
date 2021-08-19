@@ -229,7 +229,7 @@ export class UserMutationResolver {
 		}
 	}
 
-	@Field((type) => Boolean)
+	@Field((type) => String)
 	public async addUsersToOrganisation(
 		@Arg("emails", (type) => [String])
 		emails: string[],
@@ -250,32 +250,20 @@ export class UserMutationResolver {
 			to.setHours(7, 0, 0);
 
 			const notificationId = "NOT_SET";
-			for (let i = 0; i < emails.length; i++) {
-				const email = emails[i];
+			let flagEmailUserExist = false;
+			let emailExists = [];
+			for (const email of emails) {
 				const user = await UserModel.findOne({ email });
-				// if user exists
 				if (user) {
-					// Then assign that school to the user
-					await UserModel.updateOne(
-						{ _id: user._id },
-						{
-							schoolId,
-							role,
-							grade: role === "instructor" || grade === "-" ? undefined : grade,
-							section:
-								role === "instructor" || section === "-" ? undefined : section,
-							deletedAt: undefined
-						}
-					);
-					// send email
-					const emailService = new EmailService();
-					const org: any = await SchoolsModel.findById(schoolId);
-					emailService.addedToOrgConfirm(
-						user.email ? user.email : "",
-						org.name
-					);
-				} else {
-					// create user with the school
+					emailExists.push(email);
+					flagEmailUserExist = true;
+				}
+			}
+
+			if (flagEmailUserExist) {
+				return "User with email " + emailExists.join(",") + " already exists.";
+			} else {
+				for (const email of emails) {
 					const username =
 						email.split("@")[0] +
 						Math.floor(Math.random() * (999 - 100 + 1) + 100).toString();
@@ -334,12 +322,10 @@ export class UserMutationResolver {
 						org.name
 					);
 				}
+				return "User Added!";
 			}
-
-			return true;
 		} catch (e) {
-			console.log(e);
-			return false;
+			return "Error: Somthing went wrong";
 		}
 	}
 
