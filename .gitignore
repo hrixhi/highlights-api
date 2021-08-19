@@ -1,0 +1,16 @@
+docs
+app/build
+app/bin
+app/node_modules
+app/.mongo_db
+app/.mongodb
+app/.mongo-db
+.DS_STORE
+**/.DS_STORE
+*/.DS_STORE
+node_modules/
+app/test-results\.xml
+app/yarn-error\.log
+dist/istkt-api\.zip
+bin/
+dist/
