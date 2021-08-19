@@ -1,7 +1,7 @@
 import * as AWS from 'aws-sdk';
 import Busboy from 'busboy';
 import { GraphQLServer } from 'graphql-yoga';
-import { link } from 'node:fs';
+import { link } from 'fs';
 import { basename } from 'path';
 const mime = require('mime-types')
 const util = require('util');
