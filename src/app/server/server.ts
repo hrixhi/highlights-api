@@ -58,7 +58,7 @@ export class Server {
 			var epoch = d.getTime() / 1000;
 			var secondsSinceLastTimerTrigger = epoch % 120; // (2 minutes)
 			var secondsUntilNextTimerTrigger = 120 - secondsSinceLastTimerTrigger;
-			setInterval(this.submitQuizCheck, secondsUntilNextTimerTrigger * 1000);
+			// setInterval(this.submitQuizCheck, secondsUntilNextTimerTrigger * 1000);
 		}
 	}
 

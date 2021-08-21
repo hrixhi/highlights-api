@@ -12,7 +12,7 @@ export class SharedWithObject {
       const u = await UserModel.findById(value)
       if (u) {
         const user = u.toObject()
-        return user.displayName
+        return user.fullName
       } else {
         return '-'
       }

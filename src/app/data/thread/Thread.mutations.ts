@@ -99,9 +99,9 @@ export class ThreadMutationResolver {
                             to: notifId,
                             sound: "default",
                             title:
-                                channel.name + (cueId === "NULL" ? "- New Discussion " : "- New Comment ") +
+                                channel.name + (cueId === "NULL" ? "- New Discussion " : "- New Q&A ") +
                                 (parentId
-                                    ? "Thread"
+                                    ? "Post"
                                     : "Reply"),
                             subtitle: title,
                             body,
