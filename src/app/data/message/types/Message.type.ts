@@ -24,4 +24,12 @@ export class MessageObject {
     return user ? user.displayName : ''
   }
 
+  @Field(type => String)
+  public async fullName() {
+    const localThis: any = this;
+    const { sentBy } = localThis._doc || localThis;
+    const user = await UserModel.findById(sentBy)
+    return user ? user.fullName : ''
+  }
+
 }

@@ -49,6 +49,18 @@ export class ThreadObject {
     }
   }
 
+  @Field(type => String, { nullable: true })
+  public async fullName() {
+    const localThis: any = this;
+    const { userId } = localThis._doc || localThis;
+    const user = await UserModel.findById(userId)
+    if (user) {
+      return user.fullName
+    } else {
+      return ''
+    }
+  }
+
   @Field(type => Number, { nullable: true })
   public async unreadThreads(@Ctx() context: IGraphQLContext) {
     const localThis: any = this;
