@@ -87,6 +87,10 @@ const schema = new Schema(
       type: Boolean,
       required: false
     },
+    regradedAt: {
+      type: Date,
+      required: false
+    }
   }
 )
 

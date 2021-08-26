@@ -9,6 +9,9 @@ class AnswerObject {
   @Field(type => Boolean)
   public isCorrect: boolean;
 
+  @Field(type => Boolean, { nullable: true })
+  public previouslyCorrect?: boolean;
+
 }
 
 
@@ -29,6 +32,12 @@ class ProblemObject {
 
   @Field(type => Boolean, { nullable: true })
   public required?: boolean;
+
+  @Field({ nullable: true })
+  public updatedAt?: Date;
+
+  @Field(type => String,  { nullable: true })
+  public regradeChoice?: string;
 
 }
 
