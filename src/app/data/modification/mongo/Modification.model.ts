@@ -24,6 +24,7 @@ export interface IModificationsModel extends Document {
 	graded?: boolean;
 	comment?: string;
 	releaseSubmission?: boolean;
+	regradedAt?: Date;
 }
 
 export const ModificationsModel: Model<IModificationsModel> = model<IModificationsModel>(

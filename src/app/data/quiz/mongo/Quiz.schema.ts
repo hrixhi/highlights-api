@@ -8,6 +8,10 @@ const answerSchema = new Schema({
   isCorrect: {
     type: Boolean,
     required: true
+  },
+  previouslyCorrect: {
+    type: Boolean,
+    required: false
   }
 })
 
@@ -32,6 +36,14 @@ const problemSchema = new Schema(
     },
     required: {
       type: Boolean,
+      required: false
+    },
+    updatedAt: {
+      type: Date,
+      required: false
+    },
+    regradeChoice: {
+      type: String,
       required: false
     }
   }
