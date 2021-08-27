@@ -9,6 +9,7 @@ import { ThreadModel } from "./mongo/Thread.model";
 
 import * as OneSignal from "onesignal-node";
 import { CueModel } from "../cue/mongo/Cue.model";
+import { ActivityModel } from "../activity/mongo/activity.model";
 
 /**
  * Thread Mutation Endpoints
@@ -76,7 +77,7 @@ export class ThreadMutationResolver {
 
                     cueTitle = title;
 
-                } 
+                }
 
                 const userIds: any[] = [];
                 const messages: any[] = [];
@@ -86,15 +87,17 @@ export class ThreadMutationResolver {
                 });
                 const channel: any = await ChannelModel.findById(channelId);
                 const users = await UserModel.find({ _id: { $in: userIds } });
+                const activity: any[] = []
+                const { title, subtitle: body } = htmlStringParser(
+                    message
+                );
                 users.map(sub => {
                     const notificationIds = sub.notificationId.split("-BREAK-");
                     notificationIds.map((notifId: any) => {
                         if (!Expo.isExpoPushToken(notifId)) {
                             return;
                         }
-                        const { title, subtitle: body } = htmlStringParser(
-                            message
-                        );
+
                         messages.push({
                             to: notifId,
                             sound: "default",
@@ -108,12 +111,21 @@ export class ThreadMutationResolver {
                             data: { userId: sub._id }
                         });
                     });
+                    activity.push({
+                        userId: sub._id,
+                        subtitle: title,
+                        title: (cueId === "NULL" ? "New Discussion" : "New Q&A ") +
+                            (parentId
+                                ? "Post"
+                                : "Reply"),
+                        status: 'unread',
+                        date: new Date(),
+                        channelId: channel._id
+                    })
                 });
+                await ActivityModel.insertMany(activity)
 
                 // Web notifications
-
-                const { title, subtitle: body } = htmlStringParser(message);
-
                 const oneSignalClient = new OneSignal.Client(
                     "51db5230-f2f3-491a-a5b9-e4fba0f23c76",
                     "Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh"
@@ -168,13 +180,14 @@ export class ThreadMutationResolver {
                     const notificationIds = user.notificationId.split(
                         "-BREAK-"
                     );
+                    const { title, subtitle: body } = htmlStringParser(
+                        message
+                    );
                     notificationIds.map((notifId: any) => {
                         if (!Expo.isExpoPushToken(notifId)) {
                             return;
                         }
-                        const { title, subtitle: body } = htmlStringParser(
-                            message
-                        );
+
                         messages.push({
                             to: notifId,
                             sound: "default",
@@ -183,6 +196,15 @@ export class ThreadMutationResolver {
                             data: { userId: user._id }
                         });
                     });
+                    const activity = {
+                        userId,
+                        subtitle: title,
+                        title: 'Private Thread',
+                        status: 'unread',
+                        date: new Date(),
+                        channelId
+                    }
+                    await ActivityModel.create(activity)
 
                     let chunks = notificationService.chunkPushNotifications(
                         messages

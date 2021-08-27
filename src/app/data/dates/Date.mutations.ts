@@ -7,6 +7,7 @@ import { UserModel } from "../user/mongo/User.model";
 
 import * as OneSignal from "onesignal-node";
 import Expo from "expo-server-sdk";
+import { ActivityModel } from "../activity/mongo/activity.model";
 
 /**
  * Date Mutation Endpoints
@@ -180,6 +181,7 @@ export class DateMutationResolver {
 
 			const response = await oneSignalClient.createNotification(notification);
 
+			const activity: any[] = []
 			users.map((sub) => {
 				const notificationIds = sub.notificationId.split("-BREAK-");
 				notificationIds.map((notifId: any) => {
@@ -190,11 +192,21 @@ export class DateMutationResolver {
 						to: notifId,
 						sound: "default",
 						subtitle: "Your instructor has scheduled a new event.",
-						title: channel.name + " - New event Scheduled " + title,
+						title: channel.name + " - New event Scheduled" + title,
 						data: { userId: sub._id },
 					});
 				});
+				activity.push({
+					userId: sub._id,
+					subtitle: 'Your instructor has scheduled a new event.',
+					title: 'New event Scheduled',
+					status: 'unread',
+					date: new Date(),
+					channelId
+				})
 			});
+			await ActivityModel.insertMany(activity)
+
 			const notificationService = new Expo();
 			let chunks = notificationService.chunkPushNotifications(messages);
 			for (let chunk of chunks) {

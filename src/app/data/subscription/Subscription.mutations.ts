@@ -8,6 +8,7 @@ import { ThreadModel } from '../thread/mongo/Thread.model';
 import * as OneSignal from 'onesignal-node';
 import { UserModel } from '../user/mongo/User.model';
 import { SubscriptionModel } from './mongo/Subscription.model';
+import { ActivityModel } from '../activity/mongo/activity.model';
 /**
  * Subscription Mutation Endpoints
  */
@@ -39,6 +40,7 @@ export class SubscriptionMutationResolver {
 					const title = channel.name + ' - Subscribed!'
 					const messages: any[] = []
 					const subscribersAdded = await UserModel.find({ _id: userId })
+					const activity: any[] = []
 					subscribersAdded.map((sub) => {
 						const notificationIds = sub.notificationId.split('-BREAK-')
 						notificationIds.map((notifId: any) => {
@@ -54,7 +56,16 @@ export class SubscriptionMutationResolver {
 								data: { userId: sub._id },
 							})
 						})
+						activity.push({
+							userId: sub._id,
+							subtitle,
+							title: 'Subscribed',
+							status: 'unread',
+							date: new Date(),
+							channelId: channel._id
+						})
 					})
+					await ActivityModel.insertMany(activity)
 					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
 					const notification = {
 						contents: {
@@ -273,7 +284,7 @@ export class SubscriptionMutationResolver {
 
 				// Check if user is Channel owner 
 				const channelObj = await ChannelModel.findById(channelId);
-				
+
 				// If user is channel creator, update creatorUnsubscribed: true
 				if (channelObj && channelObj.createdBy.toString().trim() === userId.toString().trim()) {
 					await ChannelModel.updateOne({
@@ -287,6 +298,7 @@ export class SubscriptionMutationResolver {
 				const title = channel.name + ' - Unsubscribed!'
 				const messages: any[] = []
 				const subscribersAdded = await UserModel.find({ _id: userId })
+				const activity: any[] = []
 				subscribersAdded.map((sub) => {
 					const notificationIds = sub.notificationId.split('-BREAK-')
 					notificationIds.map((notifId: any) => {
@@ -301,8 +313,17 @@ export class SubscriptionMutationResolver {
 							body: '',
 							data: { userId: sub._id },
 						})
+						activity.push({
+							userId: sub._id,
+							subtitle,
+							title: 'Unsubscribed',
+							status: 'unread',
+							date: new Date(),
+							channelId: channel._id
+						})
 					})
 				})
+				await ActivityModel.insertMany(activity)
 				const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
 				const notification = {
 					contents: {

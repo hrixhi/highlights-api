@@ -12,7 +12,7 @@ const schema = new Schema(
     },
     channelId: {
       type: Types.ObjectId,
-      required: true
+      required: false
     }
   }
 )

@@ -4,7 +4,7 @@ import { messageStatusSchema } from './message-status.schema';
 export interface IMessageStatusModel extends Document {
 	userId: string;
 	groupId: string;
-	channelId: any;
+	channelId?: any;
 }
 
 export const MessageStatusModel: Model<IMessageStatusModel> = model<IMessageStatusModel>(

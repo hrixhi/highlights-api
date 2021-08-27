@@ -11,6 +11,7 @@ import { CueModel } from '../cue/mongo/Cue.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { ThreadModel } from '../thread/mongo/Thread.model';
 import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
+import { ActivityModel } from '../activity/mongo/activity.model';
 
 
 /**
@@ -713,8 +714,9 @@ export class ChannelMutationResolver {
 			// Notify added owners
 
 			const subtitle = 'Your role has been updated.'
-			const title = name + ' - Added as moderator!'
+			const title = name + ' - Added as moderator'
 			const messages: any[] = []
+			const activity1: any[] = []
 			const subscribersAdded = await UserModel.find({ _id: { $in: toAdd } })
 			subscribersAdded.map((sub) => {
 				const notificationIds = sub.notificationId.split('-BREAK-')
@@ -731,7 +733,16 @@ export class ChannelMutationResolver {
 						data: { userId: sub._id },
 					})
 				})
+				activity1.push({
+					userId: sub._id,
+					subtitle,
+					title: 'Added as moderator',
+					status: 'unread',
+					date: new Date(),
+					channelId
+				})
 			})
+			await ActivityModel.insertMany(activity1)
 
 			console.log("To Add", toAdd)
 			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
@@ -753,11 +764,13 @@ export class ChannelMutationResolver {
 					console.error(e);
 				}
 			}
-			
-			
+
+
 			const removeSubtitle = 'Your role has been updated.'
 			const removeTitle = name + ' - Removed as moderator!'
 			const removeMessages: any[] = []
+			const activity2: any[] = []
+
 			const subscribersRemoved = await UserModel.find({ _id: { $in: toRemove } })
 			subscribersRemoved.map((sub) => {
 				const notificationIds = sub.notificationId.split('-BREAK-')
@@ -774,7 +787,17 @@ export class ChannelMutationResolver {
 						data: { userId: sub._id },
 					})
 				})
+				activity2.push({
+					userId: sub._id,
+					subtitle,
+					title: 'Removed as moderator',
+					status: 'unread',
+					date: new Date(),
+					channelId
+				})
 			})
+			await ActivityModel.insertMany(activity2)
+
 			console.log("To remove", toRemove)
 			const removeNotification = {
 				contents: {
@@ -792,8 +815,8 @@ export class ChannelMutationResolver {
 				} catch (e) {
 					console.error(e);
 				}
-			}	
-			
+			}
+
 			return true;
 		} catch (e) {
 			console.log("Channel update error", e)

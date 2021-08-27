@@ -12,6 +12,7 @@ import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { QuizModel } from '../quiz/mongo/Quiz.model';
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import * as OneSignal from 'onesignal-node';
+import { ActivityModel } from '../activity/mongo/activity.model';
 
 /**
  * Cue Mutation Endpoints
@@ -47,15 +48,15 @@ export class CueMutationResolver {
 
 			if (!channel) return false;
 
-			const { owners  = [] } = channel;
+			const { owners = [] } = channel;
 
 			if (owners.length > 0) {
 				const anotherOwner = owners.find((item: any) => {
 					return item === createdBy;
 				})
-			    if (anotherOwner) {
+				if (anotherOwner) {
 					createdByToUse = channel.createdBy
-		        } 
+				}
 			}
 
 			// < ----------- >
@@ -121,24 +122,38 @@ export class CueMutationResolver {
 			await ModificationsModel.insertMany(modifications)
 			// load subscribers
 			const subscribers = await UserModel.find({ _id: { $in: userIds } })
+
+			const activity: any[] = []
+
 			subscribers.map((sub) => {
+				const { title, subtitle: body } = htmlStringParser(cue)
 				const notificationIds = sub.notificationId.split('-BREAK-')
+				activity.push({
+					userId: sub._id,
+					subtitle: title,
+					title: 'New Note',
+					body,
+					status: 'unread',
+					date: new Date(),
+					channelId
+				})
 				notificationIds.map((notifId: any) => {
 					if (!Expo.isExpoPushToken(notifId)) {
 						notSetUserIds.push(sub._id)
 						return
 					}
-					const { title, subtitle: body } = htmlStringParser(cue)
 					messages.push({
 						to: notifId,
 						sound: 'default',
 						subtitle: title,
-						title: channel.name + ' - New Cue',
+						title: channel.name + ' - New Note',
 						body,
 						data: { userId: sub._id },
 					})
 				})
 			})
+
+			await ActivityModel.insertMany(activity)
 
 			// Web notifications
 
@@ -440,12 +455,12 @@ export class CueMutationResolver {
 
 					// Increment total points
 					total += (problem.points !== null && problem.points !== undefined ? problem.points : 1);
-					
+
 					// Add more types here which require checking
 					if (problem.questionType && problem.questionType === "freeResponse") {
-						isSubjective = true;	
+						isSubjective = true;
 						solutionsObject.problemScores.push("");
-						return;																														
+						return;
 					}
 
 					// Add check for partial grading later for MCQs
@@ -487,11 +502,12 @@ export class CueMutationResolver {
 			const notificationService = new Expo()
 
 			const notificationIds = user.notificationId.split('-BREAK-')
+			const { title } = htmlStringParser(c.cue)
+
 			notificationIds.map((notifId: any) => {
 				if (!Expo.isExpoPushToken(notifId)) {
 					return
 				}
-				const { title } = htmlStringParser(c.cue)
 				messages.push({
 					to: notifId,
 					sound: 'default',
@@ -500,13 +516,19 @@ export class CueMutationResolver {
 					data: { userId: user._id },
 				})
 			})
+			const activity = {
+				userId,
+				subtitle: (quizId !== undefined && quizId !== null && isQuizFullyGraded ? 'Graded! ' : 'Submitted! ') + title,
+				title: 'Submission Complete',
+				status: 'unread',
+				date: new Date(),
+				channelId: c.channelId
+			}
+			await ActivityModel.create(activity)
 
 			// Web notifications
 
 			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
-
-
-			const { title } = htmlStringParser(c.cue)
 
 			const notification = {
 				contents: {
@@ -558,7 +580,7 @@ export class CueMutationResolver {
 				submissionObj.problemScores = problemScores;
 				submissionObj.problemComments = problemComments;
 
-				const update  = await ModificationsModel.updateOne({
+				const update = await ModificationsModel.updateOne({
 					cueId,
 					userId
 				}, {
@@ -573,7 +595,7 @@ export class CueMutationResolver {
 			}
 
 			return false;
-			
+
 
 		} catch (e) {
 			console.log(e)
@@ -633,7 +655,7 @@ export class CueMutationResolver {
 			// Add notification here for releasing Submission => If graded say that Grades available or else submission available 
 			if (releaseSubmission && fetchCue) {
 				const { submission, channelId, gradeWeight, cue } = fetchCue;
-				
+
 				const notificationService = new Expo()
 				let userIds: string[] = []
 				const messages: any[] = []
@@ -653,6 +675,7 @@ export class CueMutationResolver {
 				const { title, subtitle: body } = htmlStringParser(cue)
 
 				const subscribers = await UserModel.find({ _id: { $in: userIds } })
+				const activity: any[] = []
 
 				subscribers.map((sub) => {
 					const notificationIds = sub.notificationId.split('-BREAK-')
@@ -668,6 +691,14 @@ export class CueMutationResolver {
 							body: (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Scores available"),
 							data: { userId: sub._id },
 						})
+					})
+					activity.push({
+						userId: sub._id,
+						subtitle: title,
+						title: (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Scores available"),
+						status: 'unread',
+						date: new Date(),
+						channelId
 					})
 				})
 
@@ -736,6 +767,7 @@ export class CueMutationResolver {
 
 				const channel: any = await ChannelModel.findById(cue.channelId)
 				const notificationIds = user.notificationId.split('-BREAK-')
+
 				notificationIds.map((notifId: any) => {
 					if (!Expo.isExpoPushToken(user.notificationId)) {
 						return
@@ -745,17 +777,26 @@ export class CueMutationResolver {
 						to: user.notificationId,
 						sound: 'default',
 						subtitle: title,
-						title: channel.name + ' - New Cue',
+						title: channel.name + ' - New Note',
 						data: { userId: user._id },
 					})
 				})
 
+				const { title, subtitle: body } = htmlStringParser(cue.cue)
+				const activity = {
+					userId,
+					subtitle: title,
+					title: 'New Note',
+					status: 'unread',
+					date: new Date(),
+					channelId: c.channelId
+				}
+				await ActivityModel.create(activity)
 
 				// Web notifications
 
 				const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
 
-				const { title } = htmlStringParser(cue.cue)
 
 				const notification = {
 					contents: {

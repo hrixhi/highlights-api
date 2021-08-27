@@ -5,6 +5,13 @@ import { SchoolsModel } from "../school/mongo/School.model";
 import { SubscriptionModel } from "../subscription/mongo/Subscription.model";
 import { UserObject } from "./types/User.type";
 import { AuthResponseObject } from "./types/AuthResponse.type";
+import { CueModel } from "../cue/mongo/Cue.model";
+import { ModificationsModel } from "../modification/mongo/Modification.model";
+import { PerformanceObject } from "./types/Performance.type";
+import { MessageModel } from "../message/mongo/Message.model";
+import { ChannelModel } from "../channel/mongo/Channel.model";
+import { GroupModel } from "../group/mongo/Group.model";
+import { ThreadModel } from "../thread/mongo/Thread.model";
 
 /**
  * User Query Endpoints
@@ -121,7 +128,7 @@ export class UserQueryResolver {
     schoolId: string
   ) {
     try {
-      const users =  await UserModel.find({ schoolId, deletedAt: undefined } );
+      const users = await UserModel.find({ schoolId, deletedAt: undefined });
       console.log(users)
       return users;
     } catch (e) {
@@ -166,4 +173,186 @@ export class UserQueryResolver {
       return "error";
     }
   }
+
+  @Field(type => [PerformanceObject], {
+    description: "Returns total scores.",
+    nullable: true
+  })
+  public async getPerformanceReport(
+    @Arg("userId", type => String)
+    userId: string
+  ) {
+    try {
+      // channel - score map
+      const u: any = await UserModel.findById(userId);
+      if (u) {
+
+        const scoreMap: any = {}
+        const totalMap: any = {}
+        const subs = await SubscriptionModel.find({
+          $and: [
+            { userId },
+            { keepContent: { $ne: false } },
+            { unsubscribedAt: { $exists: false } }
+          ]
+        })
+
+        for (let x = 0; x < subs.length; x++) {
+          if (subs[x]) {
+            const subscription = subs[x].toObject()
+            const mods = await ModificationsModel.find({
+              channelId: subscription.channelId,
+              submission: true,
+              userId,
+              graded: true
+            })
+            let score = 0
+            let total = 0
+            mods.map((m: any) => {
+              const mod = m.toObject()
+              console.log(mod)
+              if (mod.gradeWeight !== undefined && mod.gradeWeight !== null && mod.gradeWeight !== 0) {
+                score += (mod.score * mod.gradeWeight / 100)
+                total += mod.gradeWeight
+              }
+            })
+            scoreMap[subscription.channelId] = total === 0 ? 0 : ((score / total) * 100)
+            totalMap[subscription.channelId] = total
+          }
+        }
+
+        const toReturn: any[] = []
+        Object.keys(scoreMap).map((key: any) => {
+          toReturn.push({
+            channelId: key,
+            score: scoreMap[key],
+            total: totalMap[key]
+
+          })
+        })
+
+        return toReturn
+
+      } else {
+        return []
+      }
+    } catch (e) {
+      console.log(e)
+      return []
+    }
+  }
+
+
+  @Field(type => [UserObject])
+  public async getAllUsers(
+    @Arg("userId", type => String)
+    userId: string
+  ) {
+    try {
+
+      const u = await UserModel.findById(userId)
+      if (u) {
+        const user = u.toObject()
+
+        if (!user.schoolId || user.schoolId === '') {
+          return []
+        }
+
+        if (user.role === 'instructor') {
+          return await UserModel.find({ schoolId: user.schoolId })
+        } else {
+          return await UserModel.find({ schoolId: user.schoolId, role: 'instructor' })
+        }
+
+      } else {
+        return []
+      }
+
+    } catch (e) {
+      console.log(e)
+      return []
+    }
+  }
+
+  @Field(type => String)
+  public async search(
+    @Arg("term", type => String)
+    term: string,
+    @Arg("userId", type => String)
+    userId: string
+  ) {
+    try {
+
+      // search through cues - messages - threads - channels
+      // return result, type, add. data to lead to the result
+
+      const toReturn: any = {}
+      const subscriptions = await SubscriptionModel.find({
+        $and: [
+          { userId },
+          { keepContent: { $ne: false } },
+          { unsubscribedAt: { $exists: false } }
+        ]
+      })
+      const channelIds = subscriptions.map((s: any) => {
+        const sub = s.toObject()
+        return (s.channelId)
+      })
+
+      // Channels
+      const channels = await ChannelModel.find({ _id: { $in: channelIds }, name: new RegExp(term) })
+      console.log(channels)
+      toReturn['channels'] = channels
+
+      // Cues
+      const personalCues = await CueModel.find({
+        channelId: { $exists: false },
+        createdBy: userId,
+        cue: new RegExp(term)
+      })
+
+      toReturn['personalCues'] = (personalCues)
+      console.log(personalCues)
+
+      const channelCues = await CueModel.find({
+        channelId: { $in: channelIds },
+        cue: new RegExp(term)
+      })
+      console.log(channelCues)
+      toReturn['channelCues'] = (channelCues)
+
+      // Messages
+      const groups = await GroupModel.find({
+        users: userId
+      })
+      const groupIds = groups.map((g: any) => {
+        const group = g.toObject()
+        return group._id
+
+      })
+      const messages = await MessageModel.find({
+        message: new RegExp(term),
+        groupId: { $in: groupIds }
+      })
+      console.log(messages)
+      toReturn['messages'] = (messages)
+
+      // threads
+      const threads = await ThreadModel.find({
+        channelId: { $in: channelIds },
+        message: new RegExp(term)
+      })
+      console.log(threads)
+      toReturn['threads'] = (threads)
+
+      console.log('----------------------------------')
+
+      return JSON.stringify(toReturn)
+
+    } catch (e) {
+      console.log(e)
+      return ''
+    }
+  }
+
 }

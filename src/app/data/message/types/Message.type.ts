@@ -5,6 +5,9 @@ import { Field, ObjectType } from 'type-graphql';
 export class MessageObject {
 
   @Field()
+  public _id: string;
+
+  @Field()
   public sentBy: string;
 
   @Field({ nullable: true })
@@ -21,7 +24,7 @@ export class MessageObject {
     const localThis: any = this;
     const { sentBy } = localThis._doc || localThis;
     const user = await UserModel.findById(sentBy)
-    return user ? user.displayName : ''
+    return user ? user.fullName : ''
   }
 
   @Field(type => String)

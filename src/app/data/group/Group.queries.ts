@@ -32,4 +32,21 @@ export class GroupQueryResolver {
         }
     }
 
+    @Field(type => [GroupObject], {
+        description: "Used to find one user by id."
+    })
+    public async getChats(
+        @Arg("userId", type => String)
+        userId: string
+    ) {
+        try {
+            return await GroupModel.find({
+                users: { $all: [userId] }
+            })
+        } catch (e) {
+            console.log(e)
+            return []
+        }
+    }
+
 }

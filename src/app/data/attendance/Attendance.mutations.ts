@@ -7,6 +7,7 @@ import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { UserModel } from '../user/mongo/User.model';
 import { AttendanceModel } from './mongo/attendance.model';
 import * as OneSignal from 'onesignal-node';
+import { ActivityModel } from '../activity/mongo/activity.model';
 
 /**
  * Attendance Mutation Endpoints
@@ -53,6 +54,7 @@ export class AttendanceMutationResolver {
             }
 
             const response = await oneSignalClient.createNotification(notification)
+            const activity: any[] = []
 
             users.map((sub) => {
                 const notificationIds = sub.notificationId.split('-BREAK-')
@@ -67,8 +69,17 @@ export class AttendanceMutationResolver {
                         title: channel.name + ' - New Meeting Scheduled',
                         data: { userId: sub._id },
                     })
+                    activity.push({
+                        userId: sub._id,
+                        subtitle: 'Your instructor has scheduled a new meeting.',
+                        title: 'New Meeting Scheduled',
+                        status: 'unread',
+                        date: new Date(),
+                        channelId
+                    })
                 })
             })
+            await ActivityModel.insertMany(activity)
             const notificationService = new Expo()
             let chunks = notificationService.chunkPushNotifications(messages);
             for (let chunk of chunks) {
@@ -136,7 +147,7 @@ export class AttendanceMutationResolver {
         @Arg('markPresent', type => Boolean) markPresent: boolean
     ) {
         try {
-            
+
             if (markPresent) {
                 const att = await AttendanceModel.findOne({
                     userId,
