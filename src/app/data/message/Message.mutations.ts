@@ -159,7 +159,7 @@ export class MessageMutationResolver {
                 return false;
             }
             const groupDoc = await GroupModel.findOne({
-                users: { $all: users }
+                users: { $all: users, $size: users.length }
             });
             let groupId = "";
             if (groupDoc) {
