@@ -67,6 +67,382 @@ export class ChannelMutationResolver {
 		}
 	}
 
+	@Field(type => String, {
+		description: 'Used when you want to create a channel.'
+	})
+	public async duplicate(
+		@Arg('channelId', type => String) channelId: string,
+		@Arg('name', type => String) name: string,
+		@Arg('password', { nullable: true }) password?: string,
+		@Arg('temporary', { nullable: true }) temporary?: boolean,
+		@Arg('colorCode', { nullable: true }) colorCode?: string,
+		@Arg('duplicateSubscribers', { nullable: true }) duplicateSubscribers?: boolean,
+		@Arg('duplicateOwners', { nullable: true }) duplicateOwners?: boolean,
+	) {
+		try {
+			// name should be valid
+			if (name
+				&& name.toString().trim() !== ''
+				&& name.toString().trim() !== 'All'
+				&& name.toString().trim() !== 'All-Channels'
+			) {
+				// check for existing channel
+				const exists = await ChannelModel.findOne({
+					name: name.toString().trim()
+				})
+				if (exists) {
+					return 'exists'
+				}
+
+				// Fetch current channel
+				const channel = await ChannelModel.findById(channelId);
+
+				if (!channel) return 'error';
+
+				// Duplicate channel
+				const duplicateChannel = await ChannelModel.create({
+					name: name.toString().trim(),
+					password,
+					createdBy: channel.createdBy,
+					temporary: temporary ? true : false,
+					colorCode,
+				})
+
+				// Subscribe creator to Channel
+				await SubscriptionModel.create({
+					userId: channel.createdBy,
+					channelId: duplicateChannel._id
+				})
+
+				// Create all the cues with this channel ID and modifications for the channel owner 
+				let channelCues = await CueModel.find({
+					channelId
+				})
+
+				for (let i = 0; i < channelCues.length; i++) {
+					const cueObject = channelCues[i].toObject()
+					const duplicate = { ...cueObject }
+					delete duplicate._id
+					// delete duplicate.deletedAt
+					delete duplicate.__v
+					duplicate.channelId = duplicateChannel._id;
+
+					await CueModel.create(duplicate)
+				}
+
+				// Fetch new Cues
+				let duplicateChannelCues = await CueModel.find({
+					channelId: duplicateChannel._id
+				})
+
+				// Create modifications (Set user id to channel createdBy and channelId to new channel)
+				duplicateChannelCues.map(async (cue: any) => {
+					const cueObject = cue.toObject()
+					const duplicate = { ...cueObject }
+					delete duplicate._id
+					delete duplicate.deletedAt
+					delete duplicate.__v
+					duplicate.cueId = cue._id
+					duplicate.cue = ''
+					duplicate.userId = channel.createdBy
+					duplicate.score = 0;
+					duplicate.graded = false;
+					const u = await ModificationsModel.create(duplicate)
+				})
+
+				// Update channel Cues to cues with no limited shares
+				duplicateChannelCues = await CueModel.find({ channelId: duplicateChannel._id, limitedShares: { $ne: true } })
+
+				// Subscriber all Users if duplicateSubscribers
+				if (duplicateSubscribers) {
+					const subscriptions = await SubscriptionModel.find({
+						channelId,
+						unsubscribedAt: { $exists: false }
+					})
+
+					const subscriberIds: any[] = [];
+
+					for (let i = 0; i < subscriptions.length; i++) {
+						const sub = subscriptions[i];
+
+						if (sub.userId.toString() === channel.createdBy.toString()) {
+							continue;
+						}
+
+						await SubscriptionModel.create({
+							userId: sub.userId,
+							channelId: duplicateChannel._id
+						})
+
+						subscriberIds.push(sub.userId);
+
+						// Copy cues and modifications for the subscribers
+
+						console.log("Subscriber cues to duplicate", duplicateChannelCues);
+
+						duplicateChannelCues.map(async (cue: any) => {
+							const cueObject = cue.toObject()
+							const duplicate = { ...cueObject }
+							delete duplicate._id
+							delete duplicate.deletedAt
+							delete duplicate.__v
+							duplicate.cueId = cue._id
+							duplicate.cue = ''
+							duplicate.userId = sub.userId
+							duplicate.score = 0;
+							duplicate.graded = false;
+							const u = await ModificationsModel.create(duplicate)
+
+							console.log("Subscriber Modification duplicate", u);
+						})
+
+					}
+
+					const subscribersAdded = await UserModel.find({ _id: { $in: subscriberIds }});
+					const subtitle = 'You have been added to the channel.'
+					const title = duplicateChannel.name + ' - Subscribed!'
+					const messages: any[] = []
+					const activity: any[] = []
+
+					for (let i = 0; i < subscribersAdded.length; i++) {
+						const sub = subscribersAdded[i]
+						const notificationIds = sub.notificationId.split('-BREAK-')
+						notificationIds.map((notifId: any) => {
+							if (!Expo.isExpoPushToken(notifId)) {
+								return
+							}
+							messages.push({
+								to: notifId,
+								sound: 'default',
+								subtitle: subtitle,
+								title: title,
+								body: '',
+								data: { userId: sub._id },
+							})
+						})
+						activity.push({
+							userId: sub._id,
+							subtitle,
+							title: 'Subscribed',
+							status: 'unread',
+							date: new Date(),
+							channelId: duplicateChannel._id
+						})
+					}
+
+					await ActivityModel.insertMany(activity)
+					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+					const notification = {
+						contents: {
+							'en': title,
+						},
+						include_external_user_ids: subscriberIds
+					}
+
+					const notificationService = new Expo()
+					await oneSignalClient.createNotification(notification)
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+						} catch (e) {
+							console.error(e);
+						}
+					}
+
+				}
+
+				// If Duplicate Owners but not duplicate subscribers, then subscribe the owners
+				if (!duplicateSubscribers && duplicateOwners) {
+					const subscriptions = await SubscriptionModel.find({
+						channelId,
+						unsubscribedAt: { $exists: false }
+					})
+
+					let ownerSubscriptions = subscriptions.filter((sub: any) => channel.owners && channel.owners.includes(sub.userId.toString()))
+
+					const subscriberIds: any[] = [];
+
+					for (let i = 0; i < ownerSubscriptions.length; i++) {
+						const sub = ownerSubscriptions[i];
+
+						if (sub.userId.toString() === channel.createdBy.toString()) {
+							continue;
+						}
+
+						await SubscriptionModel.create({
+							userId: sub.userId,
+							channelId: duplicateChannel._id
+						})
+
+						// Add activity and send notification
+						subscriberIds.push(sub.userId);
+
+						// Copy cues and modifications for the subscribers
+						duplicateChannelCues.map(async (cue: any) => {
+							const cueObject = cue.toObject()
+							const duplicate = { ...cueObject }
+							delete duplicate._id
+							delete duplicate.deletedAt
+							delete duplicate.__v
+							duplicate.cueId = cue._id
+							duplicate.cue = ''
+							duplicate.userId = sub.userId
+							duplicate.score = 0;
+							duplicate.graded = false;
+							const u = await ModificationsModel.create(duplicate)
+						})
+					}
+
+
+					const subscribersAdded = await UserModel.find({ _id: { $in: subscriberIds }});
+					const subtitle = 'You have been added to the channel.'
+					const title = duplicateChannel.name + ' - Subscribed!'
+					const messages: any[] = []
+					const activity: any[] = []
+
+					for (let i = 0; i < subscribersAdded.length; i++) {
+						const sub = subscribersAdded[i];
+
+						const notificationIds = sub.notificationId.split('-BREAK-')
+						notificationIds.map((notifId: any) => {
+							if (!Expo.isExpoPushToken(notifId)) {
+								return
+							}
+							messages.push({
+								to: notifId,
+								sound: 'default',
+								subtitle: subtitle,
+								title: title,
+								body: '',
+								data: { userId: sub._id },
+							})
+						})
+						activity.push({
+							userId: sub._id,
+							subtitle,
+							title: 'Subscribed',
+							status: 'unread',
+							date: new Date(),
+							channelId: duplicateChannel._id
+						})
+					}
+
+					await ActivityModel.insertMany(activity)
+					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+					const notification = {
+						contents: {
+							'en': title,
+						},
+						include_external_user_ids: subscriberIds
+					}
+					const notificationService = new Expo()
+					await oneSignalClient.createNotification(notification)
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+						} catch (e) {
+							console.error(e);
+						}
+					}
+
+				}
+
+				// Next add the moderators as channel owners
+
+				if (duplicateOwners && channel.owners && channel.owners.length > 0) {
+					
+					// Update owners property for duplicate Channel
+					await ChannelModel.updateOne({
+						_id: duplicateChannel._id
+					}, {
+						owners: channel.owners
+					})
+
+					const ownerIds: any[] = [];
+
+					if (!channel.owners) return;
+
+					for (let i = 0; i < channel.owners.length; i++) {
+
+						const owner = channel.owners[i];
+						// Ensure channel createdBy is not part of the owners array
+						if (owner.toString() === channel.createdBy.toString()) {
+							continue;
+						}
+
+						ownerIds.push(owner);
+					}
+
+
+					const ownersAdded = await UserModel.find({ _id: { $in: ownerIds  }});
+					const subtitle = 'Your role has been updated.'
+					const title = name + ' - Added as moderator'
+					const messages: any[] = []
+					const activity1: any[] = []
+
+					ownersAdded.map((sub) => {
+						const notificationIds = sub.notificationId.split('-BREAK-')
+						notificationIds.map((notifId: any) => {
+							if (!Expo.isExpoPushToken(notifId)) {
+								return
+							}
+							messages.push({
+								to: notifId,
+								sound: 'default',
+								subtitle: subtitle,
+								title: title,
+								body: '',
+								data: { userId: sub._id },
+							})
+						})
+						activity1.push({
+							userId: sub._id,
+							subtitle,
+							title: 'Added as moderator',
+							status: 'unread',
+							date: new Date(),
+							channelId: duplicateChannel._id
+						})
+					})
+					await ActivityModel.insertMany(activity1)
+
+					const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+					const notification = {
+						contents: {
+							'en': title,
+						},
+						include_external_user_ids: ownerIds
+					}
+					const notificationService = new Expo()
+					if (ownerIds.length > 0) {
+						await oneSignalClient.createNotification(notification)
+					}
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+						} catch (e) {
+							console.error(e);
+						}
+					}
+				}
+
+				// Next copy all the content with modifications and statuses
+
+				return 'created'
+
+			} else {
+				return 'invalid-name'
+			}
+		} catch (e) {
+			console.log(e)
+			return 'error'
+		}
+	}
+
+
 	@Field(type => Boolean, {
 		description: 'Used when you want to allow or disallow people from joining meeting.'
 	})
