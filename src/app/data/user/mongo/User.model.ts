@@ -6,6 +6,7 @@ export interface IUserModel extends Document {
 	displayName: string;
 	fullName: string;
 	email?: string;
+	avatar?: string;
 	password?: string;
 	randomShuffleFrequency?: string;
 	sleepFrom?: string;

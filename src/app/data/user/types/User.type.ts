@@ -81,6 +81,9 @@ export class UserObject {
   @Field({ nullable: true })
   public role?: string;
 
+  @Field({ nullable: true })
+  public avatar?: string;
+
   @Field(type => Date, { nullable: true })
   public lastLoginAt?: Date;
 

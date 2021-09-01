@@ -1,4 +1,5 @@
 import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
+import { DateModel } from '@app/data/dates/mongo/dates.model';
 import { Field, ObjectType } from 'type-graphql';
 
 

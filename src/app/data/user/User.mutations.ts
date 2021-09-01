@@ -50,7 +50,9 @@ export class UserMutationResolver {
 		@Arg("displayName", (type) => String)
 		displayName: string,
 		@Arg("userId", (type) => String)
-		userId: string
+		userId: string,
+		@Arg("avatar", (type) => String, { nullable: true })
+		avatar?: string
 	) {
 		try {
 			await UserModel.updateOne(
@@ -58,6 +60,7 @@ export class UserMutationResolver {
 				{
 					fullName,
 					displayName,
+					avatar: avatar ? avatar : undefined
 				}
 			);
 			return true;

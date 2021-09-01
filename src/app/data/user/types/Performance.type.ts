@@ -15,6 +15,18 @@ export class PerformanceObject {
     @Field()
     public total: string;
 
+    @Field()
+    public submittedAssessments: string;
+
+    @Field()
+    public lateAssessments: string;
+
+    @Field()
+    public gradedAssessments: string;
+
+    @Field()
+    public totalAssessments: string;
+
     @Field(type => String, { nullable: true })
     public async channelName() {
         const localThis: any = this;

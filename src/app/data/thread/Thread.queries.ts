@@ -39,6 +39,23 @@ export class ThreadQueryResolver {
   }
 
   @Field(type => [ThreadObject], {
+    description: "Returns threads posted by a user.",
+  })
+  public async findByUserId(
+    @Arg("userId", type => String)
+    userId: string
+  ) {
+    try {
+      return await ThreadModel.find({
+        userId
+      })
+    } catch (e) {
+      console.log(e)
+      return []
+    }
+  }
+
+  @Field(type => [ThreadObject], {
     description: "Returns full list of threads.",
   })
   public async getThreadWithReplies(

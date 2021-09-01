@@ -189,6 +189,11 @@ export class UserQueryResolver {
 
         const scoreMap: any = {}
         const totalMap: any = {}
+        const totalAssessmentsMap: any = {}
+        const gradedAssessmentsMap: any = {}
+        const lateAssessmentsMap: any = {}
+        const submittedAssessmentsMap: any = {}
+
         const subs = await SubscriptionModel.find({
           $and: [
             { userId },
@@ -208,26 +213,54 @@ export class UserQueryResolver {
             })
             let score = 0
             let total = 0
+            let totalAssessments = 0;
+            let gradedAssessments = 0;
+            let lateAssessments = 0;
+            let submittedAssesments = 0;
+
             mods.map((m: any) => {
               const mod = m.toObject()
               console.log(mod)
               if (mod.gradeWeight !== undefined && mod.gradeWeight !== null && mod.gradeWeight !== 0) {
-                score += (mod.score * mod.gradeWeight / 100)
+                score += (mod.graded ? (mod.score * mod.gradeWeight / 100) : 0)
                 total += mod.gradeWeight
+                totalAssessments += 1
+                if (mod.graded) {
+                  gradedAssessments += 1
+                }
+                if (mod.submittedAt) {
+                  submittedAssesments += 1
+                  if (mod.deadline) {
+                    const sub = new Date(mod.submittedAt)
+                    const dead = new Date(mod.deadline)
+                    if (sub > dead) {
+                      lateAssessments += 1
+                    }
+                  }
+                }
               }
             })
             scoreMap[subscription.channelId] = total === 0 ? 0 : ((score / total) * 100)
             totalMap[subscription.channelId] = total
+            totalAssessmentsMap[subscription.channelId] = totalAssessments
+            lateAssessmentsMap[subscription.channelId] = lateAssessments
+            gradedAssessmentsMap[subscription.channelId] = gradedAssessments
+            submittedAssessmentsMap[subscription.channelId] = submittedAssesments
           }
         }
+
+        // total assessments
 
         const toReturn: any[] = []
         Object.keys(scoreMap).map((key: any) => {
           toReturn.push({
             channelId: key,
             score: scoreMap[key],
-            total: totalMap[key]
-
+            total: totalMap[key],
+            totalAssessments: totalAssessmentsMap[key],
+            lateAssessments: lateAssessmentsMap[key],
+            gradedAssessments: gradedAssessmentsMap[key],
+            submittedAssessments: submittedAssessmentsMap[key]
           })
         })
 
@@ -241,7 +274,6 @@ export class UserQueryResolver {
       return []
     }
   }
-
 
   @Field(type => [UserObject])
   public async getAllUsers(
@@ -296,12 +328,11 @@ export class UserQueryResolver {
       })
       const channelIds = subscriptions.map((s: any) => {
         const sub = s.toObject()
-        return (s.channelId)
+        return (sub.channelId)
       })
 
       // Channels
-      const channels = await ChannelModel.find({ _id: { $in: channelIds }, name: new RegExp(term) })
-      console.log(channels)
+      const channels = await ChannelModel.find({ name: new RegExp(term) })
       toReturn['channels'] = channels
 
       // Cues
@@ -310,15 +341,12 @@ export class UserQueryResolver {
         createdBy: userId,
         cue: new RegExp(term)
       })
-
       toReturn['personalCues'] = (personalCues)
-      console.log(personalCues)
 
       const channelCues = await CueModel.find({
         channelId: { $in: channelIds },
         cue: new RegExp(term)
       })
-      console.log(channelCues)
       toReturn['channelCues'] = (channelCues)
 
       // Messages
@@ -334,7 +362,6 @@ export class UserQueryResolver {
         message: new RegExp(term),
         groupId: { $in: groupIds }
       })
-      console.log(messages)
       toReturn['messages'] = (messages)
 
       // threads
@@ -342,10 +369,7 @@ export class UserQueryResolver {
         channelId: { $in: channelIds },
         message: new RegExp(term)
       })
-      console.log(threads)
       toReturn['threads'] = (threads)
-
-      console.log('----------------------------------')
 
       return JSON.stringify(toReturn)
 

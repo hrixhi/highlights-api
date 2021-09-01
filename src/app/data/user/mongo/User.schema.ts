@@ -66,6 +66,10 @@ const schema = new Schema(
     inactive: {
       type: Boolean,
       required: false
+    },
+    avatar: {
+      type: String,
+      required: false
     }
   },
   SchemaTimestamps

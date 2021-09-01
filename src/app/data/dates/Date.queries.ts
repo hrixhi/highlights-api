@@ -13,6 +13,35 @@ import { ChannelModel } from '../channel/mongo/Channel.model';
 export class DateQueryResolver {
 
     @Field(type => [EventObject], {
+        description: "Returns list of date objects.",
+        nullable: true
+    })
+    public async getPastDates(
+        @Arg("userId", type => String)
+        userId: string
+    ) {
+        try {
+            const subscriptions: any[] = await SubscriptionModel.find({ userId, unsubscribedAt: { $exists: false } })
+            const channelIdInputs: any[] = []
+            subscriptions.map((s) => {
+                const sub = s.toObject()
+                channelIdInputs.push(sub.channelId)
+            })
+            // const channels = await ChannelModel.find({ _id: { $in: channelIdInputs } })
+            // only return past dates
+            return await DateModel.find({
+                isNonMeetingChannelEvent: { $ne: true },
+                scheduledMeetingForChannelId: { $in: channelIdInputs },
+                end: { $lte: new Date() }
+            })
+        } catch (e) {
+            console.log(e)
+            return []
+        }
+    }
+
+
+    @Field(type => [EventObject], {
         description: "Returns list of date objects created by a user.",
         nullable: true
     })

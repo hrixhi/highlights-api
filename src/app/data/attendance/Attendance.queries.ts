@@ -80,6 +80,25 @@ export class AttendanceQueryResolver {
         }
     }
 
+    @Field(type => [AttendanceObject], {
+        description: "Returns a list of Attendances for a user for all channels",
+        nullable: true
+    })
+    public async getAttendancesByUser(
+        @Arg("userId", type => String)
+        userId: string
+    ) {
+        try {
+            return await AttendanceModel.find({
+                userId
+            })
+        } catch (e) {
+            console.log(e)
+            return []
+        }
+
+    }
+
     @Field(type => [ChannelAttendanceObject], {
         description: "Returns a list of Attendances for  past dates",
         nullable: true
@@ -93,7 +112,7 @@ export class AttendanceQueryResolver {
             const channel: any = await ChannelModel.findById(channelId);
 
             let owners: any[] = [];
-      
+
             if (channel) {
                 owners = channel.owners ? [...channel.owners, channel.createdBy.toString()] : [channel.createdBy.toString()]
             }
@@ -105,7 +124,7 @@ export class AttendanceQueryResolver {
 
             const userIds: string[] = channelSubscriptions.map(sub => sub.userId)
 
-            const filteredUserIds: string[] = userIds.filter(userId => !owners.includes(userId.toString())) 
+            const filteredUserIds: string[] = userIds.filter(userId => !owners.includes(userId.toString()))
 
             const channelUsers: any[] = await UserModel.find({ _id: { $in: filteredUserIds } })
 
