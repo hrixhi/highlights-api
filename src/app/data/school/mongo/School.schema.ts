@@ -21,6 +21,10 @@ const schema = new Schema(
     recoveryEmail: {
       type: String,
       required: false
+    },
+    streamId: {
+      type: String,
+      required: false
     }
   }
 )

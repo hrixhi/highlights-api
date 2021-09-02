@@ -18,13 +18,16 @@ export class SchoolMutationResolver {
         allowStudentChannelCreation: boolean,
         @Arg("logo", type => String, { nullable: true })
         logo?: string,
+        @Arg("streamId", type => String, { nullable: true })
+        streamId?: string,
     ) {
         try {
 
             await SchoolsModel.updateOne({ _id: schoolId }, {
                 recoveryEmail,
                 allowStudentChannelCreation,
-                logo: logo && logo !== '' ? logo : undefined
+                logo: logo && logo !== '' ? logo : undefined,
+                streamId: streamId === '' ? undefined : streamId
             })
 
             return true

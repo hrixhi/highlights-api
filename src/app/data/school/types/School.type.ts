@@ -12,6 +12,9 @@ export class SchoolObject {
     @Field(type => String, { nullable: true })
     public logo?: string;
 
+    @Field(type => String, { nullable: true })
+    public streamId?: string;
+
     @Field(type => Boolean, { nullable: true })
     public allowStudentChannelCreation?: boolean;
 

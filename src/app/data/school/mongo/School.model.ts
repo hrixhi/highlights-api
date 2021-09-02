@@ -7,6 +7,7 @@ export interface ISchoolsModel extends Document {
 	logo?: string;
 	allowStudentChannelCreation?: boolean;
 	recoveryEmail?: string;
+	streamId?: string;
 }
 
 export const SchoolsModel: Model<ISchoolsModel> = model<ISchoolsModel>(
