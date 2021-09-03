@@ -114,13 +114,15 @@ export class ThreadMutationResolver {
                     activity.push({
                         userId: sub._id,
                         subtitle: title,
-                        title: (cueId === "NULL" ? "New Discussion" : "New Q&A ") +
+                        title: (cueId === "NULL" ? "New Discussion " : "New Q&A ") +
                             (parentId
                                 ? "Post"
                                 : "Reply"),
                         status: 'unread',
                         date: new Date(),
-                        channelId: channel._id
+                        channelId: channel._id,
+                        cueId: cueId === "NULL" ? null : cueId,
+                        target: cueId === "NULL" ? "DISCUSSION" : "Q&A"
                     })
                 });
                 await ActivityModel.insertMany(activity)
@@ -134,10 +136,10 @@ export class ThreadMutationResolver {
                 const notification = {
                     contents: {
                         en:
-                            channel.name +
-                            (parentId
-                                ? " - New Discussion Thread"
-                                : " - New Discussion Reply") +
+                        channel.name + (cueId === "NULL" ? "- New Discussion " : "- New Q&A ") +
+                        (parentId
+                            ? "Post"
+                            : "Reply") +
                             ": " +
                             title
                     },
@@ -192,7 +194,11 @@ export class ThreadMutationResolver {
                             to: notifId,
                             sound: "default",
                             subtitle: title,
-                            title: obj.name + " - Private Thread",
+                            title:
+                            channel.name + (cueId === "NULL" ? "- New Discussion " : "- New Q&A ") +
+                            (parentId
+                                ? "Post"
+                                : "Reply"),
                             data: { userId: user._id }
                         });
                     });
@@ -202,7 +208,9 @@ export class ThreadMutationResolver {
                         title: 'Private Thread',
                         status: 'unread',
                         date: new Date(),
-                        channelId
+                        channelId,
+                        cueId: cueId === "NULL" ? null : cueId,
+                        target: cueId === "NULL" ? "DISCUSSION" : "Q&A"
                     }
                     await ActivityModel.create(activity)
 

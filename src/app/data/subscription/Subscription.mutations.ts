@@ -62,7 +62,8 @@ export class SubscriptionMutationResolver {
 							title: 'Subscribed',
 							status: 'unread',
 							date: new Date(),
-							channelId: channel._id
+							channelId: channel._id,
+							target: 'CHANNEL_SUBSCRIBED'
 						})
 					})
 					await ActivityModel.insertMany(activity)
@@ -294,6 +295,12 @@ export class SubscriptionMutationResolver {
 					})
 				}
 
+				// Remove all activity associated with this user and channel
+				await ActivityModel.deleteMany({
+					userId,
+					channelId
+				})
+
 				const subtitle = 'You have been removed from the channel.'
 				const title = channel.name + ' - Unsubscribed!'
 				const messages: any[] = []
@@ -319,7 +326,8 @@ export class SubscriptionMutationResolver {
 							title: 'Unsubscribed',
 							status: 'unread',
 							date: new Date(),
-							channelId: channel._id
+							channelId: channel._id,
+							target: "CHANNEL_UNSUBSCRIBED"
 						})
 					})
 				})
