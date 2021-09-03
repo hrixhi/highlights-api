@@ -78,6 +78,57 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         });
         req.pipe(busboy);
     });
+
+    GQLServer.post("/api/imageUploadEditor", (req: any, res: any) => {
+
+        AWS.config.update({
+            accessKeyId: "AKIAJS2WW55SPDVYG2GQ",
+            secretAccessKey: "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"
+        });
+        
+        const s3 = new AWS.S3();
+        // configuring parameters
+
+        const file = req.files.file;
+
+        console.log("request", file);
+
+        let params: any;
+        try {
+                params = {
+                    Bucket: "cues-files",
+                    Body: file.data,
+                    Key:
+                        "media/" +
+                        file.mimetype +
+                        "/" +
+                        Date.now() +
+                        "_" +
+                        basename(file.name)
+                };
+
+                s3.upload(params, (err: any, data: any) => {
+                    // handle error
+                    if (err) {
+                        res.json({
+                            // status: "error",
+                            url: null
+                        });
+                    }
+                    // success
+                    if (data) {
+                        res.json({
+                            // status: "success",
+                            location: data.Location
+                        });
+                    }
+                });
+            } catch (e) {
+                //
+            }
+
+    });
+
     GQLServer.post("/api/multiupload", (req: any, res: any) => {
         console.log('in api')
         // this body field is used for recognizition if attachment is EventImage, Asset or simillar.

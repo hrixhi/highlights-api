@@ -174,14 +174,13 @@ export class DateMutationResolver {
 
 			const notification = {
 				contents: {
-					en: `${channel.name}` + " - New event Scheduled " + title,
+					en: `${channel.name}` + " - New event scheduled - " + title,
 				},
 				include_external_user_ids: userIds,
 			};
 
 			const response = await oneSignalClient.createNotification(notification);
 
-			const activity: any[] = []
 			users.map((sub) => {
 				const notificationIds = sub.notificationId.split("-BREAK-");
 				notificationIds.map((notifId: any) => {
@@ -192,20 +191,11 @@ export class DateMutationResolver {
 						to: notifId,
 						sound: "default",
 						subtitle: "Your instructor has scheduled a new event.",
-						title: channel.name + " - New event Scheduled" + title,
+						title: channel.name + " - " + title,
 						data: { userId: sub._id },
 					});
 				});
-				activity.push({
-					userId: sub._id,
-					subtitle: 'Your instructor has scheduled a new event.',
-					title: 'New event Scheduled',
-					status: 'unread',
-					date: new Date(),
-					channelId
-				})
 			});
-			await ActivityModel.insertMany(activity)
 
 			const notificationService = new Expo();
 			let chunks = notificationService.chunkPushNotifications(messages);

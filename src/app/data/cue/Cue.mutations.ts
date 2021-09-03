@@ -128,15 +128,21 @@ export class CueMutationResolver {
 			subscribers.map((sub) => {
 				const { title, subtitle: body } = htmlStringParser(cue)
 				const notificationIds = sub.notificationId.split('-BREAK-')
-				activity.push({
-					userId: sub._id,
-					subtitle: title,
-					title: 'New Note',
-					body,
-					status: 'unread',
-					date: new Date(),
-					channelId
-				})
+
+				if (submission) {
+					activity.push({
+						userId: sub._id,
+						subtitle: title,
+						title: 'New Assignment created',
+						body,
+						status: 'unread',
+						date: new Date(),
+						channelId,
+						cueId: newCue._id,
+						target: "CUE"
+					})
+				}
+				
 				notificationIds.map((notifId: any) => {
 					if (!Expo.isExpoPushToken(notifId)) {
 						notSetUserIds.push(sub._id)
@@ -146,7 +152,7 @@ export class CueMutationResolver {
 						to: notifId,
 						sound: 'default',
 						subtitle: title,
-						title: channel.name + ' - New Note',
+						title: channel.name + (submission ? '- New Assignment created' : ' - New Content'),
 						body,
 						data: { userId: sub._id },
 					})
@@ -406,6 +412,13 @@ export class CueMutationResolver {
 		try {
 			await ModificationsModel.deleteMany({ cueId })
 			await CueModel.deleteOne({ _id: cueId })
+
+
+			// Delete all activity 
+			await ActivityModel.deleteMany({
+				cueId
+			})
+
 			return true
 		} catch (e) {
 			console.log(e)
@@ -522,7 +535,9 @@ export class CueMutationResolver {
 				title: 'Submission Complete',
 				status: 'unread',
 				date: new Date(),
-				channelId: c.channelId
+				channelId: c.channelId,
+				cueId,
+				target: 'CUE'
 			}
 			await ActivityModel.create(activity)
 
@@ -698,7 +713,8 @@ export class CueMutationResolver {
 						title: (submission && gradeWeight && gradeWeight > 0 ? " Grades available" : "Scores available"),
 						status: 'unread',
 						date: new Date(),
-						channelId
+						channelId,
+						cueId
 					})
 				})
 
@@ -733,6 +749,7 @@ export class CueMutationResolver {
 		}
 	}
 
+
 	@Field(type => Boolean)
 	public async shareCueWithMoreIds(
 		@Arg('userId', type => String)
@@ -744,6 +761,9 @@ export class CueMutationResolver {
 			const c: any = await CueModel.findOne({ _id: cueId })
 			if (c) {
 				const cue = c.toObject()
+
+				const { submission } = cue;
+				
 				cue.cueId = cue._id;
 				delete cue._id;
 				delete cue.limitedShares;
@@ -767,32 +787,44 @@ export class CueMutationResolver {
 
 				const channel: any = await ChannelModel.findById(cue.channelId)
 				const notificationIds = user.notificationId.split('-BREAK-')
+				
+				const { title, subtitle: body } = htmlStringParser(cue.cue)
+
+
+				if (submission) {
+					
+					const activity: any = {
+						userId: user._id,
+						subtitle: title,
+						title: 'New Assignment created',
+						body,
+						status: 'unread',
+						date: new Date(),
+						channelId: cue.channelId,
+						cueId: cueId,
+						target: "CUE"
+					}
+
+					ActivityModel.create(activity);
+
+				}
 
 				notificationIds.map((notifId: any) => {
 					if (!Expo.isExpoPushToken(user.notificationId)) {
 						return
 					}
-					const { title, subtitle: body } = htmlStringParser(cue.cue)
+					
 					messages.push({
 						to: user.notificationId,
 						sound: 'default',
 						subtitle: title,
-						title: channel.name + ' - New Note',
+						title: channel.name + (submission ? '- New Assignment created' : ' - New Content'),
 						data: { userId: user._id },
 					})
 				})
 
-				const { title, subtitle: body } = htmlStringParser(cue.cue)
-				const activity = {
-					userId,
-					subtitle: title,
-					title: 'New Note',
-					status: 'unread',
-					date: new Date(),
-					channelId: c.channelId
-				}
-				await ActivityModel.create(activity)
 
+				
 				// Web notifications
 
 				const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')

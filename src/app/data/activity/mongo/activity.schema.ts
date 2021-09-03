@@ -29,6 +29,14 @@ const schema = new Schema(
     date: {
       type: Date,
       required: true
+    },
+    cueId: {
+      type: String,
+      required: false
+    },
+    target: {
+      type: String, 
+      required: false
     }
   }
 )
