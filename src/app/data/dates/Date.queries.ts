@@ -112,7 +112,7 @@ export class DateQueryResolver {
                     ...date,
                     title: date.title,
                     dateId: 'channel',
-                    meeting: true,
+                    meeting: false,
                     cueId: ''
                 })
             })

@@ -226,7 +226,8 @@ export class ChannelMutationResolver {
 							title: 'Subscribed',
 							status: 'unread',
 							date: new Date(),
-							channelId: duplicateChannel._id
+							channelId: duplicateChannel._id,
+							target: 'CHANNEL_SUBSCRIBED'
 						})
 					}
 
@@ -324,7 +325,8 @@ export class ChannelMutationResolver {
 							title: 'Subscribed',
 							status: 'unread',
 							date: new Date(),
-							channelId: duplicateChannel._id
+							channelId: duplicateChannel._id,
+							target: "CHANNEL_SUBSCRIBED"
 						})
 					}
 
@@ -403,7 +405,8 @@ export class ChannelMutationResolver {
 							title: 'Added as moderator',
 							status: 'unread',
 							date: new Date(),
-							channelId: duplicateChannel._id
+							channelId: duplicateChannel._id,
+							target: "CHANNEL_MODERATOR_ADDED"
 						})
 					})
 					await ActivityModel.insertMany(activity1)
@@ -1115,7 +1118,8 @@ export class ChannelMutationResolver {
 					title: 'Added as moderator',
 					status: 'unread',
 					date: new Date(),
-					channelId
+					channelId,
+					target: "CHANNEL_MODERATOR_ADDED"
 				})
 			})
 			await ActivityModel.insertMany(activity1)
@@ -1169,7 +1173,8 @@ export class ChannelMutationResolver {
 					title: 'Removed as moderator',
 					status: 'unread',
 					date: new Date(),
-					channelId
+					channelId,
+					target: "CHANNEL_MODERATOR_REMOVED"
 				})
 			})
 			await ActivityModel.insertMany(activity2)

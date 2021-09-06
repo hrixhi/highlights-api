@@ -54,7 +54,6 @@ export class AttendanceMutationResolver {
             }
 
             const response = await oneSignalClient.createNotification(notification)
-            const activity: any[] = []
 
             users.map((sub) => {
                 const notificationIds = sub.notificationId.split('-BREAK-')
@@ -69,17 +68,8 @@ export class AttendanceMutationResolver {
                         title: channel.name + ' - New Meeting Scheduled',
                         data: { userId: sub._id },
                     })
-                    activity.push({
-                        userId: sub._id,
-                        subtitle: 'Your instructor has scheduled a new meeting.',
-                        title: 'New Meeting Scheduled',
-                        status: 'unread',
-                        date: new Date(),
-                        channelId
-                    })
                 })
             })
-            await ActivityModel.insertMany(activity)
             const notificationService = new Expo()
             let chunks = notificationService.chunkPushNotifications(messages);
             for (let chunk of chunks) {
