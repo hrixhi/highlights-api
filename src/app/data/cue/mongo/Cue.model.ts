@@ -21,6 +21,7 @@ export interface ICueModel extends Document {
 	// not stored in modification
 	// does not need type object
 	limitedShares?: boolean;
+	folderId?: string;
 }
 
 export const CueModel: Model<ICueModel> = model<ICueModel>(

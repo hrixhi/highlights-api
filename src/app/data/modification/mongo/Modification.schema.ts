@@ -90,6 +90,10 @@ const schema = new Schema(
     regradedAt: {
       type: Date,
       required: false
+    },
+    folderId: {
+      type: String,
+      required: false
     }
   }
 )

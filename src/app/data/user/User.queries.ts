@@ -284,17 +284,69 @@ export class UserQueryResolver {
 
       const u = await UserModel.findById(userId)
       if (u) {
-        const user = u.toObject()
 
-        if (!user.schoolId || user.schoolId === '') {
-          return []
-        }
+        const user = u.toObject()
+        const subs = await SubscriptionModel.find({
+          $and: [
+            { userId },
+            { keepContent: { $ne: false } },
+            { unsubscribedAt: { $exists: false } }
+          ]
+        })
+
+        const channelIds: any = []
+        const userIds: any[] = []
+        const userMap: any = {}
+
+        subs.map((s: any) => {
+          const sub = s.toObject()
+          channelIds.push(sub.channelId)
+        })
+
+        const allSubs = await SubscriptionModel.find({
+          $and: [
+            { channelId: { $in: channelIds } },
+            { keepContent: { $ne: false } },
+            { unsubscribedAt: { $exists: false } }
+          ]
+        })
+
+        allSubs.map((s: any) => {
+          const sub = s.toObject()
+          if (sub.userId.toString().trim() !== userId.toString().trim()) {
+            userIds.push(sub.userId)
+            if (userMap[sub.userId]) {
+              userMap[sub.userId].push(sub.channelId)
+            } else {
+              userMap[sub.userId] = [sub.channelId]
+            }
+          }
+        })
+
+        const toReturn: any[] = []
 
         if (user.role === 'instructor') {
-          return await UserModel.find({ schoolId: user.schoolId })
+          const data = await UserModel.find({
+            _id: { $in: userIds },
+            schoolId: user.schoolId ? user.schoolId : undefined
+          })
+          data.map((u: any) => {
+            const obj = u.toObject()
+            toReturn.push({ ...obj, channelIds: userMap[obj._id] })
+          })
         } else {
-          return await UserModel.find({ schoolId: user.schoolId, role: 'instructor' })
+          const data = await UserModel.find({
+            _id: { $in: userIds },
+            role: 'instructor',
+            schoolId: user.schoolId ? user.schoolId : undefined
+          })
+          data.map((u: any) => {
+            const obj = u.toObject()
+            toReturn.push({ ...obj, channelIds: userMap[obj._id] })
+          })
         }
+
+        return toReturn
 
       } else {
         return []
