@@ -91,6 +91,14 @@ const schema = new Schema(
       type: Date,
       required: false
     },
+    allowedAttempts: {
+      type: Number,
+      required: false
+    },
+    annotations: {
+      type: String,
+      required: false
+    },
     folderId: {
       type: String,
       required: false

@@ -13,6 +13,9 @@ import { QuizModel } from '../quiz/mongo/Quiz.model';
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import * as OneSignal from 'onesignal-node';
 import { ActivityModel } from '../activity/mongo/activity.model';
+import pdf from 'html-pdf'
+import * as AWS from 'aws-sdk';
+const Promise = require('bluebird');
 
 /**
  * Cue Mutation Endpoints
@@ -37,7 +40,9 @@ export class CueMutationResolver {
 		@Arg('initiateAt', { nullable: true }) initiateAt?: string,
 		@Arg('endPlayAt', { nullable: true }) endPlayAt?: string,
 		@Arg('customCategory', { nullable: true }) customCategory?: string,
-		@Arg('shareWithUserIds', type => [String], { nullable: true }) shareWithUserIds?: string[]
+		@Arg('shareWithUserIds', type => [String], { nullable: true }) shareWithUserIds?: string[],
+		@Arg('limitedShares', type => Boolean, { nullable: true}) limitedShares?: Boolean,
+		@Arg('allowedAttempts', type => String, { nullable: true }) allowedAttempts?: string,
 	) {
 		try {
 
@@ -75,12 +80,13 @@ export class CueMutationResolver {
 				gradeWeight: Number(gradeWeight),
 				deadline: (deadline && deadline !== '') ? new Date(deadline) : null,
 				initiateAt: (initiateAt && initiateAt !== '') ? new Date(initiateAt) : null,
-				submission
+				submission,
+				allowedAttempts: Number.isNaN(Number(allowedAttempts)) ? null : Number(allowedAttempts)
 			}
 
 			const newCue = await CueModel.create({
 				...c,
-				limitedShares: (shareWithUserIds !== undefined && shareWithUserIds !== null) ? true : false
+				limitedShares: limitedShares ? limitedShares : (shareWithUserIds !== undefined && shareWithUserIds !== null) ? true : false
 			})
 
 			const notificationService = new Expo()
@@ -153,7 +159,7 @@ export class CueMutationResolver {
 						sound: 'default',
 						subtitle: title,
 						title: channel.name + (submission ? '- New Assignment created' : ' - New Content'),
-						body,
+						body: '',
 						data: { userId: sub._id },
 					})
 				})
@@ -360,7 +366,9 @@ export class CueMutationResolver {
 						const tempOriginal = c.original;
 						delete c.cue;
 						delete c.original;
-
+						const tempAnnotations = c.annotations;
+						delete c.annotations;
+						
 						if (tempOriginal === undefined || tempOriginal === null) {
 							await CueModel.updateOne({
 								_id: cue._id
@@ -385,7 +393,7 @@ export class CueMutationResolver {
 							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
 						})
 						// get the cue back to the main owner
-						await ModificationsModel.updateOne({ _id: userId }, { cue: tempCue })
+						await ModificationsModel.updateOne({ _id: userId }, { cue: tempCue, annotations: tempAnnotations })
 						// also update original cue !!
 
 					}
@@ -426,6 +434,54 @@ export class CueMutationResolver {
 		}
 	}
 
+	private getHTMLToPDF = async (html: any) => {
+
+		try {
+
+			AWS.config.update({
+                accessKeyId: "AKIAJS2WW55SPDVYG2GQ",
+                secretAccessKey: "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"
+            });
+
+            const s3 = new AWS.S3();
+			
+			const createPDF = pdf.create(html);
+			var pdfToStream = Promise.promisify(createPDF.toStream, { context: createPDF });
+
+			const res = await pdfToStream();
+
+			const uploadParams = {
+				Bucket: "cues-files",
+				Key: "media/pdf/" + Date.now() + "_" + "something.pdf",
+				Body: res,
+			};
+		 
+			const data = await s3.upload(uploadParams).promise();
+
+			return data.Location;
+	
+			// return await pdf.create(html).toStream(async (err: any, response: any) => {
+			// 	if (err) return console.log(err);
+				
+			// 		const uploadParams = {
+			// 		  Bucket: "cues-files",
+			// 		  Key: "media/pdf/" + Date.now() + "_" + "something.pdf",
+			// 		  Body: response,
+			// 		};
+			// 		const stored = await s3.upload(uploadParams).promise();
+
+			// 		console.log(stored);
+
+			// 		return stored
+			// });
+		   
+		} catch (err) {
+			console.log("Error processing request: " + err);
+			return ""
+		}
+	
+	}
+
 	@Field(type => Boolean)
 	public async submitModification(
 		@Arg('userId', type => String)
@@ -439,6 +495,8 @@ export class CueMutationResolver {
 	) {
 		try {
 			const mod = await ModificationsModel.findOne({ cueId, userId })
+
+			if (!mod) return false;
 			// if (mod) {
 			// 	const modification = mod.toObject()
 			// 	if (modification.submittedAt !== undefined && modification.submittedAt !== null) {
@@ -501,11 +559,132 @@ export class CueMutationResolver {
 					solutionsObject.problemScores.push(calculatedScore);
 					score += Number(calculatedScore)
 				})
+
+				solutionsObject.submittedAt = new Date();
+				solutionsObject.score = score;
+				solutionsObject.isActive = false;
+				solutionsObject.isFullyGraded = !isSubjective;
+
 				// If not subjective then graded should be set to true
 				isQuizFullyGraded = !isSubjective
-				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue: JSON.stringify(solutionsObject), graded: !isSubjective, score: Number(((score / total) * 100).toFixed(2)) })
+
+				// New MULTIPLE ATTEMPTS SCHEMA
+
+				// For each attempt need to store the solutions, initiatedAt, problemScores, problemComments, submittedAt, score, isActive (This Quiz Attempt is used as the main score), attemptScore (This will be used to compare each attempt), isFullyGraded (set submission to not graded false and set as active)  ;
+				let saveCue : any = mod.cue && mod.cue !== "" ? JSON.parse(mod.cue) : { attempts: [] }
+				// let saveCue: any = { attempts: [] }
+
+				// Add the new attempt
+				saveCue.attempts.push(solutionsObject);
+
+				// Update the older attempts and calculate which attempt should be active 
+				let highestScore = 0;
+				let bestAttempt = 0;
+				let currActiveAttempt = 0;
+
+
+				saveCue.attempts.map((attempt: any, index: number) => {
+					if (attempt.score >= highestScore) {
+						highestScore = attempt.score;
+						bestAttempt = index;
+					}
+
+					if (attempt.isActive) {
+						currActiveAttempt = index;
+					}
+
+				})
+
+
+				if (bestAttempt !== currActiveAttempt) {
+					saveCue.attempts[currActiveAttempt] = {
+						...saveCue.attempts[currActiveAttempt],
+						isActive: false
+					}
+				} 
+
+				saveCue.attempts[bestAttempt] = {
+					...saveCue.attempts[bestAttempt],
+					isActive: true
+				} 
+
+				saveCue.quizResponses = ""
+
+				isQuizFullyGraded = saveCue.attempts[bestAttempt].isFullyGraded
+
+				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue: JSON.stringify(saveCue), graded: isQuizFullyGraded, score: Number(((highestScore / total) * 100).toFixed(2)) })
 			} else {
-				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue })
+
+				// Get current submissions object from modification
+
+				let saveCue : any = mod.cue && mod.cue !== "" ? JSON.parse(mod.cue) : { attempts: [] }
+
+				// const submissions = mod.cue ? JSON.parse(mod.cue) : saveSubmission;
+
+				// Assignment Submissions (Store multiple submissions)
+				if (cue[0] === "{" && cue[cue.length - 1] === "}") {
+
+					// Submission is already a file upload 
+					const obj = JSON.parse(cue);
+					
+					let saveSubmission = {
+						url: obj.url,
+						type: obj.type,
+						title: obj.title,
+						submittedAt: new Date(),
+						isActive: true,
+						annotations: obj.annotations ? obj.annotations : '', 
+					}
+
+					const currentAttemps: any[] = [...saveCue.attempts];
+
+					// Set the past attempts to inactive
+					const updatedAttempts = currentAttemps.map((attempt: any) => {
+						return {
+							...attempt,
+							isActive: false
+						}
+					})
+
+					updatedAttempts.push(saveSubmission)
+
+					saveCue.attempts = updatedAttempts
+
+					saveCue.submissionDraft = '';
+
+				} else {
+					// Convert html submission into pdf
+					const pdfPath = await this.getHTMLToPDF(cue)
+
+					let saveSubmission = {
+						html: cue,
+						submittedAt: new Date(),
+						isActive: true,
+						annotationPDF: pdfPath,
+						annotations: '', 
+					}
+
+					const currentAttemps: any[] = [...saveCue.attempts];
+
+					// Set the past attempts to inactive
+					const updatedAttempts = currentAttemps.map((attempt: any) => {
+						return {
+							...attempt,
+							isActive: false
+						}
+					})
+
+					updatedAttempts.push(saveSubmission)
+
+					saveCue.attempts = updatedAttempts
+
+					saveCue.submissionDraft = '';
+					
+				}
+
+				// Convert html submission into pdf
+
+				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue: JSON.stringify(saveCue) })
 			}
 
 			const c: any = await CueModel.findById(cueId)
@@ -524,14 +703,14 @@ export class CueMutationResolver {
 				messages.push({
 					to: notifId,
 					sound: 'default',
-					subtitle: (quizId !== undefined && quizId !== null && isQuizFullyGraded ? 'Graded! ' : 'Submitted! ') + title,
+					subtitle: title,
 					title: channel.name + ' - Submission Complete',
 					data: { userId: user._id },
 				})
 			})
 			const activity = {
 				userId,
-				subtitle: (quizId !== undefined && quizId !== null && isQuizFullyGraded ? 'Graded! ' : 'Submitted! ') + title,
+				subtitle: title,
 				title: 'Submission Complete',
 				status: 'unread',
 				date: new Date(),
@@ -570,6 +749,37 @@ export class CueMutationResolver {
 	}
 
 	@Field(type => Boolean)
+	public async updateAnnotation(
+		@Arg('userId', type => String)
+		userId: string,
+		@Arg('cueId', type => String)
+		cueId: string,
+		@Arg('attempts', type => String)
+		attempts: string
+	) {
+		const mod = await ModificationsModel.findOne({ cueId, userId })
+
+		if (!mod || !mod.cue) return false;
+
+		const currCue = JSON.parse(mod.cue);
+
+		const updatedCue = {
+			...currCue,
+			attempts: JSON.parse(attempts)
+		}
+
+		await ModificationsModel.updateOne({
+			_id: mod._id,
+		}, {
+			cue: JSON.stringify(updatedCue)
+		})
+
+		return true;
+
+	}
+
+
+	@Field(type => Boolean)
 	public async gradeQuiz(
 		@Arg('userId', type => String)
 		userId: string,
@@ -582,14 +792,81 @@ export class CueMutationResolver {
 		@Arg('score', type => Number, { nullable: true })
 		score?: number,
 		@Arg('comment', type => String, { nullable: true })
-		comment?: string
+		comment?: string,
+		@Arg('quizAttempt', type => Number, { nullable: true }) 
+		quizAttempt?: number
 	) {
 		try {
 			const mod = await ModificationsModel.findOne({ cueId, userId })
 
-			if (!mod) return false;
+			if (!mod || !mod.cue) return false;
 
-			if (mod.cue) {
+			if (quizAttempt && quizAttempt !== null) {
+
+				const currCueValue = JSON.parse(mod.cue);
+
+				const currAttempts = currCueValue.attempts;
+
+				const attemptToGrade = currAttempts[quizAttempt];
+
+				let attemptScore = 0;
+
+				problemScores.forEach((score) => {
+					attemptScore += parseFloat(score);
+				})
+
+				let updatedAttempts = [...currAttempts];
+				updatedAttempts[quizAttempt] = {
+					...attemptToGrade,
+					problemScores,
+					problemComments,
+					isFullyGraded: true,
+					score: attemptScore
+				}
+
+				let isActiveAttemptFullyGraded = false;
+
+				let activeAttempt = 0;
+
+				updatedAttempts.map((attempt: any, index: number) => {
+					if (attempt.isActive && attempt.isFullyGraded) isActiveAttemptFullyGraded = true 
+
+					if (attempt.isActive) activeAttempt = index;
+				})
+
+				// console.log("Is active attempt fully graded", isActiveAttemptFullyGraded);
+
+				// console.log("Updated Attempts", updatedAttempts);
+
+				// console.log("To save", {
+				// 	score: activeAttempt === quizAttempt ? Number(score) : mod.score,
+				// 	comment: comment && comment !== '' ? comment : '',
+				// 	graded: isActiveAttemptFullyGraded,
+				// 	cue: JSON.stringify({
+				// 		...currCueValue,
+				// 		attempts: updatedAttempts
+				// 	})
+				// })
+
+				// Only update the score if the active attempt is modified
+
+				const update = await ModificationsModel.updateOne({
+					cueId,
+					userId
+				}, {
+					score: activeAttempt === quizAttempt ? Number(score) : mod.score,
+					comment: comment && comment !== '' ? comment : '',
+					graded: true,
+					cue: JSON.stringify({
+						...currCueValue,
+						attempts: updatedAttempts
+					})
+				}) 
+
+				return true;
+
+			} else {
+
 				const submissionObj = JSON.parse(mod.cue);
 
 				submissionObj.problemScores = problemScores;
@@ -609,13 +886,95 @@ export class CueMutationResolver {
 
 			}
 
-			return false;
-
-
 		} catch (e) {
 			console.log(e)
 			return false;
 		}
+	}
+
+	@Field(type => Boolean)
+	public async modifyActiveAttemptQuiz(
+		@Arg('userId', type => String)
+		userId: string,
+		@Arg('cueId', type => String)
+		cueId: string,
+		@Arg('quizAttempt', type => Number, { nullable: true }) 
+		quizAttempt?: number
+	) {
+		const mod = await ModificationsModel.findOne({ cueId, userId })
+
+		if (!mod || !mod.cue) return false;
+
+		const cue = await CueModel.findById(mod.cueId);
+
+		if (!cue) return false;
+
+		const original = cue.cue;
+
+		const obj = JSON.parse(original);
+
+		if (obj.quizId === undefined || obj.quizId === "") {
+			return false;
+		}
+
+		const quiz = await QuizModel.findById(obj.quizId);
+
+		if (!quiz) return false;
+
+		let total = 0;
+
+		quiz.problems.forEach((problem: any, i: any) => {
+
+			// Increment total points
+			total += (problem.points !== null && problem.points !== undefined ? problem.points : 1);
+
+		})
+
+		const currCue = JSON.parse(mod.cue);
+
+		let scoreToSet = 0;
+
+		let isNewAttemptFullyGraded = false;
+
+		const updatedAttempts = currCue.attempts.map((attempt: any, index: number) => {
+			if (quizAttempt === index) {
+
+				if (attempt.isFullyGraded) isNewAttemptFullyGraded = true;
+
+				scoreToSet = attempt.score;
+
+				return {
+					...attempt,
+					isActive: true
+				}
+			}
+
+			return {
+				...attempt,
+				isActive: false
+			}
+		})
+
+		// console.log("Updated Cue", {
+		// 	...currCue,
+		// 	graded: isNewAttemptFullyGraded,
+		// 	score:  Number((scoreToSet/total) * 100).toFixed(2),
+		// 	attempts: updatedAttempts,
+		// })
+
+		
+		const update = await ModificationsModel.updateOne({
+			cueId,
+			userId
+		}, {
+			graded: isNewAttemptFullyGraded,
+			cue: JSON.stringify({
+				...currCue,
+				attempts: updatedAttempts,
+			})
+		})
+
+		return true
 	}
 
 	@Field(type => Boolean)

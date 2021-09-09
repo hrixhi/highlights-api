@@ -25,6 +25,7 @@ export interface IModificationsModel extends Document {
 	comment?: string;
 	releaseSubmission?: boolean;
 	regradedAt?: Date;
+	annotations?: string;
 	folderId?: string;
 }
 

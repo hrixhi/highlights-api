@@ -66,4 +66,13 @@ export class CueInputObject {
   @Field({ nullable: true })
   public active?: boolean
 
+  @Field({ nullable: true }) 
+  public limitedShares?: boolean
+
+  @Field({ nullable: true }) 
+  public allowedAttempts?: string
+
+  @Field({ nullable: true }) 
+  public annotations?: string
+
 }
