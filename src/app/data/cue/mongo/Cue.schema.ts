@@ -18,6 +18,10 @@ const schema = new Schema(
       type: String,
       required: false
     },
+    folderId: {
+      type: String,
+      required: false
+    },
     starred: {
       type: Boolean,
       required: true

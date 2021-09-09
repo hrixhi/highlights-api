@@ -12,6 +12,7 @@ import { DateMutationResolver } from './dates/Date.mutations'
 import { AttendanceMutationResolver } from './attendance/Attendance.mutations'
 import { QuizMutationResolver } from './quiz/Quiz.mutations'
 import { SchoolMutationResolver } from './school/School.mutations'
+import { FolderMutationResolver } from './folder/Folder.mutations'
 import { ActivityMutationResolver } from './activity/activity.mutations';
 
 @Resolver()
@@ -80,6 +81,11 @@ export class AppMutationResolver {
   @Mutation(returns => SchoolMutationResolver)
   public school() {
     return new SchoolMutationResolver();
+  }
+
+  @Mutation(returns => FolderMutationResolver)
+  public folder() {
+    return new FolderMutationResolver();
   }
 
   @Mutation(returns => ActivityMutationResolver)

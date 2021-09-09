@@ -61,7 +61,6 @@ export class CueObject {
     }
   }
 
-
   @Field({ nullable: true })
   public channelId: string;
 
@@ -70,6 +69,9 @@ export class CueObject {
 
   @Field({ nullable: true })
   public customCategory: string;
+
+  @Field({ nullable: true })
+  public folderId: string;
 
   @Field(type => String, { nullable: true })
   public async channelName() {

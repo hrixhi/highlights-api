@@ -26,6 +26,7 @@ export interface IModificationsModel extends Document {
 	releaseSubmission?: boolean;
 	regradedAt?: Date;
 	annotations?: string;
+	folderId?: string;
 }
 
 export const ModificationsModel: Model<IModificationsModel> = model<IModificationsModel>(

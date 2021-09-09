@@ -98,6 +98,10 @@ const schema = new Schema(
     annotations: {
       type: String,
       required: false
+    },
+    folderId: {
+      type: String,
+      required: false
     }
   }
 )

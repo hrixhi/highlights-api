@@ -90,4 +90,7 @@ export class UserObject {
   @Field({ nullable: true })
   public inactive?: boolean;
 
+  @Field(type => [String], { nullable: true })
+  public channelIds?: string[];
+
 }
