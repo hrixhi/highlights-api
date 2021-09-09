@@ -66,7 +66,11 @@ const schema = new Schema(
     limitedShares: {
       type: Boolean,
       required: false
-    }
+    },
+    allowedAttempts: {
+      type: Number,
+      required: false
+    },
   }
 )
 

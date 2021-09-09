@@ -188,4 +188,24 @@ export class CueObject {
     }
   }
 
+  @Field(type => Boolean, { nullable: true })
+  public async limitedShares() {
+    const localThis: any = this;
+    let cue: any;
+    const { cueId, _id } = localThis._doc || localThis;
+    if (cueId) {
+      cue = await CueModel.findById(cueId);
+    } else {
+      cue = await CueModel.findById(_id);
+    }
+
+    return cue.limitedShares ? cue.limitedShares : false
+  }
+
+  @Field(type => Number, { nullable: true }) 
+  public allowedAttempts?: number
+
+  @Field(type => String, { nullable: true }) 
+  public annotations?: string
+
 }

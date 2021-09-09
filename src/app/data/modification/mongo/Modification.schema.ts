@@ -90,6 +90,14 @@ const schema = new Schema(
     regradedAt: {
       type: Date,
       required: false
+    },
+    allowedAttempts: {
+      type: Number,
+      required: false
+    },
+    annotations: {
+      type: String,
+      required: false
     }
   }
 )

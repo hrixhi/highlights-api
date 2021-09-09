@@ -69,16 +69,19 @@ export class ActivityObject {
 
             if (channel.owners) {
               const anotherOwner = channel.owners.find((item: any) => {
-                return item === context.user!._id.toString()
+                return item.toString().trim() === context.user!._id.toString().trim()
               })
 
               if (anotherOwner) {
                 return anotherOwner
+              } else {
+                return channel.createdBy
               }
-            } else {
-              return channel.createdBy
-            }
-            
+
+            } 
+              
+            return channel.createdBy
+
           } 
 
           return '';
