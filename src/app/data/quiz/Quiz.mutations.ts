@@ -131,7 +131,8 @@ export class QuizMutationResolver {
                         problems: updatedProblems,
                         headers: quiz.headers,
                         instructions: quiz.instructions,
-                        duration: quiz.duration ? quiz.duration : null 
+                        duration: quiz.duration ? quiz.duration : null,
+                        shuffleQuiz: quiz.shuffleQuiz ? quiz.shuffleQuiz : false
                     }
                 })
 

@@ -327,6 +327,7 @@ export class CueMutationResolver {
 						delete c.initiateAt
 						delete c.gradeWeight
 						delete c.submission
+						delete c.allowedAttempts
 
 						delete c.score
 						delete c.submittedAt
@@ -374,7 +375,8 @@ export class CueMutationResolver {
 								_id: cue._id
 							}, {
 								...c,
-								gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
+								gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined,
+								allowedAttempts: (c.allowedAttempts) ? Number(c.allowedAttempts) : null
 							})
 						} else {
 							await CueModel.updateOne({
@@ -382,7 +384,8 @@ export class CueMutationResolver {
 							}, {
 								...c,
 								cue: tempOriginal,
-								gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
+								gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined,
+								allowedAttempts: (c.allowedAttempts) ? Number(c.allowedAttempts) : null
 							})
 						}
 						const updates = await ModificationsModel.updateMany({
@@ -390,7 +393,8 @@ export class CueMutationResolver {
 							userId: { $in: userIds }
 						}, {
 							...c,
-							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined
+							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined,
+							allowedAttempts: (c.allowedAttempts) ? Number(c.allowedAttempts) : null
 						})
 						// get the cue back to the main owner
 						await ModificationsModel.updateOne({ _id: userId }, { cue: tempCue, annotations: tempAnnotations })
