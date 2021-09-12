@@ -414,7 +414,32 @@ export class UserQueryResolver {
         message: new RegExp(term),
         groupId: { $in: groupIds }
       })
-      toReturn['messages'] = (messages)
+
+      const messagesWithUsers = messages.map((mess: any) => {
+        
+        // Filter the group using group id
+        const found = groups.find((group: any) => {
+          return group._id.toString() === mess.toObject().groupId.toString();
+        }) 
+
+        if (found) {
+          return {
+            ...mess.toObject(),
+            users: found.users
+          }
+        }
+
+        return {
+          ...mess.toObject(),
+          users: []
+        }
+
+      })
+
+      toReturn['messages'] = (messagesWithUsers)
+
+      // Need to add the users to each message 
+      
 
       // threads
       const threads = await ThreadModel.find({
@@ -422,6 +447,9 @@ export class UserQueryResolver {
         message: new RegExp(term)
       })
       toReturn['threads'] = (threads)
+
+
+      // Add createdBy for all the 
 
       return JSON.stringify(toReturn)
 
