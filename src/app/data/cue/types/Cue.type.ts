@@ -210,4 +210,8 @@ export class CueObject {
   @Field(type => String, { nullable: true }) 
   public annotations?: string
 
+  @Field({ nullable: true })
+  public availableUntil: Date;
+
+
 }

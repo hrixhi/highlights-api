@@ -23,6 +23,7 @@ export interface ICueModel extends Document {
 	// does not need type object
 	limitedShares?: boolean;
 	folderId?: string;
+	availableUntil?: Date; 
 }
 
 export const CueModel: Model<ICueModel> = model<ICueModel>(
