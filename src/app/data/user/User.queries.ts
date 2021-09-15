@@ -384,20 +384,20 @@ export class UserQueryResolver {
       })
 
       // Channels
-      const channels = await ChannelModel.find({ name: new RegExp(term) })
+      const channels = await ChannelModel.find({ name: new RegExp(term, "i") })
       toReturn['channels'] = channels
 
       // Cues
       const personalCues = await CueModel.find({
         channelId: { $exists: false },
         createdBy: userId,
-        cue: new RegExp(term)
+        cue: new RegExp(term, "i")
       })
       toReturn['personalCues'] = (personalCues)
 
       const channelCues = await CueModel.find({
         channelId: { $in: channelIds },
-        cue: new RegExp(term)
+        cue: new RegExp(term, "i")
       })
       toReturn['channelCues'] = (channelCues)
 
@@ -410,30 +410,35 @@ export class UserQueryResolver {
         return group._id
 
       })
+
+      let groupUsersMap: any = {};
+
+      groups.map((g: any) => {
+        const group = g.toObject()
+        groupUsersMap[group._id.toString()] = group.users;
+      })
+      
       const messages = await MessageModel.find({
-        message: new RegExp(term),
+        message: new RegExp(term, "i"),
         groupId: { $in: groupIds }
       })
 
       const messagesWithUsers = messages.map((mess: any) => {
-        
-        // Filter the group using group id
-        const found = groups.find((group: any) => {
-          return group._id.toString() === mess.toObject().groupId.toString();
-        }) 
+        const messObj = mess.toObject();
 
-        if (found) {
+        const users = groupUsersMap[messObj.groupId.toString()];
+
+        if (users) {
           return {
-            ...mess.toObject(),
-            users: found.users
+            ...messObj,
+            users
           }
         }
 
         return {
-          ...mess.toObject(),
+          ...messObj,
           users: []
         }
-
       })
 
       toReturn['messages'] = (messagesWithUsers)

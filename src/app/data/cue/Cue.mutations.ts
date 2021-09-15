@@ -43,6 +43,7 @@ export class CueMutationResolver {
 		@Arg('shareWithUserIds', type => [String], { nullable: true }) shareWithUserIds?: string[],
 		@Arg('limitedShares', type => Boolean, { nullable: true}) limitedShares?: Boolean,
 		@Arg('allowedAttempts', type => String, { nullable: true }) allowedAttempts?: string,
+		@Arg('availableUntil', { nullable: true }) availableUntil?: string
 	) {
 		try {
 
@@ -80,6 +81,7 @@ export class CueMutationResolver {
 				gradeWeight: Number(gradeWeight),
 				deadline: (deadline && deadline !== '') ? new Date(deadline) : null,
 				initiateAt: (initiateAt && initiateAt !== '') ? new Date(initiateAt) : null,
+				availableUntil: (availableUntil && availableUntil !== '') ? new Date(availableUntil) : null,
 				submission,
 				allowedAttempts: Number.isNaN(Number(allowedAttempts)) ? null : Number(allowedAttempts)
 			}
@@ -328,6 +330,7 @@ export class CueMutationResolver {
 						delete c.gradeWeight
 						delete c.submission
 						delete c.allowedAttempts
+						delete c.availableUntil
 
 						delete c.score
 						delete c.submittedAt
@@ -838,19 +841,6 @@ export class CueMutationResolver {
 					if (attempt.isActive) activeAttempt = index;
 				})
 
-				// console.log("Is active attempt fully graded", isActiveAttemptFullyGraded);
-
-				// console.log("Updated Attempts", updatedAttempts);
-
-				// console.log("To save", {
-				// 	score: activeAttempt === quizAttempt ? Number(score) : mod.score,
-				// 	comment: comment && comment !== '' ? comment : '',
-				// 	graded: isActiveAttemptFullyGraded,
-				// 	cue: JSON.stringify({
-				// 		...currCueValue,
-				// 		attempts: updatedAttempts
-				// 	})
-				// })
 
 				// Only update the score if the active attempt is modified
 

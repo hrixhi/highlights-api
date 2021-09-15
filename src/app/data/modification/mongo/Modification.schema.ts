@@ -102,7 +102,11 @@ const schema = new Schema(
     folderId: {
       type: String,
       required: false
-    }
+    },
+    availableUntil: {
+      type: Date,
+      required: false
+    },
   }
 )
 

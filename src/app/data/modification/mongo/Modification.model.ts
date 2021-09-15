@@ -28,6 +28,7 @@ export interface IModificationsModel extends Document {
 	annotations?: string;
 	folderId?: string;
 	allowedAttempts?: number; 
+	availableUntil?: Date; 
 }
 
 export const ModificationsModel: Model<IModificationsModel> = model<IModificationsModel>(

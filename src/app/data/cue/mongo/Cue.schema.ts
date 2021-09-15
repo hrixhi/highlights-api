@@ -75,6 +75,11 @@ const schema = new Schema(
       type: Number,
       required: false
     },
+    // Late submissions until this date
+    availableUntil: {
+      type: Date,
+      required: false
+    },
   }
 )
 

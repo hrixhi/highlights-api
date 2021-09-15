@@ -178,8 +178,6 @@ export class ChannelMutationResolver {
 
 						// Copy cues and modifications for the subscribers
 
-						console.log("Subscriber cues to duplicate", duplicateChannelCues);
-
 						duplicateChannelCues.map(async (cue: any) => {
 							const cueObject = cue.toObject()
 							const duplicate = { ...cueObject }
@@ -192,8 +190,6 @@ export class ChannelMutationResolver {
 							duplicate.score = 0;
 							duplicate.graded = false;
 							const u = await ModificationsModel.create(duplicate)
-
-							console.log("Subscriber Modification duplicate", u);
 						})
 
 					}
@@ -622,7 +618,6 @@ export class ChannelMutationResolver {
 
 						if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
 							const meetingId = json.response.meetingID[0]
-							console.log(meetingId)
 							await ChannelModel.updateOne({ _id: channelId }, { lastRecordedMeetingId: meetingId })
 						}
 
@@ -1124,7 +1119,6 @@ export class ChannelMutationResolver {
 			})
 			await ActivityModel.insertMany(activity1)
 
-			console.log("To Add", toAdd)
 			const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
 			const notification = {
 				contents: {
@@ -1179,7 +1173,6 @@ export class ChannelMutationResolver {
 			})
 			await ActivityModel.insertMany(activity2)
 
-			console.log("To remove", toRemove)
 			const removeNotification = {
 				contents: {
 					'en': title,

@@ -75,4 +75,7 @@ export class CueInputObject {
   @Field({ nullable: true }) 
   public annotations?: string
 
+  @Field({ nullable: true })
+  public availableUntil?: string;
+
 }
