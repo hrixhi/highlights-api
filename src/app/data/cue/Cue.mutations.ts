@@ -41,7 +41,7 @@ export class CueMutationResolver {
 		@Arg('endPlayAt', { nullable: true }) endPlayAt?: string,
 		@Arg('customCategory', { nullable: true }) customCategory?: string,
 		@Arg('shareWithUserIds', type => [String], { nullable: true }) shareWithUserIds?: string[],
-		@Arg('limitedShares', type => Boolean, { nullable: true}) limitedShares?: Boolean,
+		@Arg('limitedShares', type => Boolean, { nullable: true }) limitedShares?: Boolean,
 		@Arg('allowedAttempts', type => String, { nullable: true }) allowedAttempts?: string,
 	) {
 		try {
@@ -148,7 +148,7 @@ export class CueMutationResolver {
 						target: "CUE"
 					})
 				}
-				
+
 				notificationIds.map((notifId: any) => {
 					if (!Expo.isExpoPushToken(notifId)) {
 						notSetUserIds.push(sub._id)
@@ -369,7 +369,7 @@ export class CueMutationResolver {
 						delete c.original;
 						const tempAnnotations = c.annotations;
 						delete c.annotations;
-						
+
 						if (tempOriginal === undefined || tempOriginal === null) {
 							await CueModel.updateOne({
 								_id: cue._id
@@ -436,54 +436,6 @@ export class CueMutationResolver {
 			console.log(e)
 			return false;
 		}
-	}
-
-	private getHTMLToPDF = async (html: any) => {
-
-		try {
-
-			AWS.config.update({
-                accessKeyId: "AKIAJS2WW55SPDVYG2GQ",
-                secretAccessKey: "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"
-            });
-
-            const s3 = new AWS.S3();
-			
-			const createPDF = pdf.create(html);
-			var pdfToStream = Promise.promisify(createPDF.toStream, { context: createPDF });
-
-			const res = await pdfToStream();
-
-			const uploadParams = {
-				Bucket: "cues-files",
-				Key: "media/pdf/" + Date.now() + "_" + "something.pdf",
-				Body: res,
-			};
-		 
-			const data = await s3.upload(uploadParams).promise();
-
-			return data.Location;
-	
-			// return await pdf.create(html).toStream(async (err: any, response: any) => {
-			// 	if (err) return console.log(err);
-				
-			// 		const uploadParams = {
-			// 		  Bucket: "cues-files",
-			// 		  Key: "media/pdf/" + Date.now() + "_" + "something.pdf",
-			// 		  Body: response,
-			// 		};
-			// 		const stored = await s3.upload(uploadParams).promise();
-
-			// 		console.log(stored);
-
-			// 		return stored
-			// });
-		   
-		} catch (err) {
-			console.log("Error processing request: " + err);
-			return ""
-		}
-	
 	}
 
 	@Field(type => Boolean)
@@ -575,7 +527,7 @@ export class CueMutationResolver {
 				// New MULTIPLE ATTEMPTS SCHEMA
 
 				// For each attempt need to store the solutions, initiatedAt, problemScores, problemComments, submittedAt, score, isActive (This Quiz Attempt is used as the main score), attemptScore (This will be used to compare each attempt), isFullyGraded (set submission to not graded false and set as active)  ;
-				let saveCue : any = mod.cue && mod.cue !== "" ? JSON.parse(mod.cue) : { attempts: [] }
+				let saveCue: any = mod.cue && mod.cue !== "" ? JSON.parse(mod.cue) : { attempts: [] }
 				// let saveCue: any = { attempts: [] }
 
 				// Add the new attempt
@@ -605,12 +557,12 @@ export class CueMutationResolver {
 						...saveCue.attempts[currActiveAttempt],
 						isActive: false
 					}
-				} 
+				}
 
 				saveCue.attempts[bestAttempt] = {
 					...saveCue.attempts[bestAttempt],
 					isActive: true
-				} 
+				}
 
 				saveCue.quizResponses = ""
 
@@ -621,7 +573,7 @@ export class CueMutationResolver {
 
 				// Get current submissions object from modification
 
-				let saveCue : any = mod.cue && mod.cue !== "" ? JSON.parse(mod.cue) : { attempts: [] }
+				let saveCue: any = mod.cue && mod.cue !== "" ? JSON.parse(mod.cue) : { attempts: [] }
 
 				// const submissions = mod.cue ? JSON.parse(mod.cue) : saveSubmission;
 
@@ -630,14 +582,14 @@ export class CueMutationResolver {
 
 					// Submission is already a file upload 
 					const obj = JSON.parse(cue);
-					
+
 					let saveSubmission = {
 						url: obj.url,
 						type: obj.type,
 						title: obj.title,
 						submittedAt: new Date(),
 						isActive: true,
-						annotations: obj.annotations ? obj.annotations : '', 
+						annotations: obj.annotations ? obj.annotations : '',
 					}
 
 					const currentAttemps: any[] = [...saveCue.attempts];
@@ -657,15 +609,50 @@ export class CueMutationResolver {
 					saveCue.submissionDraft = '';
 
 				} else {
+
+					const getHTMLToPDF = async (html: any) => {
+
+						try {
+
+							AWS.config.update({
+								accessKeyId: "AKIAJS2WW55SPDVYG2GQ",
+								secretAccessKey: "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"
+							});
+
+							const s3 = new AWS.S3();
+
+							const createPDF = pdf.create(html);
+							var pdfToStream = Promise.promisify(createPDF.toStream, { context: createPDF });
+
+							const res = await pdfToStream();
+
+							const uploadParams = {
+								Bucket: "cues-files",
+								Key: "media/pdf/" + Date.now() + "_" + "something.pdf",
+								Body: res,
+							};
+
+							const data = await s3.upload(uploadParams).promise();
+
+							return data.Location;
+							
+						} catch (err) {
+							console.log("Error processing request: " + err);
+							return ""
+						}
+
+					}
 					// Convert html submission into pdf
-					const pdfPath = await this.getHTMLToPDF(cue)
+					const pdfPath = await getHTMLToPDF(cue)
+
+					console.log(pdfPath)
 
 					let saveSubmission = {
 						html: cue,
 						submittedAt: new Date(),
 						isActive: true,
 						annotationPDF: pdfPath,
-						annotations: '', 
+						annotations: '',
 					}
 
 					const currentAttemps: any[] = [...saveCue.attempts];
@@ -683,7 +670,9 @@ export class CueMutationResolver {
 					saveCue.attempts = updatedAttempts
 
 					saveCue.submissionDraft = '';
-					
+
+					console.log(saveCue)
+
 				}
 
 				// Convert html submission into pdf
@@ -797,7 +786,7 @@ export class CueMutationResolver {
 		score?: number,
 		@Arg('comment', type => String, { nullable: true })
 		comment?: string,
-		@Arg('quizAttempt', type => Number, { nullable: true }) 
+		@Arg('quizAttempt', type => Number, { nullable: true })
 		quizAttempt?: number
 	) {
 		try {
@@ -833,7 +822,7 @@ export class CueMutationResolver {
 				let activeAttempt = 0;
 
 				updatedAttempts.map((attempt: any, index: number) => {
-					if (attempt.isActive && attempt.isFullyGraded) isActiveAttemptFullyGraded = true 
+					if (attempt.isActive && attempt.isFullyGraded) isActiveAttemptFullyGraded = true
 
 					if (attempt.isActive) activeAttempt = index;
 				})
@@ -865,7 +854,7 @@ export class CueMutationResolver {
 						...currCueValue,
 						attempts: updatedAttempts
 					})
-				}) 
+				})
 
 				return true;
 
@@ -902,7 +891,7 @@ export class CueMutationResolver {
 		userId: string,
 		@Arg('cueId', type => String)
 		cueId: string,
-		@Arg('quizAttempt', type => Number, { nullable: true }) 
+		@Arg('quizAttempt', type => Number, { nullable: true })
 		quizAttempt?: number
 	) {
 		const mod = await ModificationsModel.findOne({ cueId, userId })
@@ -966,7 +955,7 @@ export class CueMutationResolver {
 		// 	attempts: updatedAttempts,
 		// })
 
-		
+
 		const update = await ModificationsModel.updateOne({
 			cueId,
 			userId
@@ -1126,7 +1115,7 @@ export class CueMutationResolver {
 				const cue = c.toObject()
 
 				const { submission } = cue;
-				
+
 				cue.cueId = cue._id;
 				delete cue._id;
 				delete cue.limitedShares;
@@ -1150,12 +1139,12 @@ export class CueMutationResolver {
 
 				const channel: any = await ChannelModel.findById(cue.channelId)
 				const notificationIds = user.notificationId.split('-BREAK-')
-				
+
 				const { title, subtitle: body } = htmlStringParser(cue.cue)
 
 
 				if (submission) {
-					
+
 					const activity: any = {
 						userId: user._id,
 						subtitle: title,
@@ -1176,7 +1165,7 @@ export class CueMutationResolver {
 					if (!Expo.isExpoPushToken(user.notificationId)) {
 						return
 					}
-					
+
 					messages.push({
 						to: user.notificationId,
 						sound: 'default',
@@ -1187,7 +1176,7 @@ export class CueMutationResolver {
 				})
 
 
-				
+
 				// Web notifications
 
 				const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
