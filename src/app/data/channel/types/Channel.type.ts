@@ -105,7 +105,19 @@ export class ChannelObject {
   @Field(type => [String], { nullable: true })
   public owners?: string[];
 
-  @Field(type => String, { nullable: true }) 
+  @Field(type => String, { nullable: true })
   public colorCode?: string;
+
+  @Field(type => String, { nullable: true })
+  public async createdByAvatar() {
+    const localThis: any = this;
+    const { createdBy } = localThis._doc || localThis;
+    const user = await UserModel.findById(createdBy)
+    if (user) {
+      return user.avatar
+    } else {
+      return ''
+    }
+  }
 
 }

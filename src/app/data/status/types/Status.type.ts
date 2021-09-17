@@ -43,6 +43,18 @@ export class StatusObject {
     return user ? user.email : ''
   }
 
+  @Field(type => String, { nullable: true })
+  public async avatar() {
+    const localThis: any = this;
+    const { userId } = localThis._doc || localThis;
+    const user = await UserModel.findById(userId)
+    if (user) {
+      return user.avatar
+    } else {
+      return ''
+    }
+  }
+
   @Field({ nullable: true })
   public submission: string;
 
@@ -58,7 +70,7 @@ export class StatusObject {
   @Field({ nullable: true })
   public score: number;
 
-  @Field({nullable: true})
+  @Field({ nullable: true })
   public comment: string;
 
   @Field({ nullable: true })
