@@ -187,7 +187,7 @@ export class MessageMutationResolver {
                     channelId
                 });
             });
-            const userIds: any[] = [];
+            let userIds: any[] = [];
             const messages: any[] = [];
             const notificationService = new Expo();
 
@@ -199,14 +199,13 @@ export class MessageMutationResolver {
 
             const sentByUser = await UserModel.findById(userId);
 
-            // const fetchMessageChannel = await ChannelModel.findById(channelId);
-
-            let senderName = "";
             userArr.map((sub: any, i: any) => {
-                if (i === 0) {
-                    senderName = sub.fullName;
+
+                // Remove sent by from notifications
+                if (sub._id.toString() === userId.toString()) {
                     return;
                 }
+
                 const notificationIds = sub.notificationId.split("-BREAK-");
                 notificationIds.map((notifId: any) => {
                     if (!Expo.isExpoPushToken(notifId)) {
@@ -236,6 +235,9 @@ export class MessageMutationResolver {
                 "51db5230-f2f3-491a-a5b9-e4fba0f23c76",
                 "Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh"
             );
+
+            // Remove sent by from notifications
+            userIds = userIds.filter((id) => id !== userId)
 
             const notification = {
                 contents: {

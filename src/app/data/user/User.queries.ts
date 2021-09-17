@@ -129,7 +129,6 @@ export class UserQueryResolver {
   ) {
     try {
       const users = await UserModel.find({ schoolId, deletedAt: undefined });
-      console.log(users)
       return users;
     } catch (e) {
       return [];
@@ -220,7 +219,6 @@ export class UserQueryResolver {
 
             mods.map((m: any) => {
               const mod = m.toObject()
-              console.log(mod)
               if (mod.gradeWeight !== undefined && mod.gradeWeight !== null && mod.gradeWeight !== 0) {
                 score += (mod.graded ? (mod.score * mod.gradeWeight / 100) : 0)
                 total += mod.gradeWeight

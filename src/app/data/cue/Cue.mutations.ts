@@ -160,7 +160,7 @@ export class CueMutationResolver {
 						to: notifId,
 						sound: 'default',
 						subtitle: title,
-						title: channel.name + (submission ? '- New Assignment created' : ' - New Content'),
+						title: channel.name + (submission ? ' - New Assignment created' : ' - New Content'),
 						body: '',
 						data: { userId: sub._id },
 					})
@@ -177,7 +177,7 @@ export class CueMutationResolver {
 
 			const notification = {
 				contents: {
-					'en': `${channel.name}` + ' - New Cue: ' + title,
+					'en': `${channel.name}` + (submission ? ' - New Assignment created ' : ' - New Content ') + title,
 				},
 				include_external_user_ids: userIds
 			}
@@ -1160,7 +1160,7 @@ export class CueMutationResolver {
 						to: user.notificationId,
 						sound: 'default',
 						subtitle: title,
-						title: channel.name + (submission ? '- New Assignment created' : ' - New Content'),
+						title: channel.name + (submission ? ' - New Assignment created' : ' - New Content'),
 						data: { userId: user._id },
 					})
 				})
@@ -1174,7 +1174,7 @@ export class CueMutationResolver {
 
 				const notification = {
 					contents: {
-						'en': `${channel.name}` + ' - New Cue: ' + title,
+						'en': `${channel.name}` + (submission ? ' - New Assignment created ' : ' - New Content ') + title,
 					},
 					include_external_user_ids: [user._id]
 				}

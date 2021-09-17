@@ -14,6 +14,7 @@ import { AttendanceQueryResolver } from './attendance/Attendance.queries'
 import { QuizQueryResolver } from './quiz/Quiz.queries'
 import { SchoolQueryResolver } from './school/School.queries'
 import { ActivityQueryResolver } from './activity/activity.queries'
+import { FolderQueryResolver } from './folder/Folder.queries'
 
 @Resolver()
 export class AppQueryResolver {
@@ -90,6 +91,11 @@ export class AppQueryResolver {
   @Query(returns => ActivityQueryResolver)
   public activity() {
     return new ActivityQueryResolver();
+  }
+
+  @Query(returns => FolderQueryResolver)
+  public folder() {
+    return new FolderQueryResolver();
   }
 
 }

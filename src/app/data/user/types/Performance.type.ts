@@ -47,8 +47,6 @@ export class PerformanceObject {
         if (c) {
             const channel = c.toObject()
             if (channel.owners) {
-                console.log(channel.owners)
-                console.log(context.user)
                 const anotherOwner = channel.owners.find((item: any) => {
                     return item.toString().trim() === context.user!._id.toString().trim()
                 })
