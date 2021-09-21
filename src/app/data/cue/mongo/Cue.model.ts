@@ -24,6 +24,7 @@ export interface ICueModel extends Document {
 	limitedShares?: boolean;
 	folderId?: string;
 	availableUntil?: Date; 
+	annotations?: string;
 }
 
 export const CueModel: Model<ICueModel> = model<ICueModel>(

@@ -1,6 +1,8 @@
 import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
 import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
 import { Ctx, Field, ObjectType } from 'type-graphql';
+import { ModificationsModel } from '@app/data/modification/mongo/Modification.model';
+import { CueModel } from '@app/data/cue/mongo/Cue.model';
 
 @ObjectType()
 export class EventObject {
@@ -95,6 +97,35 @@ export class EventObject {
 
   @Field(type => Boolean, { nullable: true })
   public meeting?: boolean;
+
+  @Field(type => Boolean, { nullable: true })
+  public async submitted(@Ctx() context: IGraphQLContext) {
+    const localThis: any = this;
+    const { cueId } = localThis._doc || localThis;
+    if (cueId && cueId !== "" && context.user) {
+
+      const cue = await CueModel.findOne({
+        _id: cueId
+      })
+
+      if (!cue) return null;
+
+      const mod = await ModificationsModel.findOne({
+        cueId,
+        userId: context.user!._id
+      })
+
+      if (!mod) return null;
+
+      if (cue.submission) {
+        return mod.submittedAt ? true : false
+      } 
+    
+    } 
+      
+    return null
+
+  }
 }
 
 @ObjectType()

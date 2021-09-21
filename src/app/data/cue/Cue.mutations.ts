@@ -15,6 +15,7 @@ import * as OneSignal from 'onesignal-node';
 import { ActivityModel } from '../activity/mongo/activity.model';
 import pdf from 'html-pdf'
 import * as AWS from 'aws-sdk';
+import { FolderModel } from '../folder/mongo/folder.model';
 const Promise = require('bluebird');
 
 /**
@@ -425,9 +426,20 @@ export class CueMutationResolver {
 		cueId: string,
 	) {
 		try {
+
+			const cueToDelete = await CueModel.findById(cueId)
+
+			if (!cueToDelete) return false;
+
 			await ModificationsModel.deleteMany({ cueId })
 			await CueModel.deleteOne({ _id: cueId })
 
+			// Pull cue from folder
+			await FolderModel.updateOne({
+				_id: cueToDelete.folderId
+			}, {
+				$pull: { cueIds: cueToDelete._id }
+			})
 
 			// Delete all activity 
 			await ActivityModel.deleteMany({

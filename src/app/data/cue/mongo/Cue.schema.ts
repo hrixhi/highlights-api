@@ -80,6 +80,11 @@ const schema = new Schema(
       type: Date,
       required: false
     },
+    // For local cues only
+    annotations: {
+      type: String,
+      required: false
+    },
   }
 )
 
