@@ -105,7 +105,7 @@ export class QuizMutationResolver {
 
                         // Update problem regrade choice and updatedAt and return
 
-                        console.log("Updated options", updatedOptions)
+                        // console.log("Updated options", updatedOptions)
 
                         const update = {
                             ...prob,
@@ -122,7 +122,7 @@ export class QuizMutationResolver {
                     return prob;
                 })
 
-                console.log("Updated Problems", updatedProblems);
+                // console.log("Updated Problems", updatedProblems);
 
                 const updateQuiz = await QuizModel.updateOne({
                     _id: parsed.quizId
@@ -149,124 +149,161 @@ export class QuizMutationResolver {
 
                     const parse = JSON.parse(cue);
 
-                    console.log("Before Regrade data", mod)
+                    // console.log("Before Regrade data", mod)
 
-                    const solutions = parse.solutions;
-                    const currScores = parse.problemScores;
-                    let updatedScores : any[] = [];
-                    let score = 0;
-                    let total = 0;
+                    // WITH NEW SCHEMA NEED TO REGRADE ALL THE POSSIBLE ATTEMPTS 
 
-                    updatedProblems.map((prob: any, index: number) => {
+                    const attempts = parse.attempts;
+
+                    if (!attempts || attempts.length === 0) {
+                        return;
+                    }
+
+                    const updatedAttempts = [...attempts];
+
+                    let activeAttemptNewScore = 0;
+
+                    let totalScore = 0;
+
+                    attempts.map((attempt: any, attemptIndex: number) => {
+                        
+
+                        const solutions = attempt.solutions;
+                        const currScores = attempt.problemScores;
+                        let updatedScores : any[] = [];
+                        let score = 0;
+                        let total = 0; 
+
+                        updatedProblems.map((prob: any, index: number) => {
                        
-                        total += (prob.points !== null && prob.points !== undefined ? prob.points : 1);
-
-                        if (modifiedCorrectAnswers && modifiedCorrectAnswers[index] === "yes" && (prob.questionType === "" || prob.questionType === "trueFalse")) {
-                            // Regrade score count based on regradeChoice
-
-                            if (!regradeChoices) return;
-
-                            if (regradeChoices[index] === "awardCorrectBoth") {
-
-                                // Add check for partial grading later for MCQs
-                                let correctAnswers = 0;
-                                let totalAnswers = 0;
-
-                                prob.options.map((option: any, j: any) => {
-
-                                    // Award correct answer even if previously correct 
-                                    if ((option.isCorrect || option.previouslyCorrect) && solutions[index].selected[j].isSelected) {
-                                        // correct answers
-                                        correctAnswers += 1
-                                    }
-                                    // TO FIX
-                                    if (option.isCorrect) {
-                                        // total correct answers
-                                        totalAnswers += 1
-                                    }
-                                    if (!option.isCorrect && solutions[index].selected[j].isSelected) {
-
-                                        if (option.previouslyCorrect !== undefined && option.previouslyCorrect) {
-                                            return;
+                            total += (prob.points !== null && prob.points !== undefined ? prob.points : 1);
+    
+                            if (modifiedCorrectAnswers && modifiedCorrectAnswers[index] === "yes" && (prob.questionType === "" || prob.questionType === "trueFalse")) {
+                                // Regrade score count based on regradeChoice
+    
+                                if (!regradeChoices) return;
+    
+                                if (regradeChoices[index] === "awardCorrectBoth") {
+    
+                                    // Add check for partial grading later for MCQs
+                                    let correctAnswers = 0;
+                                    let totalAnswers = 0;
+    
+                                    prob.options.map((option: any, j: any) => {
+    
+                                        // Award correct answer even if previously correct 
+                                        if ((option.isCorrect || option.previouslyCorrect) && solutions[index].selected[j].isSelected) {
+                                            // correct answers
+                                            correctAnswers += 1
                                         }
-                                        // to deduct points if answer is not correct but selected
-                                        totalAnswers += 1;
-                                    }
-
-                                })
-
-                                const calculatedScore = ((correctAnswers / totalAnswers) * (prob.points !== undefined && prob.points !== null ? prob.points : 1)).toFixed(2)
-
-                                updatedScores.push(calculatedScore);
-                                score += Number(calculatedScore);
-
-                            } else if (regradeChoices[index] === "giveEveryoneFullCredit") {
-
-                                updatedProblems.push(prob.points);
-                                score += Number(prob.points)
-
-                            } else if (regradeChoices[index] === "onlyAwardPointsForNew") {
-
-                                // Add check for partial grading later for MCQs
-                                let correctAnswers = 0;
-                                let totalAnswers = 0;
-
-                                prob.options.map((option: any, j: any) => {
-
-                                    // Award correct answer even if previously correct 
-                                    if (option.isCorrect && solutions[index].selected[j].isSelected) {
-                                        // correct answers
-                                        correctAnswers += 1
-                                    }
-                                    // TO FIX
-                                    if (option.isCorrect) {
-                                        // total correct answers
-                                        totalAnswers += 1
-                                    }
-                                    if (!option.isCorrect && solutions[index].selected[j].isSelected) {
-
-                                        // to deduct points if answer is not correct but selected
-                                        totalAnswers += 1;
-                                    }
-
-                                })
-
-                                const calculatedScore = ((correctAnswers / totalAnswers) * (prob.points !== undefined && prob.points !== null ? prob.points : 1)).toFixed(2)
-
-                                updatedScores.push(calculatedScore);
-                                score += Number(calculatedScore);
-
-                            } else if (regradeChoices[index] === "noRegrading") {
+                                        // TO FIX
+                                        if (option.isCorrect) {
+                                            // total correct answers
+                                            totalAnswers += 1
+                                        }
+                                        if (!option.isCorrect && solutions[index].selected[j].isSelected) {
+    
+                                            if (option.previouslyCorrect !== undefined && option.previouslyCorrect) {
+                                                return;
+                                            }
+                                            // to deduct points if answer is not correct but selected
+                                            totalAnswers += 1;
+                                        }
+    
+                                    })
+    
+                                    const calculatedScore = ((correctAnswers / totalAnswers) * (prob.points !== undefined && prob.points !== null ? prob.points : 1)).toFixed(2)
+    
+                                    updatedScores.push(calculatedScore);
+                                    score += Number(calculatedScore);
+    
+                                } else if (regradeChoices[index] === "giveEveryoneFullCredit") {
+    
+                                    updatedProblems.push(prob.points);
+                                    score += Number(prob.points)
+                                    
+    
+                                } else if (regradeChoices[index] === "onlyAwardPointsForNew") {
+    
+                                    // Add check for partial grading later for MCQs
+                                    let correctAnswers = 0;
+                                    let totalAnswers = 0;
+    
+                                    prob.options.map((option: any, j: any) => {
+    
+                                        // Award correct answer even if previously correct 
+                                        if (option.isCorrect && solutions[index].selected[j].isSelected) {
+                                            // correct answers
+                                            correctAnswers += 1
+                                        }
+                                        // TO FIX
+                                        if (option.isCorrect) {
+                                            // total correct answers
+                                            totalAnswers += 1
+                                        }
+                                        if (!option.isCorrect && solutions[index].selected[j].isSelected) {
+    
+                                            // to deduct points if answer is not correct but selected
+                                            totalAnswers += 1;
+                                        }
+    
+                                    })
+    
+                                    const calculatedScore = ((correctAnswers / totalAnswers) * (prob.points !== undefined && prob.points !== null ? prob.points : 1)).toFixed(2)
+    
+                                    updatedScores.push(calculatedScore);
+                                    score += Number(calculatedScore);
+    
+                                } else if (regradeChoices[index] === "noRegrading") {
+                                    updatedScores[index] = currScores[index];
+                                    score += Number(currScores[index]);
+                                }
+                                
+                            } else {
+                                // Keep existing score if Question type is not MCQ or true/false 
                                 updatedScores[index] = currScores[index];
-                                score += Number(currScores[index]);
+    
+                                if (!Number.isNaN(Number(currScores[index]))) {
+                                    score +=  Number(currScores[index]);
+                                }
+                               
                             }
-                            
-                        } else {
-                            // Keep existing score if Question type is not MCQ or true/false 
-                            updatedScores[index] = currScores[index];
+    
+    
+                        })
 
-                            if (!Number.isNaN(Number(currScores[index]))) {
-                                score +=  Number(currScores[index]);
-                            }
-                           
+
+                        // Update the attempt obj for specific index
+                        // updatedAttempts[attemptIndex] = {
+                        //     ...updatedAttempts[attemptIndex],
+                        //     problemScores: updatedScores,
+                        //     score 
+                        // }
+
+                        updatedAttempts[attemptIndex].problemScores = updatedScores;
+                        updatedAttempts[attemptIndex].score = score;
+
+                        console.log("Updated attempt", updatedAttempts[attemptIndex])
+                        // If this attempt is the active attempt then we need to update the 
+
+                        if (attempt.isActive) {
+                            activeAttemptNewScore = score;
+                            totalScore = total;
                         }
 
-
                     })
 
-                    parse.problemScores = updatedScores;
+ 
+                    parse.attempts = updatedAttempts;
 
-                    console.log("After Regrade data", {
-                        score: Number(((score / total) * 100).toFixed(2)),
-                        regradedAt: new Date(),
-                        cue: JSON.stringify(parse)
-                    })
+                    // console.log("After Regrade data", parse)
+                    // console.log("New Active score", activeAttemptNewScore)
 
                     // Save the changes in the modifications along with the RegradedAt date
                     await ModificationsModel.updateOne({
                         _id: mod._id
                     }, {
-                        score: Number(((score / total) * 100).toFixed(2)),
+                        score: Number(((activeAttemptNewScore / totalScore) * 100).toFixed(2)),
                         regradedAt: new Date(),
                         cue: JSON.stringify(parse)
                     })
@@ -276,6 +313,8 @@ export class QuizMutationResolver {
                 if (updateQuiz.nModified > 0) {
                     return true
                 }
+
+                return false;
 
             }
 
