@@ -13,12 +13,12 @@ export class MessageQueryResolver {
         description: "Used to get list of messages."
     })
     public async getMessagesThread(
-        @Arg("users", type => [String])
-        users: string[]
+        @Arg("groupId", type => String)
+        groupId: string
     ) {
         try {
             const groupDoc = await GroupModel.findOne({
-                users: { $all: users, $size: users.length }
+                _id: groupId
             })
             if (groupDoc) {
                 const groupId = groupDoc._id
