@@ -152,27 +152,53 @@ export class MessageMutationResolver {
         @Arg("userId", type => String)
         userId: string,
         @Arg("channelId", type => String, { nullable: true })
-        channelId?: string
+        channelId?: string,
+        @Arg("groupId", type => String, { nullable: true })
+        groupId?: string,
+        @Arg("groupName", type => String, { nullable: true })
+        groupName?: string,
+        @Arg("groupImage", type => String, { nullable: true })
+        groupImage?: string,
     ) {
         try {
             if (users.length === 0) {
                 return false;
             }
-            const groupDoc = await GroupModel.findOne({
-                users: { $all: users, $size: users.length }
-            });
-            let groupId = "";
-            if (groupDoc) {
-                groupId = groupDoc._id;
-            } else {
+
+            let id = groupId
+
+            // Create new group if no groupId passed in and the number of users is more than 2
+            if (!groupId && users.length > 2) {
+
                 const newGroup = await GroupModel.create({
                     users,
-                    channelId
+                    channelId,
+                    name: groupName,
+                    image: groupImage,
+                    createdBy: userId
                 });
-                groupId = newGroup._id;
+                id = newGroup._id;
+
+            } else {
+                // Existing chats or groups
+                let groupDoc : any = {};
+
+                // if (groupId) {
+                groupDoc = await GroupModel.findOne({
+                    _id: groupId
+                })
+                // } else {
+                //     groupDoc = await GroupModel.findOne({
+                //         users: { $all: users, $size: users.length }
+                //     });
+                // }
+
+                id = groupDoc._id;
+                
             }
+
             await MessageModel.create({
-                groupId,
+                groupId: id,
                 message,
                 sentBy: userId,
                 sentAt: new Date()
@@ -182,7 +208,7 @@ export class MessageMutationResolver {
                     return;
                 }
                 await MessageStatusModel.create({
-                    groupId,
+                    groupId: id,
                     userId: users[i],
                     channelId
                 });
@@ -198,6 +224,8 @@ export class MessageMutationResolver {
             const userArr = await UserModel.find({ _id: { $in: userIds } });
 
             const sentByUser = await UserModel.findById(userId);
+
+            // Need to update message for groups / User
 
             userArr.map((sub: any, i: any) => {
 
@@ -267,5 +295,29 @@ export class MessageMutationResolver {
         } catch (e) {
             return false;
         }
+    }
+
+    @Field(type => Boolean, {
+        description: "Used to create a message."
+    })
+    public async updateGroup(
+        @Arg("groupId", type => String)
+        groupId: string,
+        @Arg("groupName", type => String)
+        groupName: string,
+        @Arg("groupImage", type => String, { nullable: true })
+        groupImage?: string,
+    ) {
+
+        const update = await GroupModel.updateOne({
+            _id: groupId
+        }, {
+            $set: {
+                name: groupName,
+                image: groupImage
+            }
+        })
+
+        return update.nModified > 0;
     }
 }

@@ -238,7 +238,7 @@ export class UserQueryResolver {
                 }
               }
             })
-            scoreMap[subscription.channelId] = total === 0 ? 0 : ((score / total) * 100)
+            scoreMap[subscription.channelId] = total === 0 ? 0 : ((score / total) * 100).toFixed(2).replace(/\.0+$/,'')
             totalMap[subscription.channelId] = total
             totalAssessmentsMap[subscription.channelId] = totalAssessments
             lateAssessmentsMap[subscription.channelId] = lateAssessments

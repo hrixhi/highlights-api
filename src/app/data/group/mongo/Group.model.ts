@@ -5,6 +5,9 @@ export interface IGroupsModel extends Document {
 	users: string[];
 	channelId?: string;
 	meetingOn?: boolean;
+	name?: string;
+	image?: string;
+	createdBy?: string;
 }
 
 export const GroupModel: Model<IGroupsModel> = model<IGroupsModel>(
