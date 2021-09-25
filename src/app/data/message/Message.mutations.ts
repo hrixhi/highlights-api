@@ -303,21 +303,33 @@ export class MessageMutationResolver {
     public async updateGroup(
         @Arg("groupId", type => String)
         groupId: string,
+        @Arg("users", type => [String]) 
+        users: string[], 
         @Arg("groupName", type => String)
         groupName: string,
         @Arg("groupImage", type => String, { nullable: true })
         groupImage?: string,
     ) {
 
-        const update = await GroupModel.updateOne({
-            _id: groupId
-        }, {
-            $set: {
-                name: groupName,
-                image: groupImage
-            }
-        })
+        try {
 
-        return update.nModified > 0;
+            if (!users) return;
+
+            const update = await GroupModel.updateOne({
+                _id: groupId
+            }, {
+                name: groupName,
+                image: groupImage,
+                users
+            })            
+
+            return update.nModified > 0;
+        } catch (e) {
+            console.log("error", e)
+            return false;
+        }
+        
+
+        
     }
 }
