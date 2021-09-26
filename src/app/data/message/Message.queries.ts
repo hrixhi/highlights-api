@@ -32,4 +32,26 @@ export class MessageQueryResolver {
         }
     }
 
+    @Field(type => String, {
+        description: "Used to get group if users exists"
+    })
+    public async getGroupId(
+        @Arg("users", type => [String])
+        users: string[]
+    ) {
+        try {
+            const groupDoc = await GroupModel.findOne({
+                users: { $all: users, $size: users.length }
+            })
+            if (groupDoc) {
+                return groupDoc._id;
+            } 
+
+            return ''
+        } catch (e) {
+            console.log(e)
+            return ''
+        }
+    }
+
 }

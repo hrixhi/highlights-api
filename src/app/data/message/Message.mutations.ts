@@ -167,8 +167,8 @@ export class MessageMutationResolver {
 
             let id = groupId
 
-            // Create new group if no groupId passed in and the number of users is more than 2
-            if (!groupId && users.length > 2) {
+            // Create new group if no groupId passed in
+            if (!groupId || groupId === "") {
 
                 const newGroup = await GroupModel.create({
                     users,
