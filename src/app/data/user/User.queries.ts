@@ -208,8 +208,11 @@ export class UserQueryResolver {
               channelId: subscription.channelId,
               submission: true,
               userId,
-              graded: true
+              graded: true,
+              releaseSubmission: true
             })
+
+
             let score = 0
             let total = 0
             let totalAssessments = 0;
@@ -219,7 +222,7 @@ export class UserQueryResolver {
 
             mods.map((m: any) => {
               const mod = m.toObject()
-              if (mod.gradeWeight !== undefined && mod.gradeWeight !== null && mod.gradeWeight !== 0) {
+              if (mod.gradeWeight !== undefined && mod.gradeWeight !== null) {
                 score += (mod.graded ? (mod.score * mod.gradeWeight / 100) : 0)
                 total += mod.gradeWeight
                 totalAssessments += 1
@@ -238,6 +241,7 @@ export class UserQueryResolver {
                 }
               }
             })
+
             scoreMap[subscription.channelId] = total === 0 ? 0 : ((score / total) * 100).toFixed(2).replace(/\.0+$/,'')
             totalMap[subscription.channelId] = total
             totalAssessmentsMap[subscription.channelId] = totalAssessments
