@@ -8,6 +8,7 @@ import { Ctx, Field, ObjectType } from 'type-graphql';
 @ObjectType()
 export class GroupObject {
 
+
     @Field()
     public _id: string;
 
@@ -19,6 +20,16 @@ export class GroupObject {
 
     @Field(type => Boolean, { nullable: true })
     public meetingOn?: boolean;
+
+    // For groups
+    @Field(type => String, { nullable: true })
+    public name?: string;
+
+    @Field(type => String, { nullable: true })
+    public image?: string;
+
+    @Field(type => String, { nullable: true })
+    public createdBy?: string;
 
     @Field(type => Number)
     public async unreadMessages(@Ctx() context: IGraphQLContext) {

@@ -13,7 +13,19 @@ const schema = new Schema(
     meetingOn: {
       type: Boolean,
       required: false
-    }
+    },
+    name: {
+      type: String,
+      required: false
+    },
+    image: {
+      type: String,
+      required: false
+    },
+    createdBy: {
+      type: Types.ObjectId,
+      required: true
+    },
   }
 )
 

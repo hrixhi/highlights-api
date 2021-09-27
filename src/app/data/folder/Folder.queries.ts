@@ -45,7 +45,7 @@ export class FolderQueryResolver {
 
         } catch (e) {
             console.log(e)
-            return 0
+            return [];
         }
     }
 
