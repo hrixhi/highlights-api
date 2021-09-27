@@ -109,6 +109,15 @@ export class ChannelObject {
   public colorCode?: string;
 
   @Field(type => String, { nullable: true })
+  public startUrl?: string;
+
+  @Field(type => String, { nullable: true })
+  public joinUrl?: string;
+
+  @Field(type => String, { nullable: true })
+  public startedBy?: string;
+
+  @Field(type => String, { nullable: true })
   public async createdByAvatar() {
     const localThis: any = this;
     const { createdBy } = localThis._doc || localThis;

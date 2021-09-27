@@ -6,11 +6,11 @@ import { ChannelModel } from "../channel/mongo/Channel.model";
 import { CueModel } from "../cue/mongo/Cue.model";
 import { ModificationsModel } from "../modification/mongo/Modification.model";
 import { SubscriptionModel } from "../subscription/mongo/Subscription.model";
-import { UserObject } from "./types/User.type";
+import { UserObject, ZoomObject } from "./types/User.type";
 import { SchoolsModel } from "../school/mongo/School.model";
 import { ThreadModel } from "../thread/mongo/Thread.model";
 import { ThreadStatusModel } from "../thread-status/mongo/thread-status.model";
-
+import axios from 'axios'
 /**
  * User Mutation Endpoints
  */
@@ -744,4 +744,66 @@ export class UserMutationResolver {
 			return false;
 		}
 	}
+
+	@Field(type => ZoomObject, { nullable: true })
+	public async connectZoom(
+		@Arg("userId", (type) => String)
+		userId: string,
+		@Arg("code", (type) => String)
+		code: string
+	) {
+		try {
+
+			// LIVE
+			// const redirectUri = 'https://web.cuesapp.co/zoom_auth'
+			// const clientId = 'yRzKFwGRTq8bNKLQojwnA'
+			// const clientSecret = 'cdvpIvYRsubUFTOfXbrlnjnnWM3nPWFm'
+			// DEV
+			const redirectUri = 'http://localhost:19006/zoom_auth'
+			const clientId = 'PAfnxrFcSd2HkGnn9Yq96A'
+			const clientSecret = '43LWA5ysjiN1xykRiS32krS9Nx8xGhYt'
+
+			const b = Buffer.from(clientId + ":" + clientSecret);
+
+			const zoomRes: any = await axios.post(`https://zoom.us/oauth/token?grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}`, undefined, {
+				headers: {
+					Authorization: `Basic ${b.toString("base64")}`,
+					"Content-Type": 'application/x-www-form-urlencoded'
+				},
+			});
+			if (zoomRes.status !== 200) {
+				return null
+			}
+
+			const zoomData: any = zoomRes.data
+			// Retreive user details
+			const zoomUserRes: any = await axios.get("https://api.zoom.us/v2/users/me", {
+				headers: {
+					Authorization: `Bearer ${zoomData.access_token}`,
+				}
+			});
+
+			const zoomUserData: any = zoomUserRes.data
+			const expiresOn = new Date()
+			expiresOn.setSeconds(expiresOn.getSeconds() + (Number.isNaN(Number(zoomUserData.expires_in)) ? 0 : Number(zoomUserData.expires_in)))
+
+			const zoomInfo = {
+				email: zoomUserData.email,
+				accountId: zoomUserData.account_id,
+				accessToken: zoomData.access_token,
+				refreshToken: zoomData.refresh_token,
+				expiresOn
+			}
+
+			await UserModel.updateOne({ _id: userId }, {
+				zoomInfo
+			})
+			
+			return zoomInfo;
+		} catch (e) {
+			console.log(e);
+			return null;
+		}
+	}
+
 }

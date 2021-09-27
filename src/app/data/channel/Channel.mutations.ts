@@ -12,7 +12,7 @@ import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { ThreadModel } from '../thread/mongo/Thread.model';
 import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
 import { ActivityModel } from '../activity/mongo/activity.model';
-
+import axios from 'axios'
 
 /**
  * Channel Mutation Endpoints
@@ -194,7 +194,7 @@ export class ChannelMutationResolver {
 
 					}
 
-					const subscribersAdded = await UserModel.find({ _id: { $in: subscriberIds }});
+					const subscribersAdded = await UserModel.find({ _id: { $in: subscriberIds } });
 					const subtitle = 'You have been added to the channel.'
 					const title = duplicateChannel.name + ' - Subscribed!'
 					const messages: any[] = []
@@ -292,7 +292,7 @@ export class ChannelMutationResolver {
 					}
 
 
-					const subscribersAdded = await UserModel.find({ _id: { $in: subscriberIds }});
+					const subscribersAdded = await UserModel.find({ _id: { $in: subscriberIds } });
 					const subtitle = 'You have been added to the channel.'
 					const title = duplicateChannel.name + ' - Subscribed!'
 					const messages: any[] = []
@@ -350,7 +350,7 @@ export class ChannelMutationResolver {
 				// Next add the moderators as channel owners
 
 				if (duplicateOwners && channel.owners && channel.owners.length > 0) {
-					
+
 					// Update owners property for duplicate Channel
 					await ChannelModel.updateOne({
 						_id: duplicateChannel._id
@@ -374,7 +374,7 @@ export class ChannelMutationResolver {
 					}
 
 
-					const ownersAdded = await UserModel.find({ _id: { $in: ownerIds  }});
+					const ownersAdded = await UserModel.find({ _id: { $in: ownerIds } });
 					const subtitle = 'Your role has been updated.'
 					const title = name + ' - Added as moderator'
 					const messages: any[] = []
@@ -550,7 +550,7 @@ export class ChannelMutationResolver {
 	}
 
 	@Field(type => String, {
-		description: 'Used when you want to allow or disallow people from joining meeting.'
+		description: 'Used when you want to create/join a meeting.'
 	})
 	public async meetingRequest(
 		@Arg('channelId', type => String) channelId: string,
@@ -559,134 +559,237 @@ export class ChannelMutationResolver {
 	) {
 		try {
 
+			let accessToken = ''
 			const u: any = await UserModel.findById(userId);
 			const c: any = await ChannelModel.findById(channelId);
 			if (u && c) {
 				const user = u.toObject();
 				const channel = c.toObject();
 
-				const sha1 = require("sha1");
-				const axios = require('axios')
-				const vdoURL = "https://my2.vdo.click/bigbluebutton/api/";
-				const vdoKey = "KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU";
-				const atendeePass = channelId;
-				const modPass = channel.createdBy;
+				// check started
+				if (channel.meetingOn) {
+					// return join URL
+					return channel.joinUrl ? channel.joinUrl : '/'
+				} else {
 
-				const lastRecordedMeetingId = channelId
-				let createMeeting = true
-				// check if meeting is in session
-				const linkParams = "meetingID=" + lastRecordedMeetingId
-				const Hash = "isMeetingRunning" + linkParams + vdoKey;
-				const Checksum = sha1(Hash);
-				const res = await axios.get(vdoURL + 'isMeetingRunning?' + linkParams + '&checksum=' + Checksum)
-				const xml2js = require('xml2js');
-				const parser = new xml2js.Parser();
-				const json = await parser.parseStringPromise(res.data);
-				if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
-					const running = json.response.running[0]
-					if (running === 'true') {
-						createMeeting = false
-					}
-				}
 
-				if (createMeeting) {
-					// create meeting only if not owner
-					if (!isOwner) {
+					// refresh access token
+					if (!user.zoomInfo) {
 						return 'error'
+					} else {
+						accessToken = user.zoomInfo.accessToken
 					}
 
-					const fullName = encodeURI(encodeURIComponent(channel.name.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
-					const params =
-						'allowStartStopRecording=true' +
-						'&attendeePW=' + atendeePass +
-						'&autoStartRecording=false' +
-						'&meetingID=' + channelId +
-						'&moderatorPW=' + modPass +
-						'&name=' + (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
-						'&record=true'
-					const toHash = (
-						'create' + params + vdoKey
-					)
-					const checkSum = sha1(toHash)
-					const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
+					// LIVE
+					// const clientId = 'yRzKFwGRTq8bNKLQojwnA'
+					// const clientSecret = 'cdvpIvYRsubUFTOfXbrlnjnnWM3nPWFm'
+					// DEV
+					const clientId = 'PAfnxrFcSd2HkGnn9Yq96A'
+					const clientSecret = '43LWA5ysjiN1xykRiS32krS9Nx8xGhYt'
 
-					axios.get(url).then(async (res: any) => {
+					const b = Buffer.from(clientId + ":" + clientSecret);
 
-						const xml2js = require('xml2js');
-						const parser = new xml2js.Parser();
-						const json = await parser.parseStringPromise(res.data);
+					const date = new Date()
+					const expiresOn = new Date(user.zoomInfo.expiresOn)
 
-						if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
-							const meetingId = json.response.meetingID[0]
-							await ChannelModel.updateOne({ _id: channelId }, { lastRecordedMeetingId: meetingId })
-						}
+					if (expiresOn <= date) {
+						// refresh access token
 
-						const subscribers = await SubscriptionModel.find({ channelId, unsubscribedAt: { $exists: false } })
-						const userIds: any[] = []
-						const messages: any[] = []
-						const notificationService = new Expo()
-						subscribers.map(u => {
-							userIds.push(u.userId)
-						})
-
-						// Web notifications
-						const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
-						const notification = {
-							contents: {
-								'en': 'The host is now in the meeting! - ' + channel.name,
+						const zoomRes: any = await axios.post(
+							`https://zoom.us/oauth/token?grant_type=refresh_token&refresh_token=${user.zoomInfo.refreshToken}`, undefined, {
+							headers: {
+								Authorization: `Basic ${b.toString("base64")}`,
+								"Content-Type": 'application/x-www-form-urlencoded'
 							},
-							include_external_user_ids: userIds
+						});
+						console.log(zoomRes)
+						if (zoomRes.status !== 200) {
+							return 'error'
 						}
 
-						const response = await oneSignalClient.createNotification(notification)
-						const users = await UserModel.find({ _id: { $in: userIds } })
-						users.map(sub => {
-							const notificationIds = sub.notificationId.split('-BREAK-')
-							notificationIds.map((notifId: any) => {
-								if (!Expo.isExpoPushToken(notifId)) {
-									return
-								}
-								messages.push({
-									to: notifId,
-									sound: 'default',
-									subtitle: 'The host is now in the meeting!',
-									title: channel.name + ' - Meeting Started',
-									data: { userId: sub._id },
-								})
-							})
-						})
-						let chunks = notificationService.chunkPushNotifications(messages);
-						for (let chunk of chunks) {
-							try {
-								await notificationService.sendPushNotificationsAsync(chunk);
-							} catch (e) {
-								console.error(e);
+						const zoomData: any = zoomRes.data
+
+						const eOn = new Date()
+						eOn.setSeconds(eOn.getSeconds() + (Number.isNaN(Number(zoomData.expires_in)) ? 0 : Number(zoomData.expires_in)))
+
+						accessToken = zoomData.access_token
+
+						await UserModel.updateOne({ _id: userId }, {
+							zoomInfo: {
+								...user.zoomInfo,
+								accessToken: zoomData.access_token,
+								refreshToken: zoomData.refresh_token,
+								expiresOn: eOn	// saved as a date
 							}
-						}
-					}).catch((err: any) => {
-						console.log(err);
-					})
+						})
 
+					}
+
+					let owner = true
+					if (channel.owners) {
+						channel.owners.map((uId: any) => {
+							if (uId.toString().trim() === userId.toString().trim()) {
+								owner = true
+							}
+						})
+					}
+					if (channel.createdBy.toString().trim() === userId.toString().trim()) {
+						owner = true
+					}
+					if (!owner) {
+						// meeting not started
+						return 'error'
+					} else {
+						// create meeting
+						const zoomRes: any = await axios.post(
+							`https://api.zoom.us/v2/users/me/meetings`,
+							{
+								topic: channel.name
+							}, {
+							headers: {
+								Authorization: `Bearer ${accessToken}`,
+							},
+						});
+						console.log(zoomRes)
+						if (zoomRes.status !== 200 && zoomRes.status !== 201) {
+							return 'error'
+						}
+
+						const zoomData: any = zoomRes.data
+						await ChannelModel.updateOne(
+							{ _id: channelId }, {
+							startUrl: zoomData.start_url,
+							joinUrl: zoomData.join_url,
+							startedBy: userId
+						})
+
+						return zoomData.start_url
+					}
 				}
 
-				const fullName = encodeURIComponent(encodeURI(user.displayName.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
-				const params =
-					"fullName=" +
-					(fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
-					"&meetingID=" +
-					channelId +
-					"&password=" +
-					(channel.createdBy.toString().trim() ===
-						user._id.toString().trim()
-						? modPass
-						: atendeePass);
-				const toHash = "join" + params + vdoKey;
-				const checksum = sha1(toHash);
+				// const sha1 = require("sha1");
+				// const axios = require('axios')
+				// const vdoURL = "https://my2.vdo.click/bigbluebutton/api/";
+				// const vdoKey = "KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU";
+				// const atendeePass = channelId;
+				// const modPass = channel.createdBy;
 
-				return vdoURL + "join?" + params + "&checksum=" + checksum;
+				// const lastRecordedMeetingId = channelId
+				// let createMeeting = true
+				// // check if meeting is in session
+				// const linkParams = "meetingID=" + lastRecordedMeetingId
+				// const Hash = "isMeetingRunning" + linkParams + vdoKey;
+				// const Checksum = sha1(Hash);
+				// const res = await axios.get(vdoURL + 'isMeetingRunning?' + linkParams + '&checksum=' + Checksum)
+				// const xml2js = require('xml2js');
+				// const parser = new xml2js.Parser();
+				// const json = await parser.parseStringPromise(res.data);
+				// if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
+				// 	const running = json.response.running[0]
+				// 	if (running === 'true') {
+				// 		createMeeting = false
+				// 	}
+				// }
+
+				// if (createMeeting) {
+				// 	// create meeting only if not owner
+				// 	if (!isOwner) {
+				// 		return 'error'
+				// 	}
+
+				// 	const fullName = encodeURI(encodeURIComponent(channel.name.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
+				// 	const params =
+				// 		'allowStartStopRecording=true' +
+				// 		'&attendeePW=' + atendeePass +
+				// 		'&autoStartRecording=false' +
+				// 		'&meetingID=' + channelId +
+				// 		'&moderatorPW=' + modPass +
+				// 		'&name=' + (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
+				// 		'&record=true'
+				// 	const toHash = (
+				// 		'create' + params + vdoKey
+				// 	)
+				// 	const checkSum = sha1(toHash)
+				// 	const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
+
+				// 	axios.get(url).then(async (res: any) => {
+
+				// 		const xml2js = require('xml2js');
+				// 		const parser = new xml2js.Parser();
+				// 		const json = await parser.parseStringPromise(res.data);
+
+				// 		if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
+				// 			const meetingId = json.response.meetingID[0]
+				// 			await ChannelModel.updateOne({ _id: channelId }, { lastRecordedMeetingId: meetingId })
+				// 		}
+
+				// 		const subscribers = await SubscriptionModel.find({ channelId, unsubscribedAt: { $exists: false } })
+				// 		const userIds: any[] = []
+				// 		const messages: any[] = []
+				// 		const notificationService = new Expo()
+				// 		subscribers.map(u => {
+				// 			userIds.push(u.userId)
+				// 		})
+
+				// 		// Web notifications
+				// 		const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+				// 		const notification = {
+				// 			contents: {
+				// 				'en': 'The host is now in the meeting! - ' + channel.name,
+				// 			},
+				// 			include_external_user_ids: userIds
+				// 		}
+
+				// 		const response = await oneSignalClient.createNotification(notification)
+				// 		const users = await UserModel.find({ _id: { $in: userIds } })
+				// 		users.map(sub => {
+				// 			const notificationIds = sub.notificationId.split('-BREAK-')
+				// 			notificationIds.map((notifId: any) => {
+				// 				if (!Expo.isExpoPushToken(notifId)) {
+				// 					return
+				// 				}
+				// 				messages.push({
+				// 					to: notifId,
+				// 					sound: 'default',
+				// 					subtitle: 'The host is now in the meeting!',
+				// 					title: channel.name + ' - Meeting Started',
+				// 					data: { userId: sub._id },
+				// 				})
+				// 			})
+				// 		})
+				// 		let chunks = notificationService.chunkPushNotifications(messages);
+				// 		for (let chunk of chunks) {
+				// 			try {
+				// 				await notificationService.sendPushNotificationsAsync(chunk);
+				// 			} catch (e) {
+				// 				console.error(e);
+				// 			}
+				// 		}
+				// 	}).catch((err: any) => {
+				// 		console.log(err);
+				// 	})
+
+				// }
+
+				// const fullName = encodeURIComponent(encodeURI(user.displayName.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
+				// const params =
+				// 	"fullName=" +
+				// 	(fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
+				// 	"&meetingID=" +
+				// 	channelId +
+				// 	"&password=" +
+				// 	(channel.createdBy.toString().trim() ===
+				// 		user._id.toString().trim()
+				// 		? modPass
+				// 		: atendeePass);
+				// const toHash = "join" + params + vdoKey;
+				// const checksum = sha1(toHash);
+
+				// return vdoURL + "join?" + params + "&checksum=" + checksum;
 			}
 			return 'error'
 		} catch (e) {
+			console.log(e)
 			return 'error'
 		}
 	}

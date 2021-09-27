@@ -1,6 +1,29 @@
 import { SchemaTimestamps } from '@service/MongoDB/modules/Timestamps';
 import { Schema, Types } from 'mongoose';
 
+const zoomSchema = new Schema({
+  email: {
+    type: String,
+    required: true
+  },
+  accountId: {
+    type: String,
+    required: true
+  },
+  accessToken: {
+    type: String,
+    required: true
+  },
+  refreshToken: {
+    type: String,
+    required: true
+  },
+  expiresOn: {
+    type: Date,
+    required: true
+  }
+})
+
 const schema = new Schema(
   {
     notificationId: {
@@ -69,6 +92,10 @@ const schema = new Schema(
     },
     avatar: {
       type: String,
+      required: false
+    },
+    zoomInfo: {
+      type: zoomSchema,
       required: false
     }
   },

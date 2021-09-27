@@ -4,6 +4,26 @@ import { MessageStatusModel } from '@app/data/message-status/mongo/message-statu
 import { GroupModel } from '@app/data/group/mongo/Group.model';
 
 @ObjectType()
+export class ZoomObject {
+
+  @Field()
+  public email: string;
+
+  @Field()
+  public accountId: string;
+
+  @Field()
+  public refreshToken: string;
+
+  @Field()
+  public accessToken: string;
+
+  @Field(type => Date)
+  public expiresOn: Date;
+
+}
+
+@ObjectType()
 export class UserObject {
 
   @Field()
@@ -86,6 +106,9 @@ export class UserObject {
 
   @Field(type => Date, { nullable: true })
   public lastLoginAt?: Date;
+
+  @Field(type => ZoomObject, { nullable: true })
+  public zoomInfo?: ZoomObject;
 
   @Field({ nullable: true })
   public inactive?: boolean;

@@ -33,6 +33,18 @@ const schema = new Schema(
     colorCode: {
       type: String,
       required: false
+    },
+    startUrl: {
+      type: String,
+      required: false
+    },
+    joinUrl: {
+      type: String,
+      required: false
+    },
+    startedBy: {
+      type: String,
+      required: false
     }
   }
 );
