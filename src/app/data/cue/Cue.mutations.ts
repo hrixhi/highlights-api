@@ -809,7 +809,7 @@ export class CueMutationResolver {
 
 			if (!mod || !mod.cue) return false;
 
-			if (quizAttempt && quizAttempt !== null) {
+			if (quizAttempt !== null && quizAttempt !== undefined) {
 
 				const currCueValue = JSON.parse(mod.cue);
 
@@ -824,13 +824,13 @@ export class CueMutationResolver {
 				})
 
 				let updatedAttempts = [...currAttempts];
-				updatedAttempts[quizAttempt] = {
-					...attemptToGrade,
-					problemScores,
-					problemComments,
-					isFullyGraded: true,
-					score: attemptScore
-				}
+
+				updatedAttempts[quizAttempt] = { ...attemptToGrade }
+
+				updatedAttempts[quizAttempt].problemScores = problemScores;
+				updatedAttempts[quizAttempt].problemComments = problemComments;
+				updatedAttempts[quizAttempt].isFullyGraded = true;
+				updatedAttempts[quizAttempt].score = attemptScore;
 
 				let isActiveAttemptFullyGraded = false;
 
@@ -842,8 +842,10 @@ export class CueMutationResolver {
 					if (attempt.isActive) activeAttempt = index;
 				})
 
+				const updatedCue = { ...currCueValue };
+				updatedCue.attempts = updatedAttempts;
 
-				// Only update the score if the active attempt is modified
+				// Only update the score && graded if the active attempt is modified
 
 				const update = await ModificationsModel.updateOne({
 					cueId,
@@ -851,11 +853,8 @@ export class CueMutationResolver {
 				}, {
 					score: activeAttempt === quizAttempt ? Number(score) : mod.score,
 					comment: comment && comment !== '' ? comment : '',
-					graded: true,
-					cue: JSON.stringify({
-						...currCueValue,
-						attempts: updatedAttempts
-					})
+					graded: isActiveAttemptFullyGraded,
+					cue: JSON.stringify(updatedCue)
 				})
 
 				return true;

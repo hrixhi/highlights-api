@@ -64,159 +64,77 @@ export class ThreadMutationResolver {
                     });
                 });
 
-                let cueTitle = "";
+                // Notifications & Activity
 
-                if (cueId !== "NULL") {
-                    const fetchCue = await CueModel.findById(cueId);
-
-                    if (!fetchCue) {
-                        return;
-                    }
-
-                    const { title } = htmlStringParser(fetchCue.cue)
-
-                    cueTitle = title;
-
-                }
-
-                const userIds: any[] = [];
-                const messages: any[] = [];
-                const notificationService = new Expo();
-                subscribers.map(u => {
-                    userIds.push(u.userId);
-                });
-                const channel: any = await ChannelModel.findById(channelId);
-                const users = await UserModel.find({ _id: { $in: userIds } });
-                const activity: any[] = []
-                const { title, subtitle: body } = htmlStringParser(
-                    message
-                );
-                users.map(sub => {
-                    const notificationIds = sub.notificationId.split("-BREAK-");
-                    notificationIds.map((notifId: any) => {
-                        if (!Expo.isExpoPushToken(notifId)) {
-                            return;
-                        }
-
-                        messages.push({
-                            to: notifId,
-                            sound: "default",
-                            title:
-                                channel.name + (cueId === "NULL" ? "- New Discussion " : "- New Q&A ") +
-                                (parentId
-                                    ? "Post"
-                                    : "Reply"),
-                            subtitle: title,
-                            body,
-                            data: { userId: sub._id }
-                        });
-                    });
-                    activity.push({
-                        userId: sub._id,
-                        subtitle: title,
-                        title: (cueId === "NULL" ? "New Discussion " : "New Q&A ") +
-                            (parentId
-                                ? "Post"
-                                : "Reply"),
-                        status: 'unread',
-                        date: new Date(),
-                        channelId: channel._id,
-                        cueId: cueId === "NULL" ? null : cueId,
-                        target: cueId === "NULL" ? "DISCUSSION" : "Q&A"
-                    })
-                });
-                await ActivityModel.insertMany(activity)
-
-                // Web notifications
-                const oneSignalClient = new OneSignal.Client(
-                    "51db5230-f2f3-491a-a5b9-e4fba0f23c76",
-                    "Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh"
-                );
-
-                const notification = {
-                    contents: {
-                        en:
-                        channel.name + (cueId === "NULL" ? "- New Discussion " : "- New Q&A ") +
-                        (parentId
-                            ? "Post"
-                            : "Reply") +
-                            ": " +
-                            title
-                    },
-                    include_external_user_ids: userIds
-                };
-
-                const response = await oneSignalClient.createNotification(
-                    notification
-                );
-
-                let chunks = notificationService.chunkPushNotifications(
-                    messages
-                );
-                for (let chunk of chunks) {
-                    try {
-                        await notificationService.sendPushNotificationsAsync(
-                            chunk
-                        );
-                    } catch (e) {
-                        console.error(e);
-                    }
-                }
-            } else {
-                // Private thread
-                // Create badges for the owner only
-                const channel = await ChannelModel.findById(channelId);
-                if (channel) {
-                    const obj = channel.toObject();
-                    await ThreadStatusModel.create({
-                        cueId: cueId === "NULL" ? undefined : cueId,
-                        userId: obj.createdBy,
-                        threadId: parentId === "INIT" ? thread._id : parentId,
-                        channelId
-                    });
-                    // SEND MESSAGE TO OWNER
-                    const user: any = await UserModel.findById(obj.createdBy);
+                // If not a reply then send a notification to everyone
+                if (parentId === "INIT") {
+                    
+                    const userIds: any[] = [];
                     const messages: any[] = [];
                     const notificationService = new Expo();
-
-                    const notificationIds = user.notificationId.split(
-                        "-BREAK-"
-                    );
+                    subscribers.map(u => {
+                        // No need to add it for sender
+                        if (u.userId.toString() === userId.toString()) return;
+                        userIds.push(u.userId);
+                    });
+                    const channel: any = await ChannelModel.findById(channelId);
+                    const users = await UserModel.find({ _id: { $in: userIds } });
+                    const activity: any[] = []
                     const { title, subtitle: body } = htmlStringParser(
                         message
                     );
-                    notificationIds.map((notifId: any) => {
-                        if (!Expo.isExpoPushToken(notifId)) {
-                            return;
-                        }
+                    users.map(sub => {
+                        const notificationIds = sub.notificationId.split("-BREAK-");
+                        notificationIds.map((notifId: any) => {
+                            if (!Expo.isExpoPushToken(notifId)) {
+                                return;
+                            }
 
-                        messages.push({
-                            to: notifId,
-                            sound: "default",
-                            subtitle: title,
-                            title:
-                            channel.name + (cueId === "NULL" ? "- New Discussion " : "- New Q&A ") +
-                            (parentId
-                                ? "Post"
-                                : "Reply"),
-                            data: { userId: user._id }
+                            messages.push({
+                                to: notifId,
+                                sound: "default",
+                                title: channel.name + (cueId === "NULL" ? "- New Discussion Post: " : "- New Q&A Post: ") + title,
+                                subtitle: title,
+                                body,
+                                data: { userId: sub._id }
+                            });
                         });
+                        activity.push({
+                            userId: sub._id,
+                            subtitle: title,
+                            title: (cueId === "NULL" ? "New Discussion Post" : "New Q&A Post"),
+                            status: 'unread',
+                            date: new Date(),
+                            channelId: channel._id,
+                            cueId: cueId === "NULL" ? null : cueId,
+                            threadId: parentId === "INIT" ? thread._id : parentId,
+                            target: cueId === "NULL" ? "DISCUSSION" : "Q&A",
+                        })
                     });
-                    const activity = {
-                        userId,
-                        subtitle: title,
-                        title: 'Private Thread',
-                        status: 'unread',
-                        date: new Date(),
-                        channelId,
-                        cueId: cueId === "NULL" ? null : cueId,
-                        target: cueId === "NULL" ? "DISCUSSION" : "Q&A"
-                    }
-                    await ActivityModel.create(activity)
+                    await ActivityModel.insertMany(activity)
+
+                    // Web notifications
+                    const oneSignalClient = new OneSignal.Client(
+                        "51db5230-f2f3-491a-a5b9-e4fba0f23c76",
+                        "Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh"
+                    );
+
+                    const notification = {
+                        contents: {
+                            en:
+                            channel.name + (cueId === "NULL" ? "- New Discussion Post: " : "- New Q&A Post: ") + title
+                        },
+                        include_external_user_ids: userIds
+                    };
+
+                    const response = await oneSignalClient.createNotification(
+                        notification
+                    );
 
                     let chunks = notificationService.chunkPushNotifications(
                         messages
                     );
+
                     for (let chunk of chunks) {
                         try {
                             await notificationService.sendPushNotificationsAsync(
@@ -226,10 +144,278 @@ export class ThreadMutationResolver {
                             console.error(e);
                         }
                     }
+
+
+                } else {
+
+                    // Build a set of all user Ids involved in the thread
+                    const parent = await ThreadModel.findById(parentId);
+
+                    const ids = new Set()
+
+                    if (parent) {
+                        ids.add(parent.userId)
+                    }
+
+                    // Get channel owner and moderators
+                    const channel: any = await ChannelModel.findById(channelId);
+                    
+                    if (channel) {
+                        const obj = channel.toObject();
+
+                        ids.add(obj.createdBy)
+
+                        if (obj.owners && obj.owners.length > 0) {
+                            obj.owners.map((id: any) => ids.add(id))
+                        }
+                    }
+
+                    // Get all replies for the parent if thread is not private
+                    if (parent && !parent.isPrivate) {
+                        const replies: any[] = await ThreadModel.find({ parentId })
+
+                        if (replies && replies.length !== 0) {
+                            replies.map((reply: any) => {
+                                ids.add(reply.userId)
+                            })
+                        }
+                    }
+ 
+                    let userIds: any[] = Array.from(ids);
+
+                    userIds = userIds.filter((id: any) => id.toString() !== userId.toString());
+
+                    const users = await UserModel.find({ _id: { $in: userIds } });
+
+                    const messages: any[] = [];
+                    const notificationService = new Expo();
+
+                    const activity: any[] = []
+                    const { title, subtitle: body } = htmlStringParser(
+                        message
+                    );
+
+                    users.map(sub => {
+                        const notificationIds = sub.notificationId.split("-BREAK-");
+                        notificationIds.map((notifId: any) => {
+                            if (!Expo.isExpoPushToken(notifId)) {
+                                return;
+                            }
+
+                            messages.push({
+                                to: notifId,
+                                sound: "default",
+                                title: channel.name + (cueId === "NULL" ? "- New Discussion Reply: " : "- New Q&A Reply: ") + title,
+                                subtitle: title,
+                                body,
+                                data: { userId: sub._id }
+                            });
+                        });
+                        activity.push({
+                            userId: sub._id,
+                            subtitle: title,
+                            title: (cueId === "NULL" ? "New Discussion Reply" : "New Q&A Reply"),
+                            status: 'unread',
+                            date: new Date(),
+                            channelId: channel._id,
+                            cueId: cueId === "NULL" ? null : cueId,
+                            threadId: parentId === "INIT" ? thread._id : parentId,
+                            target: cueId === "NULL" ? "DISCUSSION" : "Q&A",
+                        })
+                    });
+                    await ActivityModel.insertMany(activity)
+
+                    // Web notifications
+                    const oneSignalClient = new OneSignal.Client(
+                        "51db5230-f2f3-491a-a5b9-e4fba0f23c76",
+                        "Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh"
+                    );
+
+                    const notification = {
+                        contents: {
+                            en:
+                            channel.name + (cueId === "NULL" ? "- New Discussion Reply: " : "- New Q&A Reply: ") + title
+                        },
+                        include_external_user_ids: userIds
+                    };
+
+                    const response = await oneSignalClient.createNotification(
+                        notification
+                    );
+
+                    let chunks = notificationService.chunkPushNotifications(
+                        messages
+                    );
+
+                    for (let chunk of chunks) {
+                        try {
+                            await notificationService.sendPushNotificationsAsync(
+                                chunk
+                            );
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+
+                }
+
+                
+            } else {
+                // Private thread
+                // Create badges for the owner, moderators and sender only
+                const channel = await ChannelModel.findById(channelId);
+                if (channel) {
+                    const obj = channel.toObject();
+
+                    let ids = new Set();
+
+                    ids.add(userId)
+                    ids.add(obj.createdBy)
+    
+                    if (obj.owners && obj.owners.length > 0) {
+                        obj.owners.map((id: any) => ids.add(id))
+                    }
+    
+                    let userIds: any[] = Array.from(ids);
+
+                    userIds = userIds.filter((id: any) => id.toString() !== userId.toString());
+
+                    userIds.map(async (id: any) => {
+                        await ThreadStatusModel.create({
+                            cueId: cueId === "NULL" ? undefined : cueId,
+                            userId: id,
+                            threadId: parentId === "INIT" ? thread._id : parentId,
+                            channelId
+                        });
+                    });
+
+                    
+
+                    const users: any[] = await UserModel.find({ _id: { $in: userIds } });
+                    const messages: any[] = [];
+                    const notificationService = new Expo();
+
+                    // const notificationIds = user.notificationId.split(
+                    //     "-BREAK-"
+                    // );
+                    const { title, subtitle: body } = htmlStringParser(
+                        message
+                    );
+
+                    const activity: any[] = []
+
+                    users.map(sub => {
+                        const notificationIds = sub.notificationId.split("-BREAK-");
+                        notificationIds.map((notifId: any) => {
+                            if (!Expo.isExpoPushToken(notifId)) {
+                                return;
+                            }
+
+                            messages.push({
+                                to: notifId,
+                                sound: "default",
+                                title: channel.name + (cueId === "NULL" ? "- New Discussion Post: " : "- New Q&A Post: ") + title,
+                                subtitle: title,
+                                body,
+                                data: { userId: sub._id }
+                            });
+                        });
+                        activity.push({
+                            userId: sub._id,
+                            subtitle: title,
+                            title: (cueId === "NULL" ? "New Private Discussion Post" : "New Private Q&A Post"),
+                            status: 'unread',
+                            date: new Date(),
+                            channelId: channel._id,
+                            cueId: cueId === "NULL" ? null : cueId,
+                            threadId: parentId === "INIT" ? thread._id : parentId,
+                            target: cueId === "NULL" ? "DISCUSSION" : "Q&A"
+                        })
+                    });
+                    await ActivityModel.insertMany(activity)
+
+                    // Web notifications
+                    const oneSignalClient = new OneSignal.Client(
+                        "51db5230-f2f3-491a-a5b9-e4fba0f23c76",
+                        "Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh"
+                    );
+
+                    const notification = {
+                        contents: {
+                            en:
+                            channel.name + (cueId === "NULL" ? "- New Private Discussion Post: " : "- New Private Q&A Post: ") + title
+                        },
+                        include_external_user_ids: userIds
+                    };
+
+                    const response = await oneSignalClient.createNotification(
+                        notification
+                    );
+
+                    let chunks = notificationService.chunkPushNotifications(
+                        messages
+                    );
+
+                    for (let chunk of chunks) {
+                        try {
+                            await notificationService.sendPushNotificationsAsync(
+                                chunk
+                            );
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+
+
+                    // notificationIds.map((notifId: any) => {
+                    //     if (!Expo.isExpoPushToken(notifId)) {
+                    //         return;
+                    //     }
+
+                    //     messages.push({
+                    //         to: notifId,
+                    //         sound: "default",
+                    //         subtitle: title,
+                    //         title:
+                    //         channel.name + (cueId === "NULL" ? "- New Discussion Post" : "- New Q&A Post"),
+                    //         data: { userId: user._id }
+                    //     });
+                    // });
+
+                    // let activity: any[] = [];
+
+                    // userIds.map((id: any) => {
+                    //     activity.push({
+                    //         userId: id,
+                    //         subtitle: title,
+                    //         title: (cueId === "NULL" ? "New Private Discussion Post" : "New Private Q&A Post"),
+                    //         status: 'unread',
+                    //         date: new Date(),
+                    //         channelId,
+                    //         cueId: cueId === "NULL" ? null : cueId,
+                    //         target: cueId === "NULL" ? "DISCUSSION" : "Q&A"
+                    //     })
+                    // })
+
+                    // await ActivityModel.insertMany(activity)
+
+                    // let chunks = notificationService.chunkPushNotifications(
+                    //     messages
+                    // );
+                    // for (let chunk of chunks) {
+                    //     try {
+                    //         await notificationService.sendPushNotificationsAsync(
+                    //             chunk
+                    //         );
+                    //     } catch (e) {
+                    //         console.error(e);
+                    //     }
+                    // }
                 }
             }
             return true;
         } catch (e) {
+            console.log(e);
             return false;
         }
     }
