@@ -29,6 +29,9 @@ export class ActivityObject {
   @Field({ nullable: true })
   public cueId?: string;
 
+  @Field({ nullable: true })
+  public threadId?: string;
+
   @Field(type => Date)
   public date: Date;
 
@@ -92,5 +95,7 @@ export class ActivityObject {
 
   @Field(type => String, { nullable: true})
   public target?: String;
+
+
 
 }

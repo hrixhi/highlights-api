@@ -167,7 +167,7 @@ export class MessageMutationResolver {
 
             let id = groupId
 
-            // Create new group if no groupId passed in
+            // Create new group if no groupId passed in 
             if (!groupId || groupId === "") {
 
                 const newGroup = await GroupModel.create({

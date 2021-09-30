@@ -10,6 +10,7 @@ export interface IActivityModel extends Document {
 	channelId: string;
 	body?: string;
 	cueId?: string; 
+	threadId?: string; 
 }
 
 export const ActivityModel: Model<IActivityModel> = model<IActivityModel>(

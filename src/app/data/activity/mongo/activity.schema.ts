@@ -37,7 +37,11 @@ const schema = new Schema(
     target: {
       type: String, 
       required: false
-    }
+    },
+    threadId: {
+      type: String,
+      required: false
+    },
   }
 )
 
