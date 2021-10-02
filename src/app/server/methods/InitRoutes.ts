@@ -5,6 +5,13 @@ import { link } from 'fs';
 import { basename } from 'path';
 const mime = require('mime-types')
 const util = require('util');
+import { SubscriptionModel } from '../../data/subscription/mongo/Subscription.model'
+import { CueModel } from '../../data/cue/mongo/Cue.model';
+import { ChannelModel } from '../../data/channel/mongo/Channel.model';
+import { GroupModel } from '../../data/group/mongo/Group.model';
+import { MessageModel } from '../../data/message/mongo/Message.model';
+import { ThreadModel } from '../../data/thread/mongo/Thread.model';
+
 
 /**
  * This is the function used to initializeroutes that is going to let uses upload to the s3 bucket.
@@ -158,6 +165,118 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             await uploadFiles(file,type,res);
         });
         req.pipe(busboy);
+    });
+
+    GQLServer.get("/search", async (req: any, res: any) => {
+        console.log('in api')
+        // this body field is used for recognizition if attachment is EventImage, Asset or simillar.
+        const { term, userId } = req.query;
+
+        if (term === "" || userId === "") return "";
+
+        try {
+
+            // search through cues - messages - threads - channels
+            // return result, type, add. data to lead to the result
+      
+            const toReturn: any = {}
+            const subscriptions = await SubscriptionModel.find({
+              $and: [
+                { userId },
+                { keepContent: { $ne: false } },
+                { unsubscribedAt: { $exists: false } }
+              ]
+            })
+            const channelIds = subscriptions.map((s: any) => {
+              const sub = s.toObject()
+              return (sub.channelId)
+            })
+      
+            // Channels
+            const channels = await ChannelModel.find({ name: new RegExp(term, "i") })
+            toReturn['channels'] = channels
+      
+            // Cues
+            const personalCues = await CueModel.find({
+              channelId: { $exists: false },
+              createdBy: userId,
+              cue: new RegExp(term, "i")
+            })
+            toReturn['personalCues'] = (personalCues)
+      
+            const channelCues = await CueModel.find({
+              channelId: { $in: channelIds },
+              cue: new RegExp(term, "i")
+            })
+            toReturn['channelCues'] = (channelCues)
+      
+            // Messages
+            const groups = await GroupModel.find({
+              users: userId
+            })
+            const groupIds = groups.map((g: any) => {
+              const group = g.toObject()
+              return group._id
+      
+            })
+      
+            let groupUsersMap: any = {};
+      
+            groups.map((g: any) => {
+              const group = g.toObject()
+              groupUsersMap[group._id.toString()] = group.users;
+            })
+            
+            const messages = await MessageModel.find({
+              message: new RegExp(term, "i"),
+              groupId: { $in: groupIds }
+            })
+      
+            const messagesWithUsers = messages.map((mess: any) => {
+              const messObj = mess.toObject();
+      
+              const users = groupUsersMap[messObj.groupId.toString()];
+      
+              if (users) {
+                return {
+                  ...messObj,
+                  users
+                }
+              }
+      
+              return {
+                ...messObj,
+                users: []
+              }
+            })
+      
+            toReturn['messages'] = (messagesWithUsers)
+      
+            // Need to add the users to each message 
+            
+      
+            // threads
+            const threads = await ThreadModel.find({
+              channelId: { $in: channelIds },
+              message: new RegExp(term)
+            })
+            toReturn['threads'] = (threads)
+      
+      
+            // Add createdBy for all the 
+
+            console.log("return", toReturn)
+
+            return res.send(toReturn)
+      
+            // return JSON.stringify(toReturn)
+      
+          } catch (e) {
+            console.log(e)
+            return res.send('')
+          }
+
+        
     });
 
 }
