@@ -948,12 +948,15 @@ export class CueMutationResolver {
 				isActive: false
 			}
 		})
+		
 
 		// console.log("Updated Cue", {
-		// 	...currCue,
 		// 	graded: isNewAttemptFullyGraded,
-		// 	score:  Number((scoreToSet/total) * 100).toFixed(2),
-		// 	attempts: updatedAttempts,
+		// 	cue: JSON.stringify({
+		// 		...currCue,
+		// 		attempts: updatedAttempts,
+		// 	}),
+		// 	score:  Number(((scoreToSet/total) * 100).toFixed(2))
 		// })
 
 
@@ -965,7 +968,8 @@ export class CueMutationResolver {
 			cue: JSON.stringify({
 				...currCue,
 				attempts: updatedAttempts,
-			})
+			}),
+			score:  Number(((scoreToSet/total) * 100).toFixed(2))
 		})
 
 		return true
