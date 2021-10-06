@@ -214,12 +214,12 @@ export class QuizMutationResolver {
     
                                     const calculatedScore = ((correctAnswers / totalAnswers) * (prob.points !== undefined && prob.points !== null ? prob.points : 1)).toFixed(2)
     
-                                    updatedScores.push(calculatedScore);
+                                    updatedScores[index] = calculatedScore;
                                     score += Number(calculatedScore);
     
                                 } else if (regradeChoices[index] === "giveEveryoneFullCredit") {
     
-                                    updatedProblems.push(prob.points);
+                                    updatedScores[index] = prob.points.toFixed(2);
                                     score += Number(prob.points)
                                     
     
@@ -251,7 +251,7 @@ export class QuizMutationResolver {
     
                                     const calculatedScore = ((correctAnswers / totalAnswers) * (prob.points !== undefined && prob.points !== null ? prob.points : 1)).toFixed(2)
     
-                                    updatedScores.push(calculatedScore);
+                                    updatedScores[index] = calculatedScore;
                                     score += Number(calculatedScore);
     
                                 } else if (regradeChoices[index] === "noRegrading") {
@@ -283,7 +283,7 @@ export class QuizMutationResolver {
                         updatedAttempts[attemptIndex].problemScores = updatedScores;
                         updatedAttempts[attemptIndex].score = score;
 
-                        console.log("Updated attempt", updatedAttempts[attemptIndex])
+                        // console.log("Updated attempt", updatedAttempts[attemptIndex])
                         // If this attempt is the active attempt then we need to update the 
 
                         if (attempt.isActive) {
