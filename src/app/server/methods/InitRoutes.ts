@@ -4,7 +4,6 @@ import { GraphQLServer } from 'graphql-yoga';
 import { link } from 'fs';
 import { basename } from 'path';
 import { UserModel } from '@app/data/user/mongo/User.model';
-import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
 const mime = require('mime-types')
 const util = require('util');
 import { SubscriptionModel } from '../../data/subscription/mongo/Subscription.model'
