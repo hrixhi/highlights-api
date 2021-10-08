@@ -245,12 +245,16 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
               cue: new RegExp(term, "i")
             })
             toReturn['personalCues'] = (personalCues)
+
+            console.log("Personal cues", personalCues);
       
             const channelCues = await CueModel.find({
               channelId: { $in: channelIds },
               cue: new RegExp(term, "i")
             })
             toReturn['channelCues'] = (channelCues)
+
+            console.log("Channel Cues", channelCues)
       
             // Messages
             const groups = await GroupModel.find({
@@ -273,6 +277,8 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
               message: new RegExp(term, "i"),
               groupId: { $in: groupIds }
             })
+
+            console.log("Messages", messages)
       
             const messagesWithUsers = messages.map((mess: any) => {
               const messObj = mess.toObject();
@@ -307,7 +313,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
       
             // Add createdBy for all the 
 
-            console.log("return", toReturn)
+            console.log("search results", toReturn)
 
             return res.send(toReturn)
       
