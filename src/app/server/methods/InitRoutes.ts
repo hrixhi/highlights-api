@@ -209,10 +209,16 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         req.pipe(busboy);
     });
 
-    GQLServer.get("/search", async (req: any, res: any) => {
+    GQLServer.post("/search", async (req: any, res: any) => {
         console.log('in api')
         // this body field is used for recognizition if attachment is EventImage, Asset or simillar.
-        const { term, userId } = req.query;
+        console.log("request body")
+        console.log(req.body)
+
+        const { term, userId } = req.body;
+
+        console.log("User id", userId)
+        console.log("Term", term)
 
         if (term === "" || userId === "") return "";
 
