@@ -18,3 +18,10 @@ export async function createJWTUser(userDocument: any) {
     token
   };
 }
+
+// Create JWT Token and return it 
+export function createJWTToken(userId: string) {
+  return jwt.sign({ id: userId }, JWT_SECRET,  {
+    expiresIn: 86400 * 7 // expires in 1 week
+  });
+}

@@ -8,4 +8,7 @@ export class AuthResponseObject {
 
   @Field(type => String)
   public error: String;
+
+  @Field(type => String, { nullable: true })
+  public token: string;
 }

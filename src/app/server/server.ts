@@ -14,6 +14,7 @@ import { ModificationsModel } from '@app/data/modification/mongo/Modification.mo
 import { CueModel } from '@app/data/cue/mongo/Cue.model';
 import { QuizModel } from '@app/data/quiz/mongo/Quiz.model';
 import * as OneSignal from 'onesignal-node';  
+import { resolveUser } from './context/ResolveUser';
 
 /**
  *  The most fundamental class that is the beginning to the working of the Isotope API
@@ -161,6 +162,57 @@ export class Server {
 		return this.graphqlSchema;
 	}
 
+	// This middleware checks if user was found using jwt token while creating context
+	isLoggedIn = async (resolve: any, root: any, args: any, ctx: any, info: any) => {
+		if (!ctx.user) {
+		    return new Error('NOT_AUTHENTICATED');
+		}
+
+		// Check if user has been removed or made inactive
+		if (ctx.user) {
+			if (ctx.user.deletedAt || ctx.user.inactive) {
+				return new Error('NOT_AUTHENTICATED')
+			} 
+		}
+
+     	return resolve()
+	}
+
+	//  This object assigns all the necessary resolver, queries and mutations with the isLoggedIn middleware
+	private requiresAuthentication = {
+		Query: {
+			activity: this.isLoggedIn,
+			attendance: this.isLoggedIn,
+			// channel: this.isLoggedIn,
+			cue: this.isLoggedIn,
+			date: this.isLoggedIn,
+			folder: this.isLoggedIn,
+			group: this.isLoggedIn,
+			message: this.isLoggedIn,
+			messageStatus: this.isLoggedIn,
+			// subscription: this.isLoggedIn,
+			thread: this.isLoggedIn,
+			status: this.isLoggedIn,
+			threadStatus: this.isLoggedIn,
+			quiz: this.isLoggedIn,
+		},
+		Mutation: {
+			activity: this.isLoggedIn,
+			attendance: this.isLoggedIn,
+			// channel: this.isLoggedIn,
+			cue: this.isLoggedIn,
+			date: this.isLoggedIn,
+			folder: this.isLoggedIn,
+			message: this.isLoggedIn,
+			messageStatus: this.isLoggedIn,
+			// subscription: this.isLoggedIn,
+			thread: this.isLoggedIn,
+			status: this.isLoggedIn,
+			threadStatus: this.isLoggedIn,
+			quiz: this.isLoggedIn,
+		}
+	}
+
 	/**
 	 * Initializes GQL elements used later on in queries and mutations
 	 */
@@ -169,11 +221,31 @@ export class Server {
 		this.graphqlServer = new GraphQLServer({
 			schema: this.graphqlSchema,
 			context: async (req) => {
-				let user = null
-				const userId = req.request.header("userId")
-				if (userId !== '') {
-					user = await UserModel.findById(userId)
+
+				// Add the resolve user over here: 
+				let token = "";
+
+				if (req.request.header("authorization")) {
+					token = req.request.header("authorization") || "";
 				}
+
+				let jwtUser : any = null;
+
+				if (token !== "") {
+					jwtUser = resolveUser(token)
+				}
+
+				let user = null
+
+				if (jwtUser && jwtUser.id !== "") {
+					user = user = await UserModel.findById(jwtUser.id)
+				}
+				
+				// let user = null
+				// const userId = req.request.header("userId")
+				// if (userId !== '') {
+				// 	user = await UserModel.findById(userId)
+				// }
 				return {
 					mongodb: this.mongoConnection,
 					repositories: new MongoRepositoriesFactory(),
@@ -182,7 +254,7 @@ export class Server {
 					oneSignalClient: new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
 				}
 			},
-			middlewares: [],
+			middlewares: [this.requiresAuthentication],
 		});
 
 		// init routes

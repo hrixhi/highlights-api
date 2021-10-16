@@ -12,6 +12,7 @@ import { MessageModel } from "../message/mongo/Message.model";
 import { ChannelModel } from "../channel/mongo/Channel.model";
 import { GroupModel } from "../group/mongo/Group.model";
 import { ThreadModel } from "../thread/mongo/Thread.model";
+import { createJWTToken } from "../../../helpers/auth";
 
 /**
  * User Query Endpoints
@@ -84,40 +85,49 @@ export class UserQueryResolver {
         if (user.deletedAt) {
           return {
             user: null,
-            error: "User account terminated by school administrator."
+            error: "User account terminated by school administrator.",
+            token: ""
           };
         }
 
         if (user.inactive) {
           return {
             user: null,
-            error: "Account inactive. Contact school administrator."
+            error: "Account inactive. Contact school administrator.",
+            token: ""
           };
         }
 
         const passwordCorrect = await verifyPassword(password, user.password);
         if (passwordCorrect) {
           await UserModel.updateOne({ _id: user._id }, { lastLoginAt: new Date() })
+
+          const token = createJWTToken(user._id)
+
           return {
             user,
-            error: ""
+            error: "",
+            token
           };
         } else {
           return {
             user: null,
-            error: "Incorrect Password. Try again."
+            error: "Incorrect Password. Try again.",
+            token: ""
           };
         }
       } else {
         return {
           user: null,
-          error: "No user found with this email."
+          error: "No user found with this email.",
+          token: ""
         };
       }
     } catch (e) {
       return {
         user: null,
-        error: "Something went wrong. Try again."
+        error: "Something went wrong. Try again.",
+        token: ""
       };
     }
   }
