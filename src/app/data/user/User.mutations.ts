@@ -293,29 +293,29 @@ export class UserMutationResolver {
 							role === "instructor" || section === "-" ? undefined : section,
 					});
 					// give default CUES
-					const defaultCues: any = await CueModel.find({
-						_id: {
-							$in: [
-								"60ab0dbf3e057c171516ee98",
-								"60ab0dbf3e057c171516ee99",
-								"60ab0dbf3e057c171516ee9a",
-								"60ab28013e057c171516eeb7",
-							],
-						},
-					});
-					const newCues: any[] = [];
-					defaultCues.map((c: any) => {
-						const newCue = c.toObject();
-						delete newCue.__v;
-						delete newCue._id;
-						const updatedCue = {
-							...newCue,
-							createdBy: newUser._id,
-							date: new Date(),
-						};
-						newCues.push(updatedCue);
-					});
-					await CueModel.insertMany(newCues);
+					// const defaultCues: any = await CueModel.find({
+					// 	_id: {
+					// 		$in: [
+					// 			"60ab0dbf3e057c171516ee98",
+					// 			"60ab0dbf3e057c171516ee99",
+					// 			"60ab0dbf3e057c171516ee9a",
+					// 			"60ab28013e057c171516eeb7",
+					// 		],
+					// 	},
+					// });
+					// const newCues: any[] = [];
+					// defaultCues.map((c: any) => {
+					// 	const newCue = c.toObject();
+					// 	delete newCue.__v;
+					// 	delete newCue._id;
+					// 	const updatedCue = {
+					// 		...newCue,
+					// 		createdBy: newUser._id,
+					// 		date: new Date(),
+					// 	};
+					// 	newCues.push(updatedCue);
+					// });
+					// await CueModel.insertMany(newCues);
 					// send email
 					const emailService = new EmailService();
 					const org: any = await SchoolsModel.findById(schoolId);
@@ -669,30 +669,30 @@ export class UserMutationResolver {
 						});
 
 						// give default CUES
-						const defaultCues: any = await CueModel.find({
-							_id: {
-								$in: [
-									"60ab0dbf3e057c171516ee98",
-									"60ab0dbf3e057c171516ee99",
-									"60ab0dbf3e057c171516ee9a",
-									"60ab28013e057c171516eeb7",
-								],
-							},
-						});
+						// const defaultCues: any = await CueModel.find({
+						// 	_id: {
+						// 		$in: [
+						// 			"60ab0dbf3e057c171516ee98",
+						// 			"60ab0dbf3e057c171516ee99",
+						// 			"60ab0dbf3e057c171516ee9a",
+						// 			"60ab28013e057c171516eeb7",
+						// 		],
+						// 	},
+						// });
 
-						const newCues: any[] = [];
-						defaultCues.map((c: any) => {
-							const newCue = c.toObject();
-							delete newCue.__v;
-							delete newCue._id;
-							const updatedCue = {
-								...newCue,
-								createdBy: newUser._id,
-								date: new Date(),
-							};
-							newCues.push(updatedCue);
-						});
-						await CueModel.insertMany(newCues);
+						// const newCues: any[] = [];
+						// defaultCues.map((c: any) => {
+						// 	const newCue = c.toObject();
+						// 	delete newCue.__v;
+						// 	delete newCue._id;
+						// 	const updatedCue = {
+						// 		...newCue,
+						// 		createdBy: newUser._id,
+						// 		date: new Date(),
+						// 	};
+						// 	newCues.push(updatedCue);
+						// });
+						// await CueModel.insertMany(newCues);
 
 						// Subscribe the user
 						const pastSubs = await SubscriptionModel.find({
@@ -798,7 +798,7 @@ export class UserMutationResolver {
 			await UserModel.updateOne({ _id: userId }, {
 				zoomInfo
 			})
-			
+
 			return zoomInfo;
 		} catch (e) {
 			console.log(e);
