@@ -334,6 +334,14 @@ export class QuizMutationResolver {
         @Arg('cue', type => String) cue: string
     ) {
         try {
+
+            // Check if submission released
+            const c = await CueModel.findById(cueId);
+            
+            if (c && c.releaseSubmission) {
+                return false;
+            }
+
             await ModificationsModel.updateOne({ cueId, userId }, { cue })
             return true
         } catch (e) {

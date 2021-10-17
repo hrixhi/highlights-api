@@ -125,4 +125,24 @@ export class CueQueryResolver {
     }
   }
 
+  @Field(type => Boolean, {
+    description: "Returns true if and only if the releaseSubmission property is true for ",
+  })
+  public async getReleaseSubmissionStatus(
+    @Arg("cueId", type => String)
+    cueId: string
+  ) {
+    try {
+      const c = await CueModel.findById(cueId);
+
+      if (c && c.releaseSubmission) {
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      return []
+    }
+  }
+
 }
