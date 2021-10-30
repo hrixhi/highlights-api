@@ -181,7 +181,7 @@ export class Server {
 	//  This object assigns all the necessary resolver, queries and mutations with the isLoggedIn middleware
 	private requiresAuthentication = {
 		Query: {
-			activity: this.isLoggedIn,
+			// activity: this.isLoggedIn,
 			attendance: this.isLoggedIn,
 			// channel: this.isLoggedIn,
 			cue: this.isLoggedIn,

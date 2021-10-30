@@ -12,6 +12,9 @@ import { ChannelModel } from '../../data/channel/mongo/Channel.model';
 import { GroupModel } from '../../data/group/mongo/Group.model';
 import { MessageModel } from '../../data/message/mongo/Message.model';
 import { ThreadModel } from '../../data/thread/mongo/Thread.model';
+import { ActivityModel } from '@app/data/activity/mongo/activity.model';
+import { ModificationsModel } from '@app/data/modification/mongo/Modification.model';
+import { htmlStringParser } from '@helper/HTMLParser';
 
 
 /**
@@ -333,7 +336,188 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         
     });
 
+    GQLServer.post("/getUserData", async (req: any, res: any) => {
+
+        const { userId } = req.body;
+
+
+        // Fetch all user channels and channel roles
+        const channels: any[] = [];
+
+        const subscriptions = await SubscriptionModel.find({
+            userId
+        });
+
+        // loop over all the channel and fetch users role
+
+        for (let i = 0; i < subscriptions.length; i++) {
+            const sub = subscriptions[i];
+
+            const channel = await ChannelModel.findById(sub.channelId);
+
+            if (!channel) return;
+
+            // Channel owner
+            if (channel.createdBy.toString() === userId) {
+                channels.push({
+                    channelId: channel._id,
+                    name: channel.name,
+                    colorCode: channel.colorCode,
+                    role: 'Owner'
+                })
+            // Channel Moderator  
+            } else if (channel.owners && channel.owners.length > 0 && channel.owners.includes(userId)) {
+                channels.push({
+                    channelId: channel._id,
+                    name: channel.name,
+                    colorCode: channel.colorCode,
+                    role: 'Editor'
+                })
+            // viewer only 
+            } else {
+                channels.push({
+                    channelId: channel._id,
+                    name: channel.name,
+                    colorCode: channel.colorCode,
+                    role: 'Viewer'
+                })
+            }
+        }
+
+        // subscriptions.map(async (sub: any) => {
+            
+        // })
+
+
+        // Fetch all the Activity
+
+        const activity: any[] = await ActivityModel.find({
+            userId
+        });
+
+        // Fetch overall scores for 
+        const overviewData : any[] = [];
+
+        const scoreMap: any = {}
+        const totalMap: any = {}
+        const totalAssessmentsMap: any = {}
+        const gradedAssessmentsMap: any = {}
+        const lateAssessmentsMap: any = {}
+        const submittedAssessmentsMap: any = {}
+
+        // 
+        const scores : any[] = [];
+
+        for (let i = 0; i < channels.length; i++) {
+
+            const sub = channels[i];
+
+            if (sub.role === 'Viewer') {
+                
+                const mods = await ModificationsModel.find({
+                    channelId: sub.channelId,
+                    submission: true,
+                    userId,
+                    graded: true,
+                    releaseSubmission: true
+                })
+
+                let score = 0
+                let total = 0
+                let totalAssessments = 0;
+                let gradedAssessments = 0;
+                let lateAssessments = 0;
+                let submittedAssesments = 0;
+
+                const assignments = await ModificationsModel.find({
+                    channelId: sub.channelId,
+                    submission: true,
+                    userId,
+                })
+                
+                assignments.map((mod: any) => {
+
+                    const { title } = htmlStringParser(mod.cue)
+
+                    const sub = new Date(mod.submittedAt)
+                    const dead = new Date(mod.deadline)
+
+                    const late = sub > dead;
+
+                    scores.push({
+                        channelId: mod.channelId,
+                        title,
+                        submitted: mod.submittedAt !== null && mod.submittedAt !== undefined,
+                        graded: mod.graded,
+                        score: mod.score,
+                        late,
+                    })
+
+                })
+
+
+                mods.map((m: any) => {
+                    const mod = m.toObject()
+                    if (mod.gradeWeight !== undefined && mod.gradeWeight !== null) {
+                      score += (mod.graded ? (mod.score * mod.gradeWeight / 100) : 0)
+                      total += mod.gradeWeight
+                      totalAssessments += 1
+                      if (mod.graded) {
+                        gradedAssessments += 1
+                      }
+                      if (mod.submittedAt) {
+                        submittedAssesments += 1
+                        if (mod.deadline) {
+                          const sub = new Date(mod.submittedAt)
+                          const dead = new Date(mod.deadline)
+                          if (sub > dead) {
+                            lateAssessments += 1
+                          }
+                        }
+                      }
+                    }
+                })
+
+                scoreMap[sub.channelId] = total === 0 ? 0 : ((score / total) * 100).toFixed(2).replace(/\.0+$/,'')
+                totalMap[sub.channelId] = total
+                totalAssessmentsMap[sub.channelId] = totalAssessments
+                lateAssessmentsMap[sub.channelId] = lateAssessments
+                gradedAssessmentsMap[sub.channelId] = gradedAssessments
+                submittedAssessmentsMap[sub.channelId] = submittedAssesments
+
+            }
+
+           
+        }
+
+        Object.keys(scoreMap).map((key: any) => {
+            overviewData.push({
+                channelId: key,
+                score: scoreMap[key],
+                total: totalMap[key],
+                totalAssessments: totalAssessmentsMap[key],
+                lateAssessments: lateAssessmentsMap[key],
+                gradedAssessments: gradedAssessmentsMap[key],
+                submittedAssessments: submittedAssessmentsMap[key]
+            })
+        })
+
+
+        return res.send({
+            channels,
+            activity,
+            overviewData,
+            scores
+        })
+
+    });
+
+
+
 }
+
+
+
 
 
 const uploadFiles = async (file: any, type: any, res: any) => {

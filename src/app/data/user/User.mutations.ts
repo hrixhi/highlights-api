@@ -264,7 +264,7 @@ export class UserMutationResolver {
 			}
 
 			if (flagEmailUserExist) {
-				return "User with email " + emailExists.join(",") + " already exists.";
+				return (emailExists.length > 1 ? "Users with emails " : "User with email ") + emailExists.join(", ") + " already " + (emailExists.length > 1 ? "exist." : "exists.");
 			} else {
 				for (const email of emails) {
 					const username =
@@ -324,8 +324,11 @@ export class UserMutationResolver {
 						dupPassword,
 						org.name
 					);
+
+					
 				}
-				return "User Added!";
+				
+				return `${emails.length} users added to organization`;
 			}
 		} catch (e) {
 			return "Error: Somthing went wrong";
@@ -378,8 +381,29 @@ export class UserMutationResolver {
 				},
 				{
 					deletedAt: new Date(),
+					notificationId: 'NOT_SET'
 				}
 			);
+
+			for (let i = 0; i < ids.length; i++) {
+				const id = ids[i];
+
+				// Fetch user first
+				const user = await UserModel.findOne({ _id: id, schoolId })
+
+				if (!user) return;
+
+				// Unsubscriber user from all the channels
+				await SubscriptionModel.updateMany({
+					userId: user._id,
+					keepContent: { $exists: false }
+				}, {
+					unsubscribedAt: new Date(),
+					keepContent: true	
+				})
+				
+			}
+
 			return true;
 		} catch (e) {
 			console.log(e);
@@ -395,7 +419,13 @@ export class UserMutationResolver {
 		userId: string
 	) {
 		try {
-			await UserModel.updateOne({ _id: userId }, { inactive });
+			// If making inactive then clear the notification id so that no new notifications are sent
+			if (inactive) {
+				await UserModel.updateOne({ _id: userId }, { inactive, notificationId: 'NOT_SET' });
+			} else {
+				await UserModel.updateOne({ _id: userId }, { inactive });
+			}
+			
 			return true;
 		} catch (e) {
 			console.log(e);
@@ -432,16 +462,33 @@ export class UserMutationResolver {
 					},
 					{
 						deletedAt: new Date(),
+						notificationId: 'NOT_SET'
 					}
 				);
-				if (emails?.length > 1) {
-					return "Emails successfully deleted.";
-				} else {
-					return "Email successfully deleted.";
+				for (let i = 0; i < emails.length; i++) {
+					const email = emails[i];
+
+					// Fetch user first
+					const user = await UserModel.findOne({ email, schoolId });
+
+					if (!user) return;
+
+					// Unsubscriber user from all the channels
+					await SubscriptionModel.updateMany({
+						userId: user._id,
+						keepContent: { $exists: false }
+					}, {
+						unsubscribedAt: new Date(),
+						keepContent: true	
+					})
+					
 				}
+
+				return (emails.length > 1 ? "Users" : "User") +  " removed successfully."
+				
 			} else {
 				if (emailNotExist.length > 0) {
-					return "Email " + emailNotExist.join(",") + " not exits";
+					return (emailNotExist.length > 1 ? "Emails " : "Email " ) + emailNotExist.join(", ") + (emailNotExist.length > 1 ? " don't exist." : " doesn't exist." );
 				} else {
 					return "Email not exists.";
 				}
