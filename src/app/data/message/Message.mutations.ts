@@ -204,7 +204,7 @@ export class MessageMutationResolver {
                 sentAt: new Date()
             });
             users.map(async (u, i) => {
-                if (i === 0) {
+                if (userId === u) {
                     return;
                 }
                 await MessageStatusModel.create({

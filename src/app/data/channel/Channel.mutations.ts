@@ -1067,6 +1067,47 @@ export class ChannelMutationResolver {
 	}
 
 	@Field(type => Boolean, {
+		description: 'Delete channel id'
+	})
+	public async deleteById(
+		@Arg('channelId', type => String) channelId: string,
+	) {
+		const channel = await ChannelModel.findById(channelId);
+
+		if (!channel) return false;
+
+		try {
+
+			// Delete subscriptions
+			await SubscriptionModel.deleteMany({
+				channelId
+			})
+
+			// Delete all channel related stuff too
+			await ActivityModel.deleteMany({
+				channelId
+			})
+
+			await ActivityModel.deleteMany({
+				channelId
+			})
+
+			await ChannelModel.deleteOne({
+				_id: channelId
+			})
+
+			return true;
+
+		} catch (e) {
+
+			return false;
+
+		}
+
+
+	}
+
+	@Field(type => Boolean, {
 		description: 'Used when owner wants to set up new password.'
 	})
 	public async update(
@@ -1183,7 +1224,7 @@ export class ChannelMutationResolver {
 					password: password && password !== '' ? password : undefined,
 					temporary: temporary ? true : false,
 					owners,
-					colorCode: colorCode ? colorCode : ""
+					colorCode: colorCode ? colorCode : channel.colorCode
 				}
 			)
 

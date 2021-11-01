@@ -45,4 +45,23 @@ export class MessageStatusQueryResolver {
         }
     }
 
+    @Field(type => Number, {
+        description: "Used to find one user by id."
+    })
+    public async totalInboxUnread(
+        @Arg("userId", type => String)
+        userId: string,
+    ) {
+        try {
+            const statuses: any[] = await MessageStatusModel.find({
+                userId,
+            })
+            return statuses.length
+        } catch (e) {
+            console.log(e)
+            return 0
+        }
+    }
+
 }
+

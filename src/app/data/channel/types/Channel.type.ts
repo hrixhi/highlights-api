@@ -42,7 +42,7 @@ export class ChannelObject {
         const u2: any = await UserModel.findById(anotherOwner)
         if (u2) {
           const user = u2.toObject()
-          return user.displayName
+          return user.fullName
         } else {
           return ''
         }
@@ -51,7 +51,7 @@ export class ChannelObject {
 
     if (u) {
       const user = u.toObject()
-      return user.displayName
+      return user.fullName
     } else {
       return ''
     }
