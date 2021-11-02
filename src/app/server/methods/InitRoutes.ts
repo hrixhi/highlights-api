@@ -15,6 +15,7 @@ import { ThreadModel } from '../../data/thread/mongo/Thread.model';
 import { ActivityModel } from '@app/data/activity/mongo/activity.model';
 import { ModificationsModel } from '@app/data/modification/mongo/Modification.model';
 import { htmlStringParser } from '@helper/HTMLParser';
+import request from 'request-promise';
 
 
 /**
@@ -179,6 +180,55 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             //
         }
 
+    });
+
+    /**
+     * This is used for uploading images
+     */
+    GQLServer.post("/uploadPdfToS3", async (req: any, res: any) => {
+        // this body field is used for recognizition if attachment is EventImage, Asset or simillar.
+
+        const { url, title } = req.body;
+        try {
+
+            AWS.config.update({
+              accessKeyId: "AKIAJS2WW55SPDVYG2GQ",
+              secretAccessKey: "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"
+            });
+      
+            const options = {
+              uri: url,
+              encoding: null
+            };
+      
+            const body = await request(options)
+      
+            const s3 = new AWS.S3();
+      
+            s3.upload({
+              Bucket: 'cues-files',
+              Key: "media/" +
+                'books/' +
+                Date.now() +
+                "_" +
+                basename(title),
+              Body: body,   
+            }, (err: any, data: any) => {
+              // handle error
+              if (err) {
+                console.log(err)
+                  res.send("")
+              }
+              console.log("Data", data)
+              // success
+              res.send(data.Location)
+            })
+
+          
+        } catch (e) {
+            console.log(e)
+            res.send('');
+        }
     });
 
     GQLServer.post("/api/multiupload", (req: any, res: any) => {
