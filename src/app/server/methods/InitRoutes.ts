@@ -211,7 +211,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 'books/' +
                 Date.now() +
                 "_" +
-                basename(title),
+                encodeURIComponent(title),
               Body: body,   
             }, (err: any, data: any) => {
               // handle error
