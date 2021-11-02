@@ -16,6 +16,7 @@ import { ActivityModel } from '../activity/mongo/activity.model';
 import pdf from 'html-pdf'
 import * as AWS from 'aws-sdk';
 import { FolderModel } from '../folder/mongo/folder.model';
+import Axios from 'axios';
 const Promise = require('bluebird');
 
 /**
@@ -650,7 +651,7 @@ export class CueMutationResolver {
 							const data = await s3.upload(uploadParams).promise();
 
 							return data.Location;
-							
+
 						} catch (err) {
 							console.log("Error processing request: " + err);
 							return ""
@@ -948,7 +949,7 @@ export class CueMutationResolver {
 				isActive: false
 			}
 		})
-		
+
 
 		// console.log("Updated Cue", {
 		// 	graded: isNewAttemptFullyGraded,
@@ -969,7 +970,7 @@ export class CueMutationResolver {
 				...currCue,
 				attempts: updatedAttempts,
 			}),
-			score:  Number(((scoreToSet/total) * 100).toFixed(2))
+			score: Number(((scoreToSet / total) * 100).toFixed(2))
 		})
 
 		return true

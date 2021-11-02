@@ -6,6 +6,7 @@ import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { SharedWithObject } from './types/SharedWith';
 import { ChannelModel } from '../channel/mongo/Channel.model';
+import Axios from 'axios';
 
 /**
  * Cue Query Endpoints
@@ -74,8 +75,8 @@ export class CueQueryResolver {
       const channelCues: any[] = await ModificationsModel.find({
         userId
       })
-      
-      const filterInitiateAt = channelCues.filter((cue:any) => cue.initiateAt !== null)
+
+      const filterInitiateAt = channelCues.filter((cue: any) => cue.initiateAt !== null)
       const allCues: any[] = [...localCues, ...channelCues]
       return allCues
     } catch (e) {
@@ -98,7 +99,7 @@ export class CueQueryResolver {
       const fetchChannel = await ChannelModel.findById(channelId);
 
       let owners: any[] = [];
-      
+
       if (fetchChannel) {
         owners = fetchChannel.owners ? [...fetchChannel.owners, fetchChannel.createdBy.toString()] : [fetchChannel.createdBy.toString()]
       }
@@ -142,6 +143,24 @@ export class CueQueryResolver {
       return false;
     } catch (e) {
       return []
+    }
+  }
+
+  @Field(type => String)
+  public async retrievePDFFromArchive(
+    @Arg('identifier', type => String)
+    identifier: string,
+  ) {
+    try {
+
+      const response = await Axios.get('https://archive.org/download/' + identifier)
+      const html = response.data
+      console.log(response)
+      return html
+
+    } catch (e) {
+      console.log(e)
+      return 'error';
     }
   }
 
