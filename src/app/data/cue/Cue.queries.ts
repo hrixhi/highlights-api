@@ -7,6 +7,11 @@ import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { SharedWithObject } from './types/SharedWith';
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import Axios from 'axios';
+import request from 'request-promise';
+import * as AWS from 'aws-sdk';
+import { basename } from 'path';
+
+
 
 /**
  * Cue Query Endpoints
@@ -155,12 +160,67 @@ export class CueQueryResolver {
 
       const response = await Axios.get('https://archive.org/download/' + identifier)
       const html = response.data
-      console.log(response)
+
+      // console.log("HTML", html);
+
+
+      // console.log(response)
       return html
 
     } catch (e) {
       console.log(e)
       return 'error';
+    }
+  }
+
+  @Field(type => String)
+  public async uploadPDFToS3(
+    @Arg('url', type => String)
+    url: string,
+    @Arg('title', type => String)
+    title: string
+  ) {
+    try {
+
+      AWS.config.update({
+        accessKeyId: "AKIAJS2WW55SPDVYG2GQ",
+        secretAccessKey: "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"
+      });
+
+      const options = {
+        uri: url,
+        encoding: null
+      };
+
+      const body = await request(options)
+
+      const s3 = new AWS.S3();
+
+      const toReturn = await s3.upload({
+        Bucket: 'cues-files',
+        Key: "media/" +
+          'books/' +
+          Date.now() +
+          "_" +
+          basename(title),
+        Body: body,   
+      }, (err: any, data: any) => {
+        // handle error
+        if (err) {
+          console.log(err)
+            return ""
+        }
+        console.log("Data", data)
+        // success
+        return data.Location
+      })
+
+      console.log("To Return", toReturn);
+      return toReturn;
+    
+    } catch (e) {
+      console.log(e)
+      return '';
     }
   }
 
