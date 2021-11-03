@@ -127,9 +127,11 @@ export class ThreadMutationResolver {
                         include_external_user_ids: userIds
                     };
 
-                    const response = await oneSignalClient.createNotification(
-                        notification
-                    );
+                    if (userIds.length > 0) {
+                        const response = await oneSignalClient.createNotification(
+                            notification
+                        );
+                    }
 
                     let chunks = notificationService.chunkPushNotifications(
                         messages
@@ -239,9 +241,11 @@ export class ThreadMutationResolver {
                         include_external_user_ids: userIds
                     };
 
-                    const response = await oneSignalClient.createNotification(
-                        notification
-                    );
+                    if (userIds.length > 0) {
+                        const response = await oneSignalClient.createNotification(
+                            notification
+                        );
+                    }
 
                     let chunks = notificationService.chunkPushNotifications(
                         messages
@@ -348,10 +352,12 @@ export class ThreadMutationResolver {
                         include_external_user_ids: userIds
                     };
 
-                    const response = await oneSignalClient.createNotification(
-                        notification
-                    );
-
+                    if (userIds.length > 0) {
+                        const response = await oneSignalClient.createNotification(
+                            notification
+                        );
+                    }
+                    
                     let chunks = notificationService.chunkPushNotifications(
                         messages
                     );
