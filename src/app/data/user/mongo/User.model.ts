@@ -20,6 +20,7 @@ export interface IUserModel extends Document {
 	inactive?: boolean;
 	lastLoginAt?: Date;
 	zoomInfo?: any;
+	authProvider?: string;
 }
 
 export const UserModel: Model<IUserModel> = model<IUserModel>(

@@ -97,6 +97,10 @@ const schema = new Schema(
     zoomInfo: {
       type: zoomSchema,
       required: false
+    },
+    authProvider: {
+      type: String,
+      required: false,
     }
   },
   SchemaTimestamps

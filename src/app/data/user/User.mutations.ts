@@ -11,6 +11,9 @@ import { SchoolsModel } from "../school/mongo/School.model";
 import { ThreadModel } from "../thread/mongo/Thread.model";
 import { ThreadStatusModel } from "../thread-status/mongo/thread-status.model";
 import axios from 'axios'
+import { createJWTToken } from "../../../helpers/auth";
+import { AuthResponseObject } from "./types/AuthResponse.type";
+
 /**
  * User Mutation Endpoints
  */
@@ -160,18 +163,15 @@ export class UserMutationResolver {
 		}
 	}
 
+
 	@Field((type) => String)
 	public async signup(
 		@Arg("fullName", (type) => String)
 		fullName: string,
-		@Arg("displayName", (type) => String)
-		displayName: string,
-		@Arg("userId", (type) => String)
-		userId: string,
 		@Arg("email", (type) => String)
 		email: string,
-		@Arg("password", (type) => String)
-		password: string
+		@Arg("password", (type) => String, { nullable: true })
+		password?: string,
 	) {
 		try {
 			// First lookup document with provided email
@@ -180,24 +180,86 @@ export class UserMutationResolver {
 			});
 
 			if (existingUser !== null) {
-				return "Email already in use.";
+				return "An account already exists. Try Signing in.";
 			}
 
+			if (!password) return "Invalid password. Try again."
+
 			const hash = await hashPassword(password);
-			await UserModel.updateOne(
-				{ _id: userId },
-				{
-					fullName,
-					displayName,
-					password: hash,
-					email,
-					lastLoginAt: new Date(),
-				}
-			);
-			return "";
+
+			await UserModel.create({
+				email,
+				fullName,
+				displayName: fullName.toLowerCase(),
+				notificationId: 'NOT_SET',
+				password: hash,
+			})
+			
+			return "SUCCESS";
 		} catch (e) {
 			console.log(e);
 			return "Something went wrong. Try again.";
+		}
+	}
+
+	@Field((type) => AuthResponseObject)
+	public async authWithProvider(
+		@Arg("fullName", (type) => String)
+		fullName: string,
+		@Arg("email", (type) => String)
+		email: string,
+		@Arg("provider", (type) => String)
+		provider: string,
+		@Arg("avatar", (type) => String, { nullable: true })
+		avatar: string,
+	) {
+		try {
+			// First lookup document with provided email
+			const existingUser = await UserModel.findOne({
+				email,
+			});
+
+			if (existingUser) {
+
+				await UserModel.updateOne({ _id: existingUser._id }, { lastLoginAt: new Date() })
+
+				const token = createJWTToken(existingUser._id)
+
+				return {
+					user: existingUser,
+					error: "",
+					token,
+				};
+
+			} else {
+
+				const newUser = await UserModel.create({
+					email,
+					fullName,
+					displayName: fullName.toLowerCase(),
+					notificationId: 'NOT_SET',
+					authProvider: provider,
+					avatar
+				})
+
+				const token = createJWTToken(newUser._id)
+
+				return {
+					user: newUser,
+					error: "",
+					token,
+				};
+
+			}
+
+
+		} catch (e) {
+			console.log(e);
+			return {
+				user: null,
+				error: "Something went wrong. Try again.",
+				token: "",
+			};
 		}
 	}
 
