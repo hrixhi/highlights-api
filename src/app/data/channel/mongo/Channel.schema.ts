@@ -45,6 +45,22 @@ const schema = new Schema(
     startedBy: {
       type: String,
       required: false
+    },
+    isPublic: {
+      type: Boolean,
+      required: false
+    },
+    description: {
+      type: String,
+      required: false,
+    },
+    tags: {
+      type: [String],
+      required: false,
+    },
+    accessCode: {
+      type: String,
+      required: false
     }
   }
 );

@@ -2,6 +2,9 @@ import { SubscriptionModel } from '@app/data/subscription/mongo/Subscription.mod
 import { UserModel } from '@app/data/user/mongo/User.model';
 import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
 import { Ctx, Field, ObjectType } from 'type-graphql';
+import shortid from 'shortid';
+import { ChannelModel } from '../mongo/Channel.model';
+
 @ObjectType()
 export class ChannelObject {
 
@@ -128,5 +131,37 @@ export class ChannelObject {
       return ''
     }
   }
+
+  @Field(type => Boolean)
+  public async isPublic() {
+    const localThis: any = this;
+    const { isPublic = false } = localThis._doc || localThis;
+    return isPublic;
+  }
+
+  @Field(type => String)
+  public async accessCode() {
+    const localThis: any = this;
+    const { _id, accessCode  } = localThis._doc || localThis;
+
+    if (!accessCode) {
+      // Create an accessCode
+      const code = shortid.generate()
+
+      await ChannelModel.updateOne({ _id  }, {
+        accessCode: code
+      })
+
+      return code
+    } 
+
+    return accessCode;
+  }
+
+  @Field(type => String, { nullable: true })
+  public description?: string;
+  
+  @Field(type => [String], { nullable: true })
+  public tags?: string[];
 
 }

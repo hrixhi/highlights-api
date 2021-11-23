@@ -8,15 +8,103 @@ import { GradeObject } from "../modification/types/Modification.type";
 import { CueObject } from "../cue/types/Cue.type";
 import { SubmissionStatisticObject } from "./types/SubmissionStatistic.type";
 import { GroupModel } from "../group/mongo/Group.model";
+import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 
 import * as ss from "simple-statistics";
 import { LectureRecording } from "../dates/types/Date.type";
+import { UserObject } from "../user/types/User.type";
 
 /**
  * Channel Query Endpoints
  */
 @ObjectType()
 export class ChannelQueryResolver {
+
+    @Field(type => [ChannelObject], {
+        description: "Returns list of channels created by a user.",
+        nullable: true
+    })
+    public async getChannelsOutside(
+        @Arg("userId", type => String)
+        userId: string
+    ) {
+        try {
+            const activeSubscriptions = await SubscriptionModel.find({
+                $and: [
+                  { userId },
+                  { keepContent: { $ne: false } },
+                  { unsubscribedAt: { $exists: false } }
+                ]
+              })
+
+            const channelIds: any[] = []
+
+            activeSubscriptions.map((sub: any) => channelIds.push(sub.channelId))
+
+            return await ChannelModel.find({
+                _id: { $in: channelIds }
+            })
+
+        } catch (e) {
+            console.log(e);
+            return [];
+        }
+    }
+
+    // @Field(type => [UserObject], {
+    //     description: "Returns list of subscribers for by a user.",
+    //     nullable: true
+    // })
+    // public async getChannelSubscribers(
+    //     @Arg("channelId", type => String)
+    //     channelId: string
+    // ) {
+    //     try {
+    //         const activeSubscriptions = await SubscriptionModel.find({
+    //             $and: [
+    //               { channelId },
+    //               { keepContent: { $ne: false } },
+    //               { unsubscribedAt: { $exists: false } }
+    //             ]
+    //           })
+    
+    //         const subscribers: any[] = []
+    
+    //         activeSubscriptions.map((sub: any) => subscribers.push(sub.userId))
+    
+    //         return await UserModel.find({
+    //             _id: { $in: subscribers }
+    //         })
+    //     } catch (e) {
+    //         return [];
+    //     }
+        
+    // }
+
+    @Field(type => [UserObject], {
+        description: "Returns list of subscribers for by a user.",
+        nullable: true
+    })
+    public async getChannelModerators(
+        @Arg("channelId", type => String)
+        channelId: string
+    ) {
+        try {
+            const channel = await ChannelModel.findById(channelId)
+
+            if (channel && channel.owners) {
+                return await UserModel.find({
+                    _id: { $in: channel.owners }
+                })
+            } else {
+                return []
+            }
+        } catch (e) {
+            return []
+        }
+        
+    }
+
     @Field(type => [ChannelObject], {
         description: "Returns list of channels created by a user.",
         nullable: true
@@ -101,16 +189,41 @@ export class ChannelQueryResolver {
 
     @Field(type => String, {
         description:
-            'Returns "private", "public", "non-existant" statuses for a channel'
+            'Returns "password-required", "password-not-required", "non-existant" statuses for a channel'
     })
-    public async getChannelStatus(@Arg("name", type => String) name: string) {
+    public async getChannelStatusForCode(@Arg("accessCode", type => String) accessCode: string) {
         try {
-            const channel = await ChannelModel.findOne({ name });
+            const channel = await ChannelModel.findOne({
+                accessCode
+            })
             if (channel) {
                 if (channel.password && channel.password !== "") {
-                    return "private";
+                    return "password-required:" + channel._id.toString();
                 } else {
-                    return "public";
+                    return "password-not-required:" + channel._id.toString();
+                }
+            } else {
+                return "non-existant";
+            }
+        } catch (e) {
+            return "non-existant";
+        }
+
+    }
+
+
+    @Field(type => String, {
+        description:
+            'Returns "password-required", "password-not-required", "non-existant" statuses for a channel'
+    })
+    public async getChannelStatus(@Arg("channelId", type => String) channelId: string) {
+        try {
+            const channel = await ChannelModel.findById(channelId)
+            if (channel) {
+                if (channel.password && channel.password !== "") {
+                    return "password-required";
+                } else {
+                    return "password-not-required";
                 }
             } else {
                 return "non-existant";

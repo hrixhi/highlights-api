@@ -82,6 +82,14 @@ export class UserQueryResolver {
       const user: any = await UserModel.findOne({ email });
       if (user) {
 
+        if (user.authProvider) {
+          return {
+            user: null,
+            error: "This account is linked with " + user.authProvider,
+            token: ""
+          }
+        }
+
         if (user.deletedAt) {
           return {
             user: null,

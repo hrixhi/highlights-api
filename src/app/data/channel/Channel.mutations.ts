@@ -13,6 +13,7 @@ import { ThreadModel } from '../thread/mongo/Thread.model';
 import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
 import { ActivityModel } from '../activity/mongo/activity.model';
 import axios from 'axios'
+import shortid from 'shortid';
 
 /**
  * Channel Mutation Endpoints
@@ -26,9 +27,14 @@ export class ChannelMutationResolver {
 	public async create(
 		@Arg('name', type => String) name: string,
 		@Arg('createdBy', type => String) createdBy: string,
-		@Arg('password', { nullable: true }) password?: string,
-		@Arg('temporary', { nullable: true }) temporary?: boolean,
-		@Arg('colorCode', { nullable: true }) colorCode?: string,
+		@Arg('password', type => String,  { nullable: true }) password?: string,
+		@Arg('temporary', type => Boolean, { nullable: true }) temporary?: boolean,
+		@Arg('colorCode', type => String, { nullable: true }) colorCode?: string,
+		@Arg('description', type => String, { nullable: true }) description?: string,
+		@Arg('tags', type => [String], { nullable: true }) tags?: string[],
+		@Arg('isPublic', type => Boolean, { nullable: true }) isPublic?: boolean,
+		@Arg('subscribers', type => [String], { nullable: true }) subscribers?: string[],
+		@Arg('moderators', type => [String], { nullable: true }) moderators?: string[],
 	) {
 		try {
 			// name should be valid
@@ -37,25 +43,40 @@ export class ChannelMutationResolver {
 				&& name.toString().trim() !== 'All'
 				&& name.toString().trim() !== 'All-Channels'
 			) {
-				// check for existing channel
-				const exists = await ChannelModel.findOne({
-					name: name.toString().trim()
-				})
-				if (exists) {
-					return 'exists'
-				}
-				// create channel
+
 				const channel = await ChannelModel.create({
 					name: name.toString().trim(),
 					password,
 					createdBy,
 					temporary: temporary ? true : false,
-					colorCode
+					colorCode,
+					tags,
+					description,
+					accessCode: shortid.generate(),
+					isPublic: isPublic ? true : false,
+					owners: moderators ? moderators : [],
 				})
+
+				// Subscribe Owner
 				await SubscriptionModel.create({
 					userId: createdBy,
 					channelId: channel._id
 				})
+
+				console.log("Subscribers", subscribers)
+
+				// Rest of Subscribers and Moderators
+				if (subscribers && subscribers.length > 0) {
+					subscribers.map(async (sub: string) => {
+						if (sub.toString().trim() !== createdBy.toString().trim()) {
+							await SubscriptionModel.create({
+								userId: sub,
+								channelId: channel._id
+							})
+						}
+					}) 
+				}
+
 				return 'created'
 
 			} else {
@@ -64,6 +85,46 @@ export class ChannelMutationResolver {
 		} catch (e) {
 			console.log(e)
 			return 'error'
+		}
+	}
+
+	// @Field(type => String, {
+	// 	description: 'Used when you want to create a channel.'
+	// })
+	// public async createChannelFromAdmin(
+	// 	@Arg('name', type => String) name: string,
+	// 	@Arg('createdBy', type => String) createdBy: string,
+	// 	@Arg('password', type => String,  { nullable: true }) password?: string,
+	// 	@Arg('temporary', type => Boolean, { nullable: true }) temporary?: boolean,
+	// 	@Arg('colorCode', type => String, { nullable: true }) colorCode?: string,
+	// 	@Arg('description', type => String, { nullable: true }) description?: string,
+	// 	@Arg('tags', type => [String], { nullable: true }) tags?: string[],
+	// 	@Arg('isPublic', type => Boolean, { nullable: true }) isPublic?: boolean
+	// ) {
+
+	// }
+
+	@Field(type => String, {
+		description: 'Reset access code.'
+	})
+	public async resetAccessCode(
+		@Arg('channelId', type => String) channelId: string,
+	) {
+		
+
+		try {
+			const newCode = shortid.generate()
+
+			await ChannelModel.updateOne({
+				_id: channelId
+			}, {
+				accessCode: newCode
+			})
+
+			return newCode;
+			
+		} catch (e) {
+			return ""
 		}
 	}
 
@@ -106,6 +167,7 @@ export class ChannelMutationResolver {
 					createdBy: channel.createdBy,
 					temporary: temporary ? true : false,
 					colorCode,
+					accessCode: shortid.generate(),
 				})
 
 				// Subscribe creator to Channel
@@ -1117,6 +1179,9 @@ export class ChannelMutationResolver {
 		@Arg('password', type => String, { nullable: true }) password?: string,
 		@Arg('temporary', type => Boolean, { nullable: true }) temporary?: boolean,
 		@Arg('colorCode', type => String, { nullable: true }) colorCode?: string,
+		@Arg('description', type => String, { nullable: true }) description?: string,
+		@Arg('tags', type => [String], { nullable: true }) tags?: string[],
+		@Arg('isPublic', type => Boolean, { nullable: true }) isPublic?: boolean
 	) {
 		try {
 
@@ -1224,7 +1289,10 @@ export class ChannelMutationResolver {
 					password: password && password !== '' ? password : undefined,
 					temporary: temporary ? true : false,
 					owners,
-					colorCode: colorCode ? colorCode : channel.colorCode
+					colorCode: colorCode ? colorCode : channel.colorCode,
+					isPublic: isPublic ? true : false,
+					tags: tags ? tags : [],
+					description
 				}
 			)
 

@@ -10,8 +10,9 @@ export class EventObject {
   @Field(type => String, { nullable: true }) 
   public async eventId() {
     const localThis: any = this;
-    const { _id } = localThis._doc || localThis;
-    return _id ? _id : ""
+    console.log("localThis", localThis)
+    const { _id, dateId = "" } = localThis._doc || localThis;
+    return _id ? _id : dateId
   }
 
   @Field(type => String, { nullable: true })
@@ -70,6 +71,9 @@ export class EventObject {
 
       return channel ? channel.createdBy : ''
     } else {
+      if (context.user && context.user!._id !== "") {
+        return context.user!._id
+      }
       return ''
     }
   }

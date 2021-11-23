@@ -20,15 +20,15 @@ export class SubscriptionMutationResolver {
 	})
 	public async subscribe(
 		@Arg('userId', type => String) userId: string,
-		@Arg('name', type => String) name: string,
+		@Arg('channelId', type => String) channelId: string,
 		@Arg('password', { nullable: true }) password?: string
 	) {
 		try {
-			const channel = await ChannelModel.findOne({ name })
+			const channel = await ChannelModel.findById(channelId)
 			if (channel) {
 				const sub = await SubscriptionModel.findOne({
 					userId,
-					channelId: channel._id,
+					channel: channel._id,
 					unsubscribedAt: { $exists: false }
 				})
 				if (sub) {
