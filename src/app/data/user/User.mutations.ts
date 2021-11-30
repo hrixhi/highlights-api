@@ -13,6 +13,7 @@ import { ThreadStatusModel } from "../thread-status/mongo/thread-status.model";
 import axios from 'axios'
 import { createJWTToken } from "../../../helpers/auth";
 import { AuthResponseObject } from "./types/AuthResponse.type";
+import { zoomClientId, zoomClientSecret, zoomRedirectUri } from '../../../helpers/zoomCredentials'
 
 /**
  * User Mutation Endpoints
@@ -863,18 +864,9 @@ export class UserMutationResolver {
 	) {
 		try {
 
-			// LIVE
-			// const redirectUri = 'https://web.cuesapp.co/zoom_auth'
-			// const clientId = 'yRzKFwGRTq8bNKLQojwnA'
-			// const clientSecret = 'cdvpIvYRsubUFTOfXbrlnjnnWM3nPWFm'
-			// DEV
-			const redirectUri = 'http://localhost:19006/zoom_auth'
-			const clientId = 'PAfnxrFcSd2HkGnn9Yq96A'
-			const clientSecret = '43LWA5ysjiN1xykRiS32krS9Nx8xGhYt'
+			const b = Buffer.from(zoomClientId + ":" + zoomClientSecret);
 
-			const b = Buffer.from(clientId + ":" + clientSecret);
-
-			const zoomRes: any = await axios.post(`https://zoom.us/oauth/token?grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}`, undefined, {
+			const zoomRes: any = await axios.post(`https://zoom.us/oauth/token?grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(zoomRedirectUri)}`, undefined, {
 				headers: {
 					Authorization: `Basic ${b.toString("base64")}`,
 					"Content-Type": 'application/x-www-form-urlencoded'
@@ -901,7 +893,8 @@ export class UserMutationResolver {
 				accountId: zoomUserData.account_id,
 				accessToken: zoomData.access_token,
 				refreshToken: zoomData.refresh_token,
-				expiresOn
+				expiresOn,
+				accountType: zoomData.type
 			}
 
 			await UserModel.updateOne({ _id: userId }, {

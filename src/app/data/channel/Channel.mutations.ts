@@ -14,6 +14,7 @@ import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
 import { ActivityModel } from '../activity/mongo/activity.model';
 import axios from 'axios'
 import shortid from 'shortid';
+import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials'
 
 /**
  * Channel Mutation Endpoints
@@ -41,7 +42,8 @@ export class ChannelMutationResolver {
 			if (name
 				&& name.toString().trim() !== ''
 				&& name.toString().trim() !== 'All'
-				&& name.toString().trim() !== 'All-Channels'
+				&& name.toString().trim() !== 'All-Channels' 
+				&& name.toString().trim() !== 'Home'
 			) {
 
 				const channel = await ChannelModel.create({
@@ -62,8 +64,6 @@ export class ChannelMutationResolver {
 					userId: createdBy,
 					channelId: channel._id
 				})
-
-				console.log("Subscribers", subscribers)
 
 				// Rest of Subscribers and Moderators
 				if (subscribers && subscribers.length > 0) {
@@ -611,16 +611,21 @@ export class ChannelMutationResolver {
 		}
 	}
 
+	// ZOOM
 	@Field(type => String, {
 		description: 'Used when you want to create/join a meeting.'
 	})
-	public async meetingRequest(
+	public async startInstantMeeting(
 		@Arg('channelId', type => String) channelId: string,
-		@Arg('isOwner', type => Boolean) isOwner: boolean,
-		@Arg('userId', type => String) userId: string
+		@Arg('userId', type => String) userId: string,
+		@Arg('title', type => String) title: string,
+		@Arg('description', type => String) description: string,
+		@Arg('start', type => String) start: string,
+		@Arg('end', type => String) end: string,
+		@Arg('notifyUsers', type => Boolean) notifyUsers: boolean
 	) {
 		try {
-
+			
 			let accessToken = ''
 			const u: any = await UserModel.findById(userId);
 			const c: any = await ChannelModel.findById(channelId);
@@ -628,226 +633,162 @@ export class ChannelMutationResolver {
 				const user = u.toObject();
 				const channel = c.toObject();
 
-				// check started
-				if (channel.meetingOn) {
-					// return join URL
-					return channel.joinUrl ? channel.joinUrl : '/'
+				if (!user.zoomInfo) {
+					return 'error'
 				} else {
-
-
-					// refresh access token
-					if (!user.zoomInfo) {
-						return 'error'
-					} else {
-						accessToken = user.zoomInfo.accessToken
-					}
-
-					// LIVE
-					// const clientId = 'yRzKFwGRTq8bNKLQojwnA'
-					// const clientSecret = 'cdvpIvYRsubUFTOfXbrlnjnnWM3nPWFm'
-					// DEV
-					const clientId = 'PAfnxrFcSd2HkGnn9Yq96A'
-					const clientSecret = '43LWA5ysjiN1xykRiS32krS9Nx8xGhYt'
-
-					const b = Buffer.from(clientId + ":" + clientSecret);
-
-					const date = new Date()
-					const expiresOn = new Date(user.zoomInfo.expiresOn)
-
-					if (expiresOn <= date) {
-						// refresh access token
-
-						const zoomRes: any = await axios.post(
-							`https://zoom.us/oauth/token?grant_type=refresh_token&refresh_token=${user.zoomInfo.refreshToken}`, undefined, {
-							headers: {
-								Authorization: `Basic ${b.toString("base64")}`,
-								"Content-Type": 'application/x-www-form-urlencoded'
-							},
-						});
-						console.log(zoomRes)
-						if (zoomRes.status !== 200) {
-							return 'error'
-						}
-
-						const zoomData: any = zoomRes.data
-
-						const eOn = new Date()
-						eOn.setSeconds(eOn.getSeconds() + (Number.isNaN(Number(zoomData.expires_in)) ? 0 : Number(zoomData.expires_in)))
-
-						accessToken = zoomData.access_token
-
-						await UserModel.updateOne({ _id: userId }, {
-							zoomInfo: {
-								...user.zoomInfo,
-								accessToken: zoomData.access_token,
-								refreshToken: zoomData.refresh_token,
-								expiresOn: eOn	// saved as a date
-							}
-						})
-
-					}
-
-					let owner = true
-					if (channel.owners) {
-						channel.owners.map((uId: any) => {
-							if (uId.toString().trim() === userId.toString().trim()) {
-								owner = true
-							}
-						})
-					}
-					if (channel.createdBy.toString().trim() === userId.toString().trim()) {
-						owner = true
-					}
-					if (!owner) {
-						// meeting not started
-						return 'error'
-					} else {
-						// create meeting
-						const zoomRes: any = await axios.post(
-							`https://api.zoom.us/v2/users/me/meetings`,
-							{
-								topic: channel.name
-							}, {
-							headers: {
-								Authorization: `Bearer ${accessToken}`,
-							},
-						});
-						console.log(zoomRes)
-						if (zoomRes.status !== 200 && zoomRes.status !== 201) {
-							return 'error'
-						}
-
-						const zoomData: any = zoomRes.data
-						await ChannelModel.updateOne(
-							{ _id: channelId }, {
-							startUrl: zoomData.start_url,
-							joinUrl: zoomData.join_url,
-							startedBy: userId
-						})
-
-						return zoomData.start_url
-					}
+					accessToken = user.zoomInfo.accessToken
 				}
 
-				// const sha1 = require("sha1");
-				// const axios = require('axios')
-				// const vdoURL = "https://my2.vdo.click/bigbluebutton/api/";
-				// const vdoKey = "KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU";
-				// const atendeePass = channelId;
-				// const modPass = channel.createdBy;
+				const b = Buffer.from(zoomClientId + ":" + zoomClientSecret);
 
-				// const lastRecordedMeetingId = channelId
-				// let createMeeting = true
-				// // check if meeting is in session
-				// const linkParams = "meetingID=" + lastRecordedMeetingId
-				// const Hash = "isMeetingRunning" + linkParams + vdoKey;
-				// const Checksum = sha1(Hash);
-				// const res = await axios.get(vdoURL + 'isMeetingRunning?' + linkParams + '&checksum=' + Checksum)
-				// const xml2js = require('xml2js');
-				// const parser = new xml2js.Parser();
-				// const json = await parser.parseStringPromise(res.data);
-				// if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
-				// 	const running = json.response.running[0]
-				// 	if (running === 'true') {
-				// 		createMeeting = false
-				// 	}
-				// }
+				const date = new Date()
+				const expiresOn = new Date(user.zoomInfo.expiresOn)
 
-				// if (createMeeting) {
-				// 	// create meeting only if not owner
-				// 	if (!isOwner) {
-				// 		return 'error'
-				// 	}
+				if (expiresOn <= date) {
+					// refresh access token
 
-				// 	const fullName = encodeURI(encodeURIComponent(channel.name.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
-				// 	const params =
-				// 		'allowStartStopRecording=true' +
-				// 		'&attendeePW=' + atendeePass +
-				// 		'&autoStartRecording=false' +
-				// 		'&meetingID=' + channelId +
-				// 		'&moderatorPW=' + modPass +
-				// 		'&name=' + (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
-				// 		'&record=true'
-				// 	const toHash = (
-				// 		'create' + params + vdoKey
-				// 	)
-				// 	const checkSum = sha1(toHash)
-				// 	const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
+					const zoomRes: any = await axios.post(
+						`https://zoom.us/oauth/token?grant_type=refresh_token&refresh_token=${user.zoomInfo.refreshToken}`, undefined, {
+						headers: {
+							Authorization: `Basic ${b.toString("base64")}`,
+							"Content-Type": 'application/x-www-form-urlencoded'
+						},
+					});
+					
+					if (zoomRes.status !== 200) {
+						return 'error'
+					}
 
-				// 	axios.get(url).then(async (res: any) => {
+					const zoomData: any = zoomRes.data
 
-				// 		const xml2js = require('xml2js');
-				// 		const parser = new xml2js.Parser();
-				// 		const json = await parser.parseStringPromise(res.data);
+					const eOn = new Date()
+					eOn.setSeconds(eOn.getSeconds() + (Number.isNaN(Number(zoomData.expires_in)) ? 0 : Number(zoomData.expires_in)))
 
-				// 		if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
-				// 			const meetingId = json.response.meetingID[0]
-				// 			await ChannelModel.updateOne({ _id: channelId }, { lastRecordedMeetingId: meetingId })
-				// 		}
+					accessToken = zoomData.access_token
 
-				// 		const subscribers = await SubscriptionModel.find({ channelId, unsubscribedAt: { $exists: false } })
-				// 		const userIds: any[] = []
-				// 		const messages: any[] = []
-				// 		const notificationService = new Expo()
-				// 		subscribers.map(u => {
-				// 			userIds.push(u.userId)
-				// 		})
+					await UserModel.updateOne({ _id: userId }, {
+						zoomInfo: {
+							...user.zoomInfo,
+							accessToken: zoomData.access_token,
+							refreshToken: zoomData.refresh_token,
+							expiresOn: eOn	// saved as a date
+						}
+					})
 
-				// 		// Web notifications
-				// 		const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
-				// 		const notification = {
-				// 			contents: {
-				// 				'en': 'The host is now in the meeting! - ' + channel.name,
-				// 			},
-				// 			include_external_user_ids: userIds
-				// 		}
+				}
 
-				// 		const response = await oneSignalClient.createNotification(notification)
-				// 		const users = await UserModel.find({ _id: { $in: userIds } })
-				// 		users.map(sub => {
-				// 			const notificationIds = sub.notificationId.split('-BREAK-')
-				// 			notificationIds.map((notifId: any) => {
-				// 				if (!Expo.isExpoPushToken(notifId)) {
-				// 					return
-				// 				}
-				// 				messages.push({
-				// 					to: notifId,
-				// 					sound: 'default',
-				// 					subtitle: 'The host is now in the meeting!',
-				// 					title: channel.name + ' - Meeting Started',
-				// 					data: { userId: sub._id },
-				// 				})
-				// 			})
-				// 		})
-				// 		let chunks = notificationService.chunkPushNotifications(messages);
-				// 		for (let chunk of chunks) {
-				// 			try {
-				// 				await notificationService.sendPushNotificationsAsync(chunk);
-				// 			} catch (e) {
-				// 				console.error(e);
-				// 			}
-				// 		}
-				// 	}).catch((err: any) => {
-				// 		console.log(err);
-				// 	})
+				let owner = true
+				if (channel.owners) {
+					channel.owners.map((uId: any) => {
+						if (uId.toString().trim() === userId.toString().trim()) {
+							owner = true
+						}
+					})
+				}
+				if (channel.createdBy.toString().trim() === userId.toString().trim()) {
+					owner = true
+				}
 
-				// }
+				if (!owner) {
+					// meeting not started
+					return 'error'
+				} else {
+					// create meeting
+					const zoomRes: any = await axios.post(
+						`https://api.zoom.us/v2/users/me/meetings`,
+						{
+							topic: channel.name + '- ' + title,
+							agenda: description,
+							type: 1,
+						}, {
+						headers: {
+							Authorization: `Bearer ${accessToken}`,
+						},
+					});
 
-				// const fullName = encodeURIComponent(encodeURI(user.displayName.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
-				// const params =
-				// 	"fullName=" +
-				// 	(fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
-				// 	"&meetingID=" +
-				// 	channelId +
-				// 	"&password=" +
-				// 	(channel.createdBy.toString().trim() ===
-				// 		user._id.toString().trim()
-				// 		? modPass
-				// 		: atendeePass);
-				// const toHash = "join" + params + vdoKey;
-				// const checksum = sha1(toHash);
+					if (zoomRes.status !== 200 && zoomRes.status !== 201) {
+						return 'error'
+					}
 
-				// return vdoURL + "join?" + params + "&checksum=" + checksum;
+					const zoomData: any = zoomRes.data
+
+					if (zoomData.id) {
+
+						// Create a new Date 
+						await DateModel.create({
+							userId: undefined,
+							title,
+							start: new Date(start),
+							end: new Date(end),
+							isNonMeetingChannelEvent: undefined,
+							scheduledMeetingForChannelId: channelId,
+							description,
+							zoomMeetingId: zoomData.id,
+							zoomStartUrl: zoomData.start_url,
+							zoomJoinUrl: zoomData.join_url,
+							zoomMeetingScheduledBy: userId,
+							recordMeeting: true
+						});
+
+					} else {
+						return 'error'
+
+					}
+
+					if (notifyUsers) {
+
+						const subscriptions = await SubscriptionModel.find({
+							channelId,
+							unsubscribedAt: { $exists: false }
+						})
+
+						const subscriberIds = subscriptions.map((sub: any) => sub.userId);
+
+						// Alert all the users in the channel
+						const userDocs = await UserModel.find({ _id: { $in: subscriberIds } })
+						let title = channel.name + '- New meeting started'
+						let messages: any[] = []
+
+						// Web notifications
+						const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+						const notification = {
+							contents: {
+								'en': channel.name + ' - New meeting started.'
+							},
+							include_external_user_ids: subscriberIds
+						}
+						const response = await oneSignalClient.createNotification(notification)
+						userDocs.map(u => {
+							const sub = u.toObject()
+							const notificationIds = sub.notificationId.split('-BREAK-')
+							notificationIds.map((notifId: any) => {
+								if (!Expo.isExpoPushToken(notifId)) {
+									return
+								}
+								messages.push({
+									to: notifId,
+									sound: 'default',
+									subtitle: '',
+									title,
+									data: { userId: sub._id },
+								})
+							})
+						})
+						const notificationService = new Expo()
+						let chunks = notificationService.chunkPushNotifications(messages);
+						for (let chunk of chunks) {
+							try {
+								await notificationService.sendPushNotificationsAsync(chunk);
+							} catch (e) {
+								console.error(e);
+							}
+						}
+
+					}
+
+					return zoomData.start_url
+				}
+
 			}
 			return 'error'
 		} catch (e) {
@@ -855,6 +796,251 @@ export class ChannelMutationResolver {
 			return 'error'
 		}
 	}
+
+	// @Field(type => String, {
+	// 	description: 'Used when you want to create/join a meeting.'
+	// })
+	// public async meetingRequest(
+	// 	@Arg('channelId', type => String) channelId: string,
+	// 	@Arg('isOwner', type => Boolean) isOwner: boolean,
+	// 	@Arg('userId', type => String) userId: string
+	// ) {
+	// 	try {
+
+	// 		let accessToken = ''
+	// 		const u: any = await UserModel.findById(userId);
+	// 		const c: any = await ChannelModel.findById(channelId);
+	// 		if (u && c) {
+	// 			const user = u.toObject();
+	// 			const channel = c.toObject();
+
+	// 			// check started
+	// 			if (channel.meetingOn) {
+	// 				// return join URL
+	// 				return channel.joinUrl ? channel.joinUrl : '/'
+	// 			} else {
+
+
+	// 				// refresh access token
+	// 				if (!user.zoomInfo) {
+	// 					return 'error'
+	// 				} else {
+	// 					accessToken = user.zoomInfo.accessToken
+	// 				}
+
+	// 				// LIVE
+	// 				// const clientId = 'yRzKFwGRTq8bNKLQojwnA'
+	// 				// const clientSecret = 'cdvpIvYRsubUFTOfXbrlnjnnWM3nPWFm'
+	// 				// DEV
+	// 				const clientId = 'PAfnxrFcSd2HkGnn9Yq96A'
+	// 				const clientSecret = '43LWA5ysjiN1xykRiS32krS9Nx8xGhYt'
+
+	// 				const b = Buffer.from(clientId + ":" + clientSecret);
+
+	// 				const date = new Date()
+	// 				const expiresOn = new Date(user.zoomInfo.expiresOn)
+
+	// 				if (expiresOn <= date) {
+	// 					// refresh access token
+
+	// 					const zoomRes: any = await axios.post(
+	// 						`https://zoom.us/oauth/token?grant_type=refresh_token&refresh_token=${user.zoomInfo.refreshToken}`, undefined, {
+	// 						headers: {
+	// 							Authorization: `Basic ${b.toString("base64")}`,
+	// 							"Content-Type": 'application/x-www-form-urlencoded'
+	// 						},
+	// 					});
+	// 					console.log(zoomRes)
+	// 					if (zoomRes.status !== 200) {
+	// 						return 'error'
+	// 					}
+
+	// 					const zoomData: any = zoomRes.data
+
+	// 					const eOn = new Date()
+	// 					eOn.setSeconds(eOn.getSeconds() + (Number.isNaN(Number(zoomData.expires_in)) ? 0 : Number(zoomData.expires_in)))
+
+	// 					accessToken = zoomData.access_token
+
+	// 					await UserModel.updateOne({ _id: userId }, {
+	// 						zoomInfo: {
+	// 							...user.zoomInfo,
+	// 							accessToken: zoomData.access_token,
+	// 							refreshToken: zoomData.refresh_token,
+	// 							expiresOn: eOn	// saved as a date
+	// 						}
+	// 					})
+
+	// 				}
+
+	// 				let owner = true
+	// 				if (channel.owners) {
+	// 					channel.owners.map((uId: any) => {
+	// 						if (uId.toString().trim() === userId.toString().trim()) {
+	// 							owner = true
+	// 						}
+	// 					})
+	// 				}
+	// 				if (channel.createdBy.toString().trim() === userId.toString().trim()) {
+	// 					owner = true
+	// 				}
+	// 				if (!owner) {
+	// 					// meeting not started
+	// 					return 'error'
+	// 				} else {
+	// 					// create meeting
+	// 					const zoomRes: any = await axios.post(
+	// 						`https://api.zoom.us/v2/users/me/meetings`,
+	// 						{
+	// 							topic: channel.name
+	// 						}, {
+	// 						headers: {
+	// 							Authorization: `Bearer ${accessToken}`,
+	// 						},
+	// 					});
+	// 					console.log(zoomRes)
+	// 					if (zoomRes.status !== 200 && zoomRes.status !== 201) {
+	// 						return 'error'
+	// 					}
+
+	// 					const zoomData: any = zoomRes.data
+	// 					await ChannelModel.updateOne(
+	// 						{ _id: channelId }, {
+	// 						startUrl: zoomData.start_url,
+	// 						joinUrl: zoomData.join_url,
+	// 						startedBy: userId
+	// 					})
+
+	// 					return zoomData.start_url
+	// 				}
+	// 			}
+
+	// 			// const sha1 = require("sha1");
+	// 			// const axios = require('axios')
+	// 			// const vdoURL = "https://my2.vdo.click/bigbluebutton/api/";
+	// 			// const vdoKey = "KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU";
+	// 			// const atendeePass = channelId;
+	// 			// const modPass = channel.createdBy;
+
+	// 			// const lastRecordedMeetingId = channelId
+	// 			// let createMeeting = true
+	// 			// // check if meeting is in session
+	// 			// const linkParams = "meetingID=" + lastRecordedMeetingId
+	// 			// const Hash = "isMeetingRunning" + linkParams + vdoKey;
+	// 			// const Checksum = sha1(Hash);
+	// 			// const res = await axios.get(vdoURL + 'isMeetingRunning?' + linkParams + '&checksum=' + Checksum)
+	// 			// const xml2js = require('xml2js');
+	// 			// const parser = new xml2js.Parser();
+	// 			// const json = await parser.parseStringPromise(res.data);
+	// 			// if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
+	// 			// 	const running = json.response.running[0]
+	// 			// 	if (running === 'true') {
+	// 			// 		createMeeting = false
+	// 			// 	}
+	// 			// }
+
+	// 			// if (createMeeting) {
+	// 			// 	// create meeting only if not owner
+	// 			// 	if (!isOwner) {
+	// 			// 		return 'error'
+	// 			// 	}
+
+	// 			// 	const fullName = encodeURI(encodeURIComponent(channel.name.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
+	// 			// 	const params =
+	// 			// 		'allowStartStopRecording=true' +
+	// 			// 		'&attendeePW=' + atendeePass +
+	// 			// 		'&autoStartRecording=false' +
+	// 			// 		'&meetingID=' + channelId +
+	// 			// 		'&moderatorPW=' + modPass +
+	// 			// 		'&name=' + (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
+	// 			// 		'&record=true'
+	// 			// 	const toHash = (
+	// 			// 		'create' + params + vdoKey
+	// 			// 	)
+	// 			// 	const checkSum = sha1(toHash)
+	// 			// 	const url = vdoURL + 'create?' + params + '&checksum=' + checkSum
+
+	// 			// 	axios.get(url).then(async (res: any) => {
+
+	// 			// 		const xml2js = require('xml2js');
+	// 			// 		const parser = new xml2js.Parser();
+	// 			// 		const json = await parser.parseStringPromise(res.data);
+
+	// 			// 		if (json.response && json.response.returncode && json.response.returncode[0] === 'SUCCESS') {
+	// 			// 			const meetingId = json.response.meetingID[0]
+	// 			// 			await ChannelModel.updateOne({ _id: channelId }, { lastRecordedMeetingId: meetingId })
+	// 			// 		}
+
+	// 			// 		const subscribers = await SubscriptionModel.find({ channelId, unsubscribedAt: { $exists: false } })
+	// 			// 		const userIds: any[] = []
+	// 			// 		const messages: any[] = []
+	// 			// 		const notificationService = new Expo()
+	// 			// 		subscribers.map(u => {
+	// 			// 			userIds.push(u.userId)
+	// 			// 		})
+
+	// 			// 		// Web notifications
+	// 			// 		const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+	// 			// 		const notification = {
+	// 			// 			contents: {
+	// 			// 				'en': 'The host is now in the meeting! - ' + channel.name,
+	// 			// 			},
+	// 			// 			include_external_user_ids: userIds
+	// 			// 		}
+
+	// 			// 		const response = await oneSignalClient.createNotification(notification)
+	// 			// 		const users = await UserModel.find({ _id: { $in: userIds } })
+	// 			// 		users.map(sub => {
+	// 			// 			const notificationIds = sub.notificationId.split('-BREAK-')
+	// 			// 			notificationIds.map((notifId: any) => {
+	// 			// 				if (!Expo.isExpoPushToken(notifId)) {
+	// 			// 					return
+	// 			// 				}
+	// 			// 				messages.push({
+	// 			// 					to: notifId,
+	// 			// 					sound: 'default',
+	// 			// 					subtitle: 'The host is now in the meeting!',
+	// 			// 					title: channel.name + ' - Meeting Started',
+	// 			// 					data: { userId: sub._id },
+	// 			// 				})
+	// 			// 			})
+	// 			// 		})
+	// 			// 		let chunks = notificationService.chunkPushNotifications(messages);
+	// 			// 		for (let chunk of chunks) {
+	// 			// 			try {
+	// 			// 				await notificationService.sendPushNotificationsAsync(chunk);
+	// 			// 			} catch (e) {
+	// 			// 				console.error(e);
+	// 			// 			}
+	// 			// 		}
+	// 			// 	}).catch((err: any) => {
+	// 			// 		console.log(err);
+	// 			// 	})
+
+	// 			// }
+
+	// 			// const fullName = encodeURIComponent(encodeURI(user.displayName.replace(/[^a-z0-9]/gi, '').split(' ').join('').trim()))
+	// 			// const params =
+	// 			// 	"fullName=" +
+	// 			// 	(fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
+	// 			// 	"&meetingID=" +
+	// 			// 	channelId +
+	// 			// 	"&password=" +
+	// 			// 	(channel.createdBy.toString().trim() ===
+	// 			// 		user._id.toString().trim()
+	// 			// 		? modPass
+	// 			// 		: atendeePass);
+	// 			// const toHash = "join" + params + vdoKey;
+	// 			// const checksum = sha1(toHash);
+
+	// 			// return vdoURL + "join?" + params + "&checksum=" + checksum;
+	// 		}
+	// 		return 'error'
+	// 	} catch (e) {
+	// 		console.log(e)
+	// 		return 'error'
+	// 	}
+	// }
 
 	@Field(type => String, {
 		description: 'Used when you want to allow or disallow people from joining meeting.'

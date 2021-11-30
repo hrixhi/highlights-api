@@ -1,4 +1,4 @@
-import { Schema, Types } from "mongoose";
+import { Schema, Types } from 'mongoose';
 
 const schema = new Schema({
     userId: {
@@ -32,13 +32,30 @@ const schema = new Schema({
     },
     recordMeeting: {
         type: Boolean,
-        required: true
+        required: false
     },
     recordingLink: {
         type: String,
         required: false
     },
     recurringId: {
+        type: String,
+        required: false
+    },
+    // ZOOM
+    zoomMeetingId: {
+        type: String,
+        required: false
+    },
+    zoomStartUrl: {
+        type: String,
+        required: false
+    },
+    zoomJoinUrl: {
+        type: String,
+        required: false
+    },
+    zoomMeetingScheduledBy: {
         type: String,
         required: false
     }
