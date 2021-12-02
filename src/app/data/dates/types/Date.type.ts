@@ -99,27 +99,32 @@ export class EventObject {
     public zoomMeetingId?: string;
 
     @Field(type => String, { nullable: true })
-    public async zoomStartUrl(@Ctx() context: IGraphQLContext) {
-        const localThis: any = this;
-        const { zoomStartUrl, scheduledMeetingForChannelId } = localThis._doc || localThis;
-        if (zoomStartUrl && zoomStartUrl !== '') {
-            const channel = await ChannelModel.findById(scheduledMeetingForChannelId);
+    public zoomStartUrl?: string;
+    // public async zoomStartUrl(@Ctx() context: IGraphQLContext) {
+    //     const localThis: any = this;
+    //     const { scheduledMeetingForChannelId } = localThis._doc || localThis;
 
-            if (channel && channel.owners && context.user && channel.createdBy !== context.user!._id) {
-                const anotherOwner = channel.owners.find((item: any) => {
-                    return item === context.user!._id.toString();
-                });
-                if (anotherOwner) {
-                    return zoomStartUrl;
-                }
-            } else if (channel && channel.createdBy === context.user!._id) {
-                return zoomStartUrl;
-            }
+    //     const localDoc = localThis._doc || localThis;
 
-            return '';
-        }
-        return '';
-    }
+    //     const zoomStart = localDoc.zoomStartUrl;
+
+    //     if (zoomStart && zoomStart !== '') {
+    //         const channel = await ChannelModel.findById(scheduledMeetingForChannelId);
+    //         if (channel && channel.owners && context.user && channel.createdBy !== context.user!._id) {
+    //             const anotherOwner = channel.owners.find((item: any) => {
+    //                 return item === context.user!._id.toString();
+    //             });
+    //             if (anotherOwner) {
+    //                 return zoomStart;
+    //             }
+    //         } else if (channel && channel.createdBy === context.user!._id) {
+    //             return zoomStart;
+    //         }
+
+    //         return '';
+    //     }
+    //     return '';
+    // }
 
     @Field(type => String, { nullable: true })
     public async zoomMeetingCreatorProfile(@Ctx() context: IGraphQLContext) {
@@ -132,9 +137,9 @@ export class EventObject {
                 return user.fullName + ', ' + user.email;
             }
 
-            return '';
+            return null;
         }
-        return '';
+        return null;
     }
 
     @Field(type => String, { nullable: true })
