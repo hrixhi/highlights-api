@@ -14,7 +14,6 @@ import { ActivityModel } from '../activity/mongo/activity.model';
  */
 @ObjectType()
 export class AttendanceMutationResolver {
-
     @Field(type => Boolean, {
         description: 'Used when you want to create new meeting.'
     })
@@ -29,48 +28,51 @@ export class AttendanceMutationResolver {
                 end: new Date(end),
                 title: 'Scheduled Call',
                 scheduledMeetingForChannelId: channelId
-            })
-            const messages: any[] = []
-            const userIds: any[] = []
+            });
+            const messages: any[] = [];
+            const userIds: any[] = [];
 
             const subscriptions = await SubscriptionModel.find({
                 $and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
-            })
-            subscriptions.map((s) => {
-                userIds.push(s.userId)
-            })
-            const channel: any = await ChannelModel.findById(channelId)
-            const users: any[] = await UserModel.find({ _id: { $in: userIds } })
+            });
+            subscriptions.map(s => {
+                userIds.push(s.userId);
+            });
+            const channel: any = await ChannelModel.findById(channelId);
+            const users: any[] = await UserModel.find({ _id: { $in: userIds } });
 
             // Web notifications
 
-            const oneSignalClient = new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+            const oneSignalClient = new OneSignal.Client(
+                '78cd253e-262d-4517-a710-8719abf3ee55',
+                'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+            );
 
             const notification = {
                 contents: {
-                    'en': `${channel.name}` + ' - New Meeting Scheduled'
+                    en: `${channel.name}` + ' - New Meeting Scheduled'
                 },
                 include_external_user_ids: userIds
-            }
+            };
 
-            const response = await oneSignalClient.createNotification(notification)
+            const response = await oneSignalClient.createNotification(notification);
 
-            users.map((sub) => {
-                const notificationIds = sub.notificationId.split('-BREAK-')
+            users.map(sub => {
+                const notificationIds = sub.notificationId.split('-BREAK-');
                 notificationIds.map((notifId: any) => {
                     if (!Expo.isExpoPushToken(notifId)) {
-                        return
+                        return;
                     }
                     messages.push({
                         to: notifId,
                         sound: 'default',
                         subtitle: 'Your instructor has scheduled a new meeting.',
                         title: channel.name + ' - New Meeting Scheduled',
-                        data: { userId: sub._id },
-                    })
-                })
-            })
-            const notificationService = new Expo()
+                        data: { userId: sub._id }
+                    });
+                });
+            });
+            const notificationService = new Expo();
             let chunks = notificationService.chunkPushNotifications(messages);
             for (let chunk of chunks) {
                 try {
@@ -81,7 +83,7 @@ export class AttendanceMutationResolver {
             }
             return true;
         } catch (e) {
-            return false
+            return false;
         }
     }
 
@@ -94,10 +96,10 @@ export class AttendanceMutationResolver {
     ) {
         try {
             // What if user joins 2 minutes before start time.... to do
-            // Subtract 10 minutes from start to capture attendance 
-            const current = new Date()
+            // Subtract 10 minutes from start to capture attendance
+            const current = new Date();
             // const minus10 = new Date(current.getTime() - (1000 * 60 * 10))
-            const plus10 = new Date(current.getTime() + (1000 * 60 * 10))
+            const plus10 = new Date(current.getTime() + 1000 * 60 * 10);
             // If meeting from 10:00 to 11:00
             // Try to join at 9:55 then look for start date less than 10:05, therefore captured
             const date = await DateModel.findOne({
@@ -105,25 +107,25 @@ export class AttendanceMutationResolver {
                 scheduledMeetingForChannelId: channelId,
                 start: { $lte: plus10 },
                 end: { $gte: current }
-            })
+            });
             if (date) {
                 const att = await AttendanceModel.findOne({
                     userId,
                     dateId: date._id,
                     channelId
-                })
+                });
                 if (!att) {
                     await AttendanceModel.create({
                         userId,
                         dateId: date._id,
                         joinedAt: new Date(),
                         channelId
-                    })
+                    });
                 }
             }
-            return true
+            return true;
         } catch (e) {
-            return false
+            return false;
         }
     }
 
@@ -137,36 +139,34 @@ export class AttendanceMutationResolver {
         @Arg('markPresent', type => Boolean) markPresent: boolean
     ) {
         try {
-
             if (markPresent) {
                 const att = await AttendanceModel.findOne({
                     userId,
                     dateId,
                     channelId
-                })
+                });
                 if (!att) {
                     await AttendanceModel.create({
                         userId,
                         dateId: dateId,
                         channelId
-                    })
+                    });
                 }
             } else {
                 const att = await AttendanceModel.findOne({
                     userId,
                     dateId,
                     channelId
-                })
+                });
                 if (att) {
                     await AttendanceModel.deleteOne({
                         _id: att._id
-                    })
+                    });
                 }
             }
-            return true
+            return true;
         } catch (e) {
-            return false
+            return false;
         }
     }
-
 }

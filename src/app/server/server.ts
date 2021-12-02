@@ -251,7 +251,7 @@ export class Server {
 					repositories: new MongoRepositoriesFactory(),
 					user,
 					publisher: this.publisher,
-					oneSignalClient: new OneSignal.Client('51db5230-f2f3-491a-a5b9-e4fba0f23c76', 'Yjg4NTYxODEtNDBiOS00NDU5LTk3NDItZjE3ZmIzZTVhMDBh')
+					oneSignalClient: new OneSignal.Client('78cd253e-262d-4517-a710-8719abf3ee55', 'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5')
 				}
 			},
 			middlewares: [this.requiresAuthentication],
