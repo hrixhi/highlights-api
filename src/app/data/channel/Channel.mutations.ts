@@ -15,6 +15,7 @@ import { ActivityModel } from '../activity/mongo/activity.model';
 import axios from 'axios'
 import shortid from 'shortid';
 import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials'
+import moment from 'moment';
 
 /**
  * Channel Mutation Endpoints
@@ -637,6 +638,10 @@ export class ChannelMutationResolver {
 		@Arg('notifyUsers', type => Boolean) notifyUsers: boolean
 	) {
 		try {
+
+			const diff = Math.abs(new Date(start).getTime() - new Date(end).getTime());
+
+            const duration = Math.round(diff / 60000);
 			
 			let accessToken = ''
 			const u: any = await UserModel.findById(userId);
@@ -705,13 +710,21 @@ export class ChannelMutationResolver {
 					// meeting not started
 					return 'error'
 				} else {
+
+					// CREATE MEETING
+					const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
+					.tz('UTC')
+					.format();
+
 					// create meeting
 					const zoomRes: any = await axios.post(
 						`https://api.zoom.us/v2/users/me/meetings`,
 						{
 							topic: channel.name + '- ' + title,
 							agenda: description,
-							type: 1,
+							type: 2,
+							start_time: utcTime + 'Z',
+							duration
 						}, {
 						headers: {
 							Authorization: `Bearer ${accessToken}`,
