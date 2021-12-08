@@ -36,7 +36,7 @@ export class SubscriptionMutationResolver {
 				}
 
 				const notify = async () => {
-					const subtitle = 'You have been added to the channel.'
+					const subtitle = 'You have been added to the course.'
 					const title = channel.name + ' - Subscribed!'
 					const messages: any[] = []
 					const subscribersAdded = await UserModel.find({ _id: userId })
@@ -301,7 +301,7 @@ export class SubscriptionMutationResolver {
 					channelId
 				})
 
-				const subtitle = 'You have been removed from the channel.'
+				const subtitle = 'You have been removed from the course.'
 				const title = channel.name + ' - Unsubscribed!'
 				const messages: any[] = []
 				const subscribersAdded = await UserModel.find({ _id: userId })

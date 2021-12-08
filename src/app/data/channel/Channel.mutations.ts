@@ -258,7 +258,7 @@ export class ChannelMutationResolver {
 					}
 
 					const subscribersAdded = await UserModel.find({ _id: { $in: subscriberIds } });
-					const subtitle = 'You have been added to the channel.'
+					const subtitle = 'You have been added to the course.'
 					const title = duplicateChannel.name + ' - Subscribed!'
 					const messages: any[] = []
 					const activity: any[] = []
@@ -359,7 +359,7 @@ export class ChannelMutationResolver {
 
 
 					const subscribersAdded = await UserModel.find({ _id: { $in: subscriberIds } });
-					const subtitle = 'You have been added to the channel.'
+					const subtitle = 'You have been added to the course.'
 					const title = duplicateChannel.name + ' - Subscribed!'
 					const messages: any[] = []
 					const activity: any[] = []
