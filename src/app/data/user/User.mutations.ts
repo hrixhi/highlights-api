@@ -855,6 +855,96 @@ export class UserMutationResolver {
 		}
 	}
 
+	@Field(type => Boolean)
+	public async removeZoom(
+		@Arg("userId", (type) => String)
+		userId: string,
+	) {
+			
+		try {
+			let accessToken = ''
+			const u: any = await UserModel.findById(userId);
+			if (u) {
+				const user = u.toObject();
+	
+				if (!user.zoomInfo) {
+					return false;
+				} else {
+					accessToken = user.zoomInfo.accessToken
+				}
+	
+				const b = Buffer.from(zoomClientId + ":" + zoomClientSecret);
+	
+				const date = new Date()
+				const expiresOn = new Date(user.zoomInfo.expiresOn)
+	
+				if (expiresOn <= date) {
+					// refresh access token
+	
+					const zoomRes: any = await axios.post(
+						`https://zoom.us/oauth/token?grant_type=refresh_token&refresh_token=${user.zoomInfo.refreshToken}`, undefined, {
+						headers: {
+							Authorization: `Basic ${b.toString("base64")}`,
+							"Content-Type": 'application/x-www-form-urlencoded'
+						},
+					});
+					
+					if (zoomRes.status !== 200) {
+						return 'error'
+					}
+	
+					const zoomData: any = zoomRes.data
+	
+					const eOn = new Date()
+					eOn.setSeconds(eOn.getSeconds() + (Number.isNaN(Number(zoomData.expires_in)) ? 0 : Number(zoomData.expires_in)))
+	
+					accessToken = zoomData.access_token
+	
+					await UserModel.updateOne({ _id: userId }, {
+						zoomInfo: {
+							...user.zoomInfo,
+							accessToken: zoomData.access_token,
+							refreshToken: zoomData.refresh_token,
+							expiresOn: eOn	// saved as a date
+						}
+					})
+	
+				}
+
+				console.log("Access token", accessToken)
+	
+				const zoomRes: any = await axios.post(
+					`https://zoom.us/oauth/revoke?token=${accessToken}`,
+					undefined, {
+					headers: {
+						Authorization: `Basic ${b.toString("base64")}`,
+						"Content-Type": 'application/x-www-form-urlencoded'
+					},
+				});
+	
+				console.log("Zoom res", zoomRes);
+	
+				if (!zoomRes || !zoomRes.data) {
+					return false;
+				}
+	
+				const zoomData: any = zoomRes.data
+	
+				if (zoomData.status === "success") {
+					return true;
+				}
+	
+	
+				return false;
+			}
+	
+			return false;
+		} catch (e) {
+			console.log("Error", e)
+			return false;
+		}
+	}
+
 	@Field(type => ZoomObject, { nullable: true })
 	public async connectZoom(
 		@Arg("userId", (type) => String)

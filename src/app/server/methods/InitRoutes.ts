@@ -26,6 +26,15 @@ import { AttendanceModel } from '@app/data/attendance/mongo/attendance.model';
 export function initializeRoutes(GQLServer: GraphQLServer) {
     // Joined Zoom meeting
     GQLServer.post('/zoom_participant_joined', async (req: any, res: any) => {
+        console.log('Req', req.headers.authorization);
+
+        if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
+            res.json(400, {
+                error: 1,
+                msg: 'Invalid verification token.'
+            });
+        }
+
         // console.log(req.body);
         const accountId = req.body.payload.account_id;
         // const channelName = req.body.payload.object.topic;
@@ -76,6 +85,15 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     // Left Zoom
     GQLServer.post('/zoom_participant_left', async (req: any, res: any) => {
         // console.log(req.body);
+        console.log('Req', req.headers.authorization);
+
+        if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
+            res.json(400, {
+                error: 1,
+                msg: 'Invalid verification token.'
+            });
+        }
+
         const accountId = req.body.payload.account_id;
 
         const zoomMeetingId = req.body.payload.object.id;
@@ -133,6 +151,15 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
     // Deauthorized app Zoom
     GQLServer.post('/zoom_deauth', async (req: any, res: any) => {
+        console.log('Req', req.headers.authorization);
+
+        if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
+            res.json(400, {
+                error: 1,
+                msg: 'Invalid verification token.'
+            });
+        }
+
         const accountId = req.body.payload.account_id;
 
         const u = await UserModel.findOne({ 'zoomInfo.accountId': accountId });
@@ -155,6 +182,15 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
     // Zoom user profile updated
     GQLServer.post('/zoom_profile_updated', async (req: any, res: any) => {
+        console.log('Req', req.headers.authorization);
+
+        if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
+            res.json(400, {
+                error: 1,
+                msg: 'Invalid verification token.'
+            });
+        }
+
         const accountId = req.body.payload.account_id;
 
         const profile = req.body.payload.object;
@@ -189,6 +225,15 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     // ZOOM MEETING DELETED
     GQLServer.post('/zoom_meeting_deleted', async (req: any, res: any) => {
         // const accountId = req.body.payload.account_id;
+
+        console.log('Req', req.headers.authorization);
+
+        if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
+            res.json(400, {
+                error: 1,
+                msg: 'Invalid verification token.'
+            });
+        }
 
         const zoomMeetingId = req.body.payload.object.id;
 
