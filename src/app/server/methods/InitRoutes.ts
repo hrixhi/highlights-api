@@ -18,6 +18,9 @@ import { htmlStringParser } from '@helper/HTMLParser';
 import request from 'request-promise';
 import { DateModel } from '@app/data/dates/mongo/dates.model';
 import { AttendanceModel } from '@app/data/attendance/mongo/attendance.model';
+import WorkOS from '@workos-inc/node';
+import { WORKOS_API_KEY, WORKOS_WEBHOOK_KEY } from '@helper/workosCredentials';
+import { SchoolsModel } from '@app/data/school/mongo/School.model';
 
 /**
  * This is the function used to initializeroutes that is going to let uses upload to the s3 bucket.
@@ -262,6 +265,74 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         );
 
         res.json({
+            status: 'ok'
+        });
+    });
+
+    // WORK OS CONNECTION WEBHOOK
+
+    GQLServer.post('/workos', async (req: any, res: any) => {
+        const payload = req.body;
+        const sigHeader = req.headers['workos-signature'];
+
+        const workos = new WorkOS(WORKOS_API_KEY);
+
+        const webhook = workos.webhooks.constructEvent({ payload, sigHeader, secret: WORKOS_WEBHOOK_KEY });
+
+        console.log('Webhook', webhook);
+
+        if (webhook.event === 'connection.activated' && webhook.id !== '') {
+            const { data } = webhook;
+
+            const { id, connection_type, state, name, organization_id } = data;
+
+            SchoolsModel.updateOne(
+                {
+                    workosOrgId: organization_id
+                },
+                {
+                    workosConnection: {
+                        id,
+                        connection_type,
+                        name,
+                        state
+                    }
+                }
+            ).then(res => console.log(res));
+
+            // console.log('Update', update);
+        } else if (webhook.event === 'connection.deactivated' && webhook.id !== '') {
+            const { data } = webhook;
+
+            const { state, organization_id } = data;
+
+            SchoolsModel.updateOne(
+                {
+                    workosOrgId: organization_id
+                },
+                {
+                    $set: { 'workosConnection.status': state }
+                }
+            ).then(res => console.log(res));
+
+            // console.log('Update', update);
+        } else if (webhook.event === 'connection.deleted' && webhook.id !== '') {
+            const { data } = webhook;
+
+            const { organization_id } = data;
+
+            SchoolsModel.updateOne(
+                {
+                    workosOrgId: organization_id
+                },
+                {
+                    workosConnection: null
+                }
+            ).then(res => console.log(res));
+
+            // console.log('Update', update);
+        }
+        res.status(200).json({
             status: 'ok'
         });
     });

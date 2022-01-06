@@ -7,12 +7,14 @@ import { CueModel } from "../cue/mongo/Cue.model";
 import { ModificationsModel } from "../modification/mongo/Modification.model";
 import { SubscriptionModel } from "../subscription/mongo/Subscription.model";
 import { UserObject, ZoomObject } from "./types/User.type";
+import { UserCreate } from './input-types/UserCreate.input';
 import { SchoolsModel } from "../school/mongo/School.model";
 import { ThreadModel } from "../thread/mongo/Thread.model";
 import { ThreadStatusModel } from "../thread-status/mongo/thread-status.model";
 import axios from 'axios'
 import { createJWTToken } from "../../../helpers/auth";
-import { AuthResponseObject } from "./types/AuthResponse.type";
+import { AuthResponseObject, } from "./types/AuthResponse.type";
+import { AddUsersResponseObject } from './types/AddUsersResponse.type';
 import { zoomClientId, zoomClientSecret, zoomRedirectUri } from '../../../helpers/zoomCredentials'
 
 /**
@@ -295,106 +297,211 @@ export class UserMutationResolver {
 		}
 	}
 
-	@Field((type) => String)
+	// @Field((type) => String)
+	// public async addUsersToOrganisation(
+	// 	@Arg("emails", (type) => [String])
+	// 	emails: string[],
+	// 	@Arg("schoolId", (type) => String)
+	// 	schoolId: string,
+	// 	@Arg("role", (type) => String)
+	// 	role: string,
+	// 	@Arg("grade", (type) => String)
+	// 	grade: string,
+	// 	@Arg("section", (type) => String)
+	// 	section: string
+	// ) {
+	// 	try {
+	// 		const from = new Date();
+	// 		from.setHours(23, 0, 0);
+
+	// 		const to = new Date();
+	// 		to.setHours(7, 0, 0);
+
+	// 		const notificationId = "NOT_SET";
+	// 		let flagEmailUserExist = false;
+	// 		let emailExists = [];
+	// 		for (const email of emails) {
+	// 			const user = await UserModel.findOne({ email });
+	// 			if (user) {
+	// 				emailExists.push(email);
+	// 				flagEmailUserExist = true;
+	// 			}
+	// 		}
+
+	// 		if (flagEmailUserExist) {
+	// 			return (emailExists.length > 1 ? "Users with emails " : "User with email ") + emailExists.join(", ") + " already " + (emailExists.length > 1 ? "exist." : "exists.");
+	// 		} else {
+	// 			for (const email of emails) {
+	// 				const username =
+	// 					email.split("@")[0] +
+	// 					Math.floor(Math.random() * (999 - 100 + 1) + 100).toString();
+	// 				const fullName = username;
+	// 				const displayName = username;
+	// 				const password = username + "@123";
+	// 				const dupPassword = password;
+
+	// 				const hash = await hashPassword(password);
+	// 				const newUser = await UserModel.create({
+	// 					schoolId,
+	// 					email,
+	// 					fullName,
+	// 					displayName,
+	// 					password: hash,
+	// 					notificationId,
+	// 					randomShuffleFrequency: "1-D",
+	// 					sleepFrom: from,
+	// 					sleepTo: to,
+	// 					currentDraft: "",
+	// 					role,
+	// 					grade: role === "instructor" || grade === "-" ? undefined : grade,
+	// 					section:
+	// 						role === "instructor" || section === "-" ? undefined : section,
+	// 				});
+					
+	// 				const emailService = new EmailService();
+	// 				const org: any = await SchoolsModel.findById(schoolId);
+	// 				emailService.newAccountAddedToOrgConfirm(
+	// 					email,
+	// 					fullName,
+	// 					dupPassword,
+	// 					org.name
+	// 				);
+
+					
+	// 			}
+				
+	// 			return `${emails.length} users added to organization`;
+	// 		}
+	// 	} catch (e) {
+	// 		return "Error: Somthing went wrong";
+	// 	}
+	// }
+
+	@Field((type) => AddUsersResponseObject)
 	public async addUsersToOrganisation(
-		@Arg("emails", (type) => [String])
-		emails: string[],
+		@Arg("users", (type) => [UserCreate])
+		users: UserCreate[],
 		@Arg("schoolId", (type) => String)
 		schoolId: string,
-		@Arg("role", (type) => String)
-		role: string,
-		@Arg("grade", (type) => String)
-		grade: string,
-		@Arg("section", (type) => String)
-		section: string
 	) {
 		try {
-			const from = new Date();
-			from.setHours(23, 0, 0);
 
-			const to = new Date();
-			to.setHours(7, 0, 0);
+			const fetchSchool = await SchoolsModel.findOne({
+				_id: schoolId
+			})
 
-			const notificationId = "NOT_SET";
-			let flagEmailUserExist = false;
-			let emailExists = [];
-			for (const email of emails) {
-				const user = await UserModel.findOne({ email });
-				if (user) {
-					emailExists.push(email);
-					flagEmailUserExist = true;
+			if (!fetchSchool) {
+				return {
+					successful: [],
+					failed: [],
+					error: "No org found with this School id"
 				}
 			}
+		
+			const notificationId = "NOT_SET";
+			let schoolIdExist = [];
+			let addSuccess = [];
 
-			if (flagEmailUserExist) {
-				return (emailExists.length > 1 ? "Users with emails " : "User with email ") + emailExists.join(", ") + " already " + (emailExists.length > 1 ? "exist." : "exists.");
-			} else {
-				for (const email of emails) {
+			for (const user of users) {
+
+				const fetchUser = await UserModel.findOne({
+					email: user.email
+				})
+
+				console.log("Existing users", fetchUser)
+
+				if (fetchUser) {
+					
+					let existingUser = fetchUser.toObject()
+
+					if (!existingUser.schoolId || existingUser.schoolId === "") {
+
+						console.log("Updating user")
+
+						await UserModel.updateOne({
+							email: user.email 
+						}, {
+							schoolId,
+							fullName: user.fullName,
+							role: user.role,
+							section: user.section,
+							grade: user.grade
+						})
+	
+						const emailService = new EmailService();
+						const org: any = await SchoolsModel.findById(schoolId);
+						emailService.existingAccountAddedToOrgConfirm(
+							user.email,
+							user.fullName,
+							org.name
+						);	
+	
+						addSuccess.push(user.email)
+					} else {
+						schoolIdExist.push(user.email)
+					}
+					
+				}  else {
+					// Create new user
+
 					const username =
-						email.split("@")[0] +
+						user.email.split("@")[0] +
 						Math.floor(Math.random() * (999 - 100 + 1) + 100).toString();
-					const fullName = username;
-					const displayName = username;
+					const fullName = user.fullName;
+					const displayName = user.fullName;
 					const password = username + "@123";
 					const dupPassword = password;
 
 					const hash = await hashPassword(password);
 					const newUser = await UserModel.create({
 						schoolId,
-						email,
+						email: user.email,
 						fullName,
 						displayName,
 						password: hash,
 						notificationId,
-						randomShuffleFrequency: "1-D",
-						sleepFrom: from,
-						sleepTo: to,
 						currentDraft: "",
-						role,
-						grade: role === "instructor" || grade === "-" ? undefined : grade,
+						role: user.role,
+						grade: user.role === "instructor" || user.grade === "-" ? undefined : user.grade,
 						section:
-							role === "instructor" || section === "-" ? undefined : section,
+							user.role === "instructor" || user.section === "-" ? undefined : user.section,
 					});
-					// give default CUES
-					// const defaultCues: any = await CueModel.find({
-					// 	_id: {
-					// 		$in: [
-					// 			"60ab0dbf3e057c171516ee98",
-					// 			"60ab0dbf3e057c171516ee99",
-					// 			"60ab0dbf3e057c171516ee9a",
-					// 			"60ab28013e057c171516eeb7",
-					// 		],
-					// 	},
-					// });
-					// const newCues: any[] = [];
-					// defaultCues.map((c: any) => {
-					// 	const newCue = c.toObject();
-					// 	delete newCue.__v;
-					// 	delete newCue._id;
-					// 	const updatedCue = {
-					// 		...newCue,
-					// 		createdBy: newUser._id,
-					// 		date: new Date(),
-					// 	};
-					// 	newCues.push(updatedCue);
-					// });
-					// await CueModel.insertMany(newCues);
-					// send email
-					const emailService = new EmailService();
-					const org: any = await SchoolsModel.findById(schoolId);
-					emailService.newAccountAddedToOrgConfirm(
-						email,
-						dupPassword,
-						org.name
-					);
 
-					
+					addSuccess.push(newUser.email)
+
+					if (!fetchSchool.ssoEnabled || !fetchSchool.workosConnection) {
+						// If school uses SSO then don't email passwords for the users 
+						const emailService = new EmailService();
+						const org: any = await SchoolsModel.findById(schoolId);
+						emailService.newAccountAddedToOrgConfirm(
+							user.email,
+							fullName,
+							dupPassword,
+							org.name
+						);
+					} 				
 				}
-				
-				return `${emails.length} users added to organization`;
+
+			}
+
+			console.log("result", {
+				successful: addSuccess,
+				failed: schoolIdExist,
+				error: ''
+			})
+
+			return {
+				successful: addSuccess,
+				failed: schoolIdExist,
+				error: ''
 			}
 		} catch (e) {
-			return "Error: Somthing went wrong";
+			return {
+				successful: [],
+				failed: [],
+				error: "Error: Somthing went wrong"
+			}
+			// return "Error: Somthing went wrong";
 		}
 	}
 
@@ -995,6 +1102,70 @@ export class UserMutationResolver {
 		} catch (e) {
 			console.log(e);
 			return null;
+		}
+	}
+
+	@Field(type => Boolean)
+	public async updateAnnotationsFromViewer(
+		@Arg("userId", (type) => String)
+		userId: string,
+		@Arg("cueId", (type) => String)
+		cueId: string,
+		@Arg("annotations", type => String) 
+		annotations: string,
+		@Arg("source", type => String)
+		source: string,
+	) {
+		try {
+
+			if (!cueId || !userId) return false;
+
+			const mod = await ModificationsModel.findOne({ cueId, userId })
+
+			if (!mod) return false;
+
+			if (source === "UPDATE") {
+				const updateAnnotation = await ModificationsModel.updateOne({
+					cueId,
+					userId
+				}, {
+					annotations
+				})
+			} else if (source === "VIEW_SUBMISSION" || source === "FEEDBACK") {
+
+				if (!mod.cue) return false;
+
+				const currCueValue = mod.cue;
+
+				const obj = JSON.parse(currCueValue);
+
+				const currAttempt = obj.attempts[obj.attempts.length - 1];
+
+				currAttempt.annotations = annotations;
+
+				const allAttempts = [...obj.attempts];
+
+				allAttempts[allAttempts.length - 1] = currAttempt;
+
+				const updateCue = {
+					attempts: allAttempts,
+					submissionDraft: obj.submissionDraft
+				};
+
+				await ModificationsModel.updateOne({
+					cueId,
+					userId
+				}, {
+					cue: JSON.stringify(updateCue)
+				})
+			}
+			
+
+			return true
+
+		} catch (e) {
+			console.log("Error", e);
+			return false
 		}
 	}
 

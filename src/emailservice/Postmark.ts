@@ -11,17 +11,34 @@ export class EmailService {
         });
     }
 
-    public newAccountAddedToOrgConfirm(email: string, password: string, orgName: string) {
+    public newAccountAddedToOrgConfirm(email: string, name: string, password: string, orgName: string) {
         client.sendEmail({
             From: 'info@cuesapp.co',
             To: email,
             Subject: 'CUES - You have been added to the ' + orgName + ' organisation.',
             TextBody:
-                'Welcome to Cues! Visit app.learnwithcues.com to login using email: ' +
+                'Welcome to Cues, ' +
+                name +
+                '! Visit app.learnwithcues.com to begin using Cues online or download our app on your laptop/mobile device. To login use email: ' +
                 email +
                 ' & password: ' +
                 password +
-                ' (You will be notified when you are added to any courses). If you are a new user, you must update your personal details by accessing your profile.'
+                '. You will be notified when you are added to any courses. You can update your password from within the app.'
+        });
+    }
+
+    public existingAccountAddedToOrgConfirm(email: string, name: string, orgName: string) {
+        client.sendEmail({
+            From: 'info@cuesapp.co',
+            To: email,
+            Subject: 'CUES - You have been added to the ' + orgName + ' organisation.',
+            TextBody:
+                'Welcome to Cues, ' +
+                name +
+                '! You have been added to ' +
+                orgName +
+                ' organisation. ' +
+                'You will be notified when you are added to any courses.'
         });
     }
 
@@ -56,6 +73,22 @@ export class EmailService {
             TextBody:
                 'Visit app.learnwithcues.com to log in using this temporary password which you should then update: ' +
                 password
+        });
+    }
+
+    public ssoRequest(schoolName: string, ssoDomain: string, cuesDomain: string) {
+        client.sendEmail({
+            From: 'info@cuesapp.co',
+            To: 'prabirvora@gmail.com',
+            Subject: 'New Request to Activate SSO - ' + schoolName,
+            TextBody:
+                'Enable SSO for school ' +
+                schoolName +
+                ' and cues domain ' +
+                cuesDomain +
+                '. Requested domain to be used for SSO is ' +
+                ssoDomain +
+                '.'
         });
     }
 }
