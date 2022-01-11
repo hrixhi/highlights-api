@@ -37,6 +37,7 @@ export class ChannelMutationResolver {
 		@Arg('isPublic', type => Boolean, { nullable: true }) isPublic?: boolean,
 		@Arg('subscribers', type => [String], { nullable: true }) subscribers?: string[],
 		@Arg('moderators', type => [String], { nullable: true }) moderators?: string[],
+		@Arg('sisId', type => String, { nullable: true }) sisId?: string,
 	) {
 		try {
 			// name should be valid
@@ -46,6 +47,12 @@ export class ChannelMutationResolver {
 				&& name.toString().trim() !== 'All-Channels' 
 				&& name.toString().trim() !== 'Home'
 			) {
+
+				const fetchUser = await UserModel.findById(createdBy);
+
+				if (!fetchUser) {
+					return 'invalid-user'
+				}
 
 				const channel = await ChannelModel.create({
 					name: name.toString().trim(),
@@ -58,6 +65,8 @@ export class ChannelMutationResolver {
 					accessCode: shortid.generate(),
 					isPublic: isPublic ? true : false,
 					owners: moderators ? moderators : [],
+					schoolId: fetchUser.schoolId ? fetchUser.schoolId : undefined,
+					sisId: sisId ? sisId : ''
 				})
 
 				// Subscribe Owner

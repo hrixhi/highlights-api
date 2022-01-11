@@ -42,6 +42,15 @@ export class UserObject {
     public randomShuffleFrequency?: string;
 
     @Field({ nullable: true })
+    public sisId?: string;
+
+    @Field({ nullable: true })
+    public preferredName?: string;
+
+    @Field({ nullable: true })
+    public gradYear?: number;
+
+    @Field({ nullable: true })
     public sleepFrom?: string;
 
     @Field({ nullable: true })

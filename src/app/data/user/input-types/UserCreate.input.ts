@@ -16,4 +16,13 @@ export class UserCreate {
 
     @Field()
     public role: string;
+
+    @Field(type => String, { nullable: true })
+    public sisId?: string;
+
+    @Field(type => String, { nullable: true })
+    public preferredName?: string;
+
+    @Field(type => Number, { nullable: true })
+    public gradYear?: number;
 }

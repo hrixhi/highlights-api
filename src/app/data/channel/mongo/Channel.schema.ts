@@ -33,18 +33,6 @@ const schema = new Schema({
         type: String,
         required: false
     },
-    // startUrl: {
-    //   type: String,
-    //   required: false
-    // },
-    // joinUrl: {
-    //   type: String,
-    //   required: false
-    // },
-    // startedBy: {
-    //   type: String,
-    //   required: false
-    // },
     isPublic: {
         type: Boolean,
         required: false
@@ -58,6 +46,14 @@ const schema = new Schema({
         required: false
     },
     accessCode: {
+        type: String,
+        required: false
+    },
+    schoolId: {
+        type: Types.ObjectId,
+        required: false
+    },
+    sisId: {
         type: String,
         required: false
     }

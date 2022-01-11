@@ -207,30 +207,21 @@ export class UserQueryResolver {
 
     @Field(type => String)
     public async organisationLogin(
-        @Arg('name', type => String)
-        name: string,
+        @Arg('cuesDomain', type => String)
+        cuesDomain: string,
         @Arg('password', type => String)
         password: string
     ) {
         try {
-            const unhashedPasswordFound = await SchoolsModel.findOne({
-                name,
-                password
-            });
-            if (unhashedPasswordFound) {
-                const hash = await hashPassword(password);
-                await SchoolsModel.updateOne({ _id: unhashedPasswordFound._id }, { password: hash });
-                return unhashedPasswordFound._id;
-            } else {
-                const s: any = await SchoolsModel.findOne({ name });
-                if (s) {
-                    const school = s.toObject();
-                    const passwordCorrect = await verifyPassword(password, school.password);
-                    if (passwordCorrect) {
-                        return school._id;
-                    }
+            const s: any = await SchoolsModel.findOne({ cuesDomain });
+            if (s) {
+                const school = s.toObject();
+                const passwordCorrect = await verifyPassword(password, school.password);
+                if (passwordCorrect) {
+                    return school._id;
                 }
             }
+
             return 'error';
         } catch (e) {
             return 'error';

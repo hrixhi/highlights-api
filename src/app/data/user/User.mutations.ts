@@ -376,6 +376,56 @@ export class UserMutationResolver {
 	// 		return "Error: Somthing went wrong";
 	// 	}
 	// }
+	@Field((type) => Boolean)
+	public async updateUserAdmin(
+		@Arg("userId", type => String)
+		userId: string,
+		@Arg("email", type => String)
+		email: string,
+		@Arg("fullName", type => String)
+		fullName: string,
+		@Arg("role", type => String)
+		role: string,
+		@Arg("preferredName", type => String, { nullable: true })
+		preferredName?: string,
+		@Arg("sisId", type => String, { nullable: true })
+		sisId?: string,
+		@Arg("gradYear", type => Number, { nullable: true })
+		gradYear?: number,
+		@Arg("grade", type => String, { nullable: true })
+		grade?: string,
+		@Arg("section", type => String, { nullable: true })
+		section?: string,
+		@Arg("avatar", type => String, { nullable: true })
+		avatar?: string,
+	) {
+
+		try {
+
+			const updateUser = await UserModel.updateOne({
+				_id: userId,
+			}, {
+				email,
+				fullName,
+				role,
+				sisId: sisId && sisId ? sisId : undefined,
+				preferredName: preferredName ? preferredName : undefined,
+				gradYear: gradYear ? gradYear : undefined,
+				grade: role === "instructor" || grade === "-" ? undefined : grade,
+				section:
+					role === "instructor" || section === "-" ? undefined : section,
+				avatar: avatar ? avatar : undefined
+			})
+
+			console.log("Update user", updateUser)
+	
+			return true;
+		} catch (e) {
+			console.log('error', e);
+			return false;
+		}
+		
+	}
 
 	@Field((type) => AddUsersResponseObject)
 	public async addUsersToOrganisation(
@@ -414,7 +464,7 @@ export class UserMutationResolver {
 					
 					let existingUser = fetchUser.toObject()
 
-					if (!existingUser.schoolId || existingUser.schoolId === "") {
+					if (!existingUser.schoolId || existingUser.schoolId === "" || (existingUser.schoolId && existingUser.schoolId.toString() === schoolId)) {
 
 						console.log("Updating user")
 
@@ -424,8 +474,13 @@ export class UserMutationResolver {
 							schoolId,
 							fullName: user.fullName,
 							role: user.role,
-							section: user.section,
-							grade: user.grade
+							grade: user.role === "instructor" || user.grade === "-" ? undefined : user.grade,
+							section:
+								user.role === "instructor" || user.section === "-" ? undefined : user.section,
+							sisId: user.sisId && user.sisId ? user.sisId : undefined,
+							preferredName: user.preferredName ? user.preferredName : undefined,
+							gradYear: user.gradYear ? user.gradYear : undefined,
+							
 						})
 	
 						const emailService = new EmailService();
@@ -465,6 +520,9 @@ export class UserMutationResolver {
 						grade: user.role === "instructor" || user.grade === "-" ? undefined : user.grade,
 						section:
 							user.role === "instructor" || user.section === "-" ? undefined : user.section,
+						sisId: user.sisId && user.sisId ? user.sisId : undefined,
+						preferredName: user.preferredName ? user.preferredName : undefined,
+						gradYear: user.gradYear ? user.gradYear : undefined
 					});
 
 					addSuccess.push(newUser.email)

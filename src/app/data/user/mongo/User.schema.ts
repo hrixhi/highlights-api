@@ -50,6 +50,18 @@ const schema = new Schema(
             type: String,
             required: false
         },
+        sisId: {
+            type: String,
+            required: false
+        },
+        preferredName: {
+            type: String,
+            required: false
+        },
+        gradYear: {
+            type: Number,
+            required: false
+        },
         sleepTo: {
             type: String,
             required: false

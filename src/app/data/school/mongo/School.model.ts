@@ -4,6 +4,7 @@ import { schoolSchema } from './School.schema';
 export interface ISchoolsModel extends Document {
     name: string;
     password: string;
+    cuesDomain: string;
     logo?: string;
     allowStudentChannelCreation?: boolean;
     recoveryEmail?: string;
@@ -11,7 +12,6 @@ export interface ISchoolsModel extends Document {
     workosOrgId?: string;
     ssoEnabled?: boolean;
     ssoDomain?: string;
-    cuesDomain?: string;
     workosConnection?: any;
 }
 

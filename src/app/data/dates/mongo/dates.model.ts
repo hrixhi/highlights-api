@@ -6,7 +6,7 @@ export interface IDateModel extends Document {
     title?: string;
     start: Date;
     end: Date;
-    scheduledMeetingForChannelId?: any;
+    scheduledMeetingForChannelId?: string;
     // Make sure this is undefined for meetings
     isNonMeetingChannelEvent?: boolean;
     // New fields

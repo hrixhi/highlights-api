@@ -4,6 +4,7 @@ import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
 import { Ctx, Field, ObjectType } from 'type-graphql';
 import shortid from 'shortid';
 import { ChannelModel } from '../mongo/Channel.model';
+import { DateModel } from '@app/data/dates/mongo/dates.model';
 
 @ObjectType()
 export class ChannelObject {
@@ -95,7 +96,23 @@ export class ChannelObject {
     }
 
     @Field(type => Boolean, { nullable: true })
-    public meetingOn?: boolean;
+    public async meetingOn() {
+        const localThis: any = this;
+        const { _id } = localThis._doc || localThis;
+
+        const current = new Date();
+
+        const ongoingMeeting = await DateModel.findOne({
+            scheduledMeetingForChannelId: _id,
+            start: { $lte: current },
+            end: { $gte: current },
+            zoomMeetingId: { $ne: undefined }
+        });
+
+        console.log('Ongoing meeting', ongoingMeeting);
+
+        return ongoingMeeting && ongoingMeeting._id ? true : false;
+    }
 
     @Field(type => Boolean, { nullable: true })
     public creatorUnsubscribed?: boolean;
@@ -164,4 +181,7 @@ export class ChannelObject {
 
     @Field(type => [String], { nullable: true })
     public tags?: string[];
+
+    @Field(type => String, { nullable: true })
+    public sisId?: string;
 }

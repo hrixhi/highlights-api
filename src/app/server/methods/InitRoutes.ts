@@ -29,7 +29,8 @@ import { SchoolsModel } from '@app/data/school/mongo/School.model';
 export function initializeRoutes(GQLServer: GraphQLServer) {
     // Joined Zoom meeting
     GQLServer.post('/zoom_participant_joined', async (req: any, res: any) => {
-        console.log('Req', req.headers.authorization);
+        // console.log('Req', req.headers.authorization);
+        console.log('Participant joined', req.body);
 
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
@@ -38,11 +39,8 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             });
         }
 
-        // console.log(req.body);
         const accountId = req.body.payload.account_id;
-        // const channelName = req.body.payload.object.topic;
         const zoomMeetingId = req.body.payload.object.id;
-
         const currentDate = new Date();
 
         // Technically two recurring meetings must be atleast 24 hours apart
@@ -59,22 +57,26 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         console.log('Active date', activeDate);
 
         const u = await UserModel.findOne({ 'zoomInfo.accountId': accountId });
-        // const c = await ChannelModel.findOne({ name: channelName });
+        console.log('User found', u);
 
         if (u && activeDate) {
+            const dateObject = activeDate.toObject();
+
+            console.log('scheduledMeetingForChannelId', dateObject.scheduledMeetingForChannelId);
+
             const attendanceMarked = await AttendanceModel.findOne({
-                dateId: activeDate._id,
+                dateId: dateObject._id,
                 userId: u._id,
-                channelId: activeDate.scheduledMeetingForChannelId
+                channelId: dateObject.scheduledMeetingForChannelId
             });
 
             // If attendance object does not exist then create one
             if (!attendanceMarked || !attendanceMarked.joinedAt) {
                 const res = await AttendanceModel.create({
                     userId: u._id,
-                    dateId: activeDate._id,
+                    dateId: dateObject._id,
                     joinedAt: new Date(),
-                    channelId: activeDate.scheduledMeetingForChannelId
+                    channelId: dateObject.scheduledMeetingForChannelId
                 });
                 console.log('Attendane marked', res);
             }
@@ -88,7 +90,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     // Left Zoom
     GQLServer.post('/zoom_participant_left', async (req: any, res: any) => {
         // console.log(req.body);
-        console.log('Req', req.headers.authorization);
+        // console.log('Req', req.headers.authorization);
 
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
@@ -118,10 +120,12 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         const u = await UserModel.findOne({ 'zoomInfo.accountId': accountId });
 
         if (u && activeDate) {
+            const dateObject = activeDate.toObject();
+
             const attendanceMarked = await AttendanceModel.findOne({
-                dateId: activeDate._id,
+                dateId: dateObject._id,
                 userId: u._id,
-                channelId: activeDate.scheduledMeetingForChannelId
+                channelId: dateObject.scheduledMeetingForChannelId
             });
 
             console.log('Existing attendance', attendanceMarked);
@@ -130,10 +134,10 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             if (!attendanceMarked || !attendanceMarked.joinedAt) {
                 await AttendanceModel.create({
                     userId: u._id,
-                    dateId: activeDate._id,
+                    dateId: dateObject._id,
                     joinedAt: new Date(),
                     leftAt: new Date(),
-                    channelId: activeDate.scheduledMeetingForChannelId
+                    channelId: dateObject.scheduledMeetingForChannelId
                 });
             } else if (attendanceMarked) {
                 await AttendanceModel.updateOne(
@@ -669,16 +673,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             }
         }
 
-        // subscriptions.map(async (sub: any) => {
-
-        // })
-
-        // Fetch all the Activity
-
-        const activity: any[] = await ActivityModel.find({
-            userId
-        });
-
         // Fetch overall scores for
         const overviewData: any[] = [];
 
@@ -688,6 +682,9 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         const gradedAssessmentsMap: any = {};
         const lateAssessmentsMap: any = {};
         const submittedAssessmentsMap: any = {};
+        const threadCountMap: any = {};
+        const totalAttendanceMap: any = {};
+        const attendanceCountMap: any = {};
 
         //
         const scores: any[] = [];
@@ -757,12 +754,42 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     }
                 });
 
+                // Get discussion count
+                const threadCount: any[] = await ThreadModel.find({
+                    userId,
+                    channelId: sub.channelId
+                });
+
+                // Get Attendance
+                const totalAttendances: any[] = await DateModel.find({
+                    isNonMeetingChannelEvent: { $ne: true },
+                    scheduledMeetingForChannelId: sub.channelId,
+                    end: { $lte: new Date() }
+                });
+
+                let attendance = 0;
+
+                const userAttendances = totalAttendances.map(async (attendance: any) => {
+                    const { dateId } = attendance;
+
+                    const present = await AttendanceModel.findOne({
+                        dateId
+                    });
+
+                    if (present) {
+                        attendance += 1;
+                    }
+                });
+
                 scoreMap[sub.channelId] = total === 0 ? 0 : ((score / total) * 100).toFixed(2).replace(/\.0+$/, '');
                 totalMap[sub.channelId] = total;
                 totalAssessmentsMap[sub.channelId] = totalAssessments;
                 lateAssessmentsMap[sub.channelId] = lateAssessments;
                 gradedAssessmentsMap[sub.channelId] = gradedAssessments;
                 submittedAssessmentsMap[sub.channelId] = submittedAssesments;
+                threadCountMap[sub.channelId] = threadCount.length;
+                totalAttendanceMap[sub.channelId] = totalAttendances.length;
+                attendanceCountMap[sub.channelId] = attendance;
             }
         }
 
@@ -774,13 +801,15 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 totalAssessments: totalAssessmentsMap[key],
                 lateAssessments: lateAssessmentsMap[key],
                 gradedAssessments: gradedAssessmentsMap[key],
-                submittedAssessments: submittedAssessmentsMap[key]
+                submittedAssessments: submittedAssessmentsMap[key],
+                threadCount: threadCountMap[key],
+                totalAttendance: totalAttendanceMap[key],
+                attendanceCount: attendanceCountMap[key]
             });
         });
 
         return res.send({
             channels,
-            activity,
             overviewData,
             scores
         });

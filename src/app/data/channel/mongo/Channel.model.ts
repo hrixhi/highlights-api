@@ -20,6 +20,9 @@ export interface IChannelModel extends Document {
     // joinUrl?: string;
     meetingOn?: boolean;
     // startedBy?: string;
+    channelId?: string;
+    schoolId?: string;
+    sisId?: string;
 }
 
 export const ChannelModel: Model<IChannelModel> = model<IChannelModel>('channels', channelSchema);

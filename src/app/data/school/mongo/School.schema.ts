@@ -29,6 +29,11 @@ const schema = new Schema({
         type: String,
         required: true
     },
+    cuesDomain: {
+        type: String,
+        required: true,
+        unique: true
+    },
     logo: {
         type: String,
         required: false
@@ -54,11 +59,6 @@ const schema = new Schema({
         required: false
     },
     ssoDomain: {
-        type: String,
-        required: false,
-        unique: true
-    },
-    cuesDomain: {
         type: String,
         required: false,
         unique: true
