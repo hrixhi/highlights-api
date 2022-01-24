@@ -108,22 +108,27 @@ export class CueMutationResolver {
 						cueId: newCue._id,
 						userId,
 						graded: false,
-						score: 0,
 						cue: ''
 					})
 				})
 			} else {
 				const subscriptions = await SubscriptionModel.find({
-					$and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
+					channelId, unsubscribedAt: { $exists: false } 
 				})
+
 				subscriptions.map((s) => {
 					userIds.push(s.userId)
+				})
+
+				// Extra step to prevent duplication in case there are multiple subs created by mistake
+				const allUsers = await UserModel.find({ _id: { $in: userIds } })
+				
+ 				allUsers.map((user: any) => {
 					modifications.push({
 						...c,
 						cueId: newCue._id,
-						userId: s.userId,
+						userId: user._id,
 						graded: false,
-						score: 0,
 						cue: ''
 					})
 				})
@@ -132,6 +137,7 @@ export class CueMutationResolver {
 			await ModificationsModel.insertMany(modifications)
 			// load subscribers
 			const subscribers = await UserModel.find({ _id: { $in: userIds } })
+
 
 			const activity: any[] = []
 
@@ -402,9 +408,7 @@ export class CueMutationResolver {
 							allowedAttempts: (c.allowedAttempts) ? Number(c.allowedAttempts) : null
 						})
 						// get the cue back to the main owner
-						await ModificationsModel.updateOne({ _id: userId }, { cue: tempCue, annotations: tempAnnotations })
-						// also update original cue !!
-
+						 await ModificationsModel.updateOne({ cueId: cue._id, userId }, { cue: tempCue, annotations: tempAnnotations })
 					}
 				} else {
 					// Local cue

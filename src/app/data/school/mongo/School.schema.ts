@@ -60,11 +60,14 @@ const schema = new Schema({
     },
     ssoDomain: {
         type: String,
-        required: false,
-        unique: true
+        required: false
     },
     workosConnection: {
         type: workosConnectionSchema,
+        required: false
+    },
+    meetingProvider: {
+        type: String,
         required: false
     }
 });

@@ -13,6 +13,7 @@ export interface ISchoolsModel extends Document {
     ssoEnabled?: boolean;
     ssoDomain?: string;
     workosConnection?: any;
+    meetingProvider?: string;
 }
 
 export const SchoolsModel: Model<ISchoolsModel> = model<ISchoolsModel>('schools', schoolSchema);

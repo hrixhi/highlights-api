@@ -347,6 +347,10 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     GQLServer.post('/api/upload', (req: any, res: any) => {
         // this body field is used for recognizition if attachment is EventImage, Asset or simillar.
 
+        const { userId = '' } = req.body;
+
+        let filePath = userId !== '' ? 'media/' + userId + '/' : 'media/all/';
+
         const typeOfUpload = req.body.typeOfUpload;
         const busboy = new Busboy({ headers: req.headers });
         // The file upload has completed
@@ -371,7 +375,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 params = {
                     Bucket: 'cues-files',
                     Body: file.data,
-                    Key: 'media/' + typeOfUpload + '/' + Date.now() + '_' + basename(file.name)
+                    Key: filePath + typeOfUpload + '/' + Date.now() + '_' + basename(file.name)
                 };
 
                 s3.upload(params, (err: any, data: any) => {
@@ -398,6 +402,12 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     });
 
     GQLServer.post('/api/imageUploadEditor', (req: any, res: any) => {
+        // console.log('Req', req.files);
+
+        const { userId } = req.body;
+        // return res.status(400);
+        const { file } = req.files;
+
         AWS.config.update({
             accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',
             secretAccessKey: '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'
@@ -406,16 +416,18 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         const s3 = new AWS.S3();
         // configuring parameters
 
-        const file = req.files.file;
-
         console.log('request', file);
+
+        let filePath = userId !== '' ? 'media/' + userId + '/' : 'media/all/';
+
+        console.log('File path', filePath);
 
         let params: any;
         try {
             params = {
                 Bucket: 'cues-files',
                 Body: file.data,
-                Key: 'media/' + file.mimetype + '/' + Date.now() + '_' + basename(file.name)
+                Key: filePath + file.mimetype + '/' + Date.now() + '_' + basename(file.name)
             };
 
             s3.upload(params, (err: any, data: any) => {
@@ -430,7 +442,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 if (data) {
                     res.json({
                         // status: "success",
-                        location: data.Location
+                        link: data.Location
                     });
                 }
             });
@@ -531,7 +543,21 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             // search through cues - messages - threads - channels
             // return result, type, add. data to lead to the result
 
+            // For channels, must check for schoolID
+            const findUser = await UserModel.findById(userId);
+
+            if (!findUser) {
+                return null;
+            }
+
             const toReturn: any = {};
+
+            const schoolId = findUser.schoolId ? findUser.schoolId : '';
+
+            // Channels
+            const channels = await ChannelModel.find({ name: new RegExp(term, 'i'), schoolId });
+            toReturn['channels'] = channels;
+
             const subscriptions = await SubscriptionModel.find({
                 $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }]
             });
@@ -539,10 +565,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 const sub = s.toObject();
                 return sub.channelId;
             });
-
-            // Channels
-            const channels = await ChannelModel.find({ name: new RegExp(term, 'i') });
-            toReturn['channels'] = channels;
 
             // Cues
             const personalCues = await CueModel.find({
@@ -610,7 +632,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             // threads
             const threads = await ThreadModel.find({
                 channelId: { $in: channelIds },
-                message: new RegExp(term)
+                message: new RegExp(term, 'i')
             });
             toReturn['threads'] = threads;
 
@@ -695,10 +717,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             if (sub.role === 'Viewer') {
                 const mods = await ModificationsModel.find({
                     channelId: sub.channelId,
-                    submission: true,
-                    userId,
-                    graded: true,
-                    releaseSubmission: true
+                    userId
                 });
 
                 let score = 0;
@@ -735,8 +754,12 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 mods.map((m: any) => {
                     const mod = m.toObject();
                     if (mod.gradeWeight !== undefined && mod.gradeWeight !== null) {
-                        score += mod.graded ? (mod.score * mod.gradeWeight) / 100 : 0;
-                        total += mod.gradeWeight;
+                        score += mod.releaseSubmission
+                            ? mod.submittedAt && mod.graded
+                                ? (mod.score * mod.gradeWeight) / 100
+                                : 0
+                            : 0;
+                        total += mod.releaseSubmission ? mod.gradeWeight : 0;
                         totalAssessments += 1;
                         if (mod.graded) {
                             gradedAssessments += 1;

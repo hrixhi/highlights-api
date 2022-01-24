@@ -15,7 +15,11 @@ export class ActivityQueryResolver {
         userId: string
     ) {
         try {
-            return await ActivityModel.find({ userId }).limit(50);
+            return await ActivityModel.find({ userId })
+                .sort({
+                    date: -1
+                })
+                .limit(50);
         } catch (e) {
             console.log(e);
             return [];

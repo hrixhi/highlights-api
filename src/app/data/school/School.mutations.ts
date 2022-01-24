@@ -89,6 +89,56 @@ export class SchoolMutationResolver {
     @Field(type => Boolean, {
         description: 'Used to update school admin details.'
     })
+    public async activateSSOForOrg(
+        @Arg('cuesDomain', type => String)
+        cuesDomain: string,
+        @Arg('ssoDomain', type => String)
+        ssoDomain: string
+    ) {
+        try {
+            if (!cuesDomain || !ssoDomain) return false;
+
+            const school = await SchoolsModel.findOne({
+                cuesDomain
+            });
+
+            if (!school) return false;
+
+            const workos = new WorkOS(WORKOS_API_KEY);
+
+            const organization = await workos.organizations.createOrganization({
+                name: school.name,
+                domains: [ssoDomain]
+            });
+
+            console.log('Created WorkOS Organization', organization);
+
+            if (organization && organization.id) {
+                const updateMongo = await SchoolsModel.updateOne(
+                    {
+                        _id: school._id
+                    },
+                    {
+                        workosOrgId: organization.id,
+                        ssoDomain,
+                        ssoEnabled: true
+                    }
+                );
+
+                console.log('updateMongo', updateMongo);
+
+                return true;
+            }
+
+            return false;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    @Field(type => Boolean, {
+        description: 'Used to update school admin details.'
+    })
     public async update(
         @Arg('schoolId', type => String)
         schoolId: string,
@@ -490,6 +540,34 @@ export class SchoolMutationResolver {
                 failed: [],
                 error: 'Something went wrong. Try again.'
             };
+        }
+    }
+
+    @Field(type => Boolean, {
+        description: 'Used to add courses to a school.'
+    })
+    public async updateMeetingProvider(
+        @Arg('schoolId', type => String)
+        schoolId: string,
+        @Arg('meetingProvider', type => String)
+        meetingProvider: string
+    ) {
+        try {
+            const updateMeeting = await SchoolsModel.updateOne(
+                {
+                    _id: schoolId
+                },
+                {
+                    meetingProvider: meetingProvider === 'zoom' ? undefined : meetingProvider
+                }
+            );
+
+            console.log('Update meeting', updateMeeting);
+
+            return updateMeeting.nModified > 0;
+        } catch (e) {
+            console.log('Error', e);
+            return false;
         }
     }
 }

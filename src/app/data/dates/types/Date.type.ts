@@ -4,6 +4,7 @@ import { Ctx, Field, ObjectType } from 'type-graphql';
 import { ModificationsModel } from '@app/data/modification/mongo/Modification.model';
 import { CueModel } from '@app/data/cue/mongo/Cue.model';
 import { UserModel } from '@app/data/user/mongo/User.model';
+import { SchoolsModel } from '@app/data/school/mongo/School.model';
 
 @ObjectType()
 export class EventObject {
@@ -178,6 +179,31 @@ export class EventObject {
         }
 
         return null;
+    }
+
+    @Field(type => String, { nullable: true })
+    public async meetingLink() {
+        const localThis: any = this;
+        const { userId, scheduledMeetingForChannelId } = localThis._doc || localThis;
+
+        const findUser = await UserModel.findById(userId);
+
+        if (!findUser || !findUser.schoolId) return null;
+
+        const org = await SchoolsModel.findById(findUser.schoolId);
+
+        if (org && org.meetingProvider && org.meetingProvider !== '') {
+            const course = await ChannelModel.findById(scheduledMeetingForChannelId);
+
+            if (course && course.meetingUrl) {
+                console.log('Meeting link', course.meetingUrl);
+                return course.meetingUrl;
+            }
+
+            return null;
+        } else {
+            return null;
+        }
     }
 }
 

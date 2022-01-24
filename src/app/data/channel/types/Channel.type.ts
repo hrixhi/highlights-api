@@ -106,10 +106,8 @@ export class ChannelObject {
             scheduledMeetingForChannelId: _id,
             start: { $lte: current },
             end: { $gte: current },
-            zoomMeetingId: { $ne: undefined }
+            isNonMeetingChannelEvent: { $ne: true }
         });
-
-        console.log('Ongoing meeting', ongoingMeeting);
 
         return ongoingMeeting && ongoingMeeting._id ? true : false;
     }
@@ -184,4 +182,7 @@ export class ChannelObject {
 
     @Field(type => String, { nullable: true })
     public sisId?: string;
+
+    @Field(type => String, { nullable: true })
+    public meetingUrl?: string;
 }

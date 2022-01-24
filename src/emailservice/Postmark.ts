@@ -1,10 +1,10 @@
 const postmark = require('postmark');
-const client = new postmark.Client('3fac3fba-a29e-4719-8420-3e18186152c5');
+const client = new postmark.Client('d381fb20-f2d7-4b6b-9c97-0da983ae885d');
 
 export class EmailService {
     public addedToOrgConfirm(email: string, orgName: string) {
         client.sendEmail({
-            From: 'info@cuesapp.co',
+            From: 'support@learnwithcues.com',
             To: email,
             Subject: 'CUES - You have been added to the ' + orgName + ' organisation.',
             TextBody: 'Visit app.learnwithcues.com to log in. You will be notified if you are added to any courses.'
@@ -13,7 +13,7 @@ export class EmailService {
 
     public newAccountAddedToOrgConfirm(email: string, name: string, password: string, orgName: string) {
         client.sendEmail({
-            From: 'info@cuesapp.co',
+            From: 'support@learnwithcues.com',
             To: email,
             Subject: 'CUES - You have been added to the ' + orgName + ' organisation.',
             TextBody:
@@ -29,7 +29,7 @@ export class EmailService {
 
     public existingAccountAddedToOrgConfirm(email: string, name: string, orgName: string) {
         client.sendEmail({
-            From: 'info@cuesapp.co',
+            From: 'support@learnwithcues.com',
             To: email,
             Subject: 'CUES - You have been added to the ' + orgName + ' organisation.',
             TextBody:
@@ -44,7 +44,7 @@ export class EmailService {
 
     public inviteByEmail(email: string, channelName: string) {
         client.sendEmail({
-            From: 'info@cuesapp.co',
+            From: 'support@learnwithcues.com',
             To: email,
             Subject: 'CUES - You have been added to the ' + channelName + ' classroom.',
             TextBody: 'Visit app.learnwithcues.com to log in and view your course.'
@@ -53,7 +53,7 @@ export class EmailService {
 
     public newAccountInviteByEmail(email: string, password: string, channelName: string) {
         client.sendEmail({
-            From: 'info@cuesapp.co',
+            From: 'support@learnwithcues.com',
             To: email,
             Subject: 'CUES - You have been added to the ' + channelName + ' classroom.',
             TextBody:
@@ -67,7 +67,7 @@ export class EmailService {
 
     public resetPassword(email: string, password: string) {
         client.sendEmail({
-            From: 'info@cuesapp.co',
+            From: 'support@learnwithcues.com',
             To: email,
             Subject: 'CUES - Your password has been reset.',
             TextBody:
@@ -78,7 +78,7 @@ export class EmailService {
 
     public ssoRequest(schoolName: string, ssoDomain: string, cuesDomain: string) {
         client.sendEmail({
-            From: 'info@cuesapp.co',
+            From: 'support@learnwithcues.com',
             To: 'prabirvora@gmail.com',
             Subject: 'New Request to Activate SSO - ' + schoolName,
             TextBody:

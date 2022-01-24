@@ -39,4 +39,7 @@ export class SchoolObject {
 
         return true;
     }
+
+    @Field(type => String, { nullable: true })
+    public meetingProvider?: string;
 }

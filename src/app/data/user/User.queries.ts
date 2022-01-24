@@ -256,10 +256,7 @@ export class UserQueryResolver {
                         const subscription = subs[x].toObject();
                         const mods = await ModificationsModel.find({
                             channelId: subscription.channelId,
-                            submission: true,
-                            userId,
-                            graded: true,
-                            releaseSubmission: true
+                            userId
                         });
 
                         let score = 0;
@@ -272,8 +269,12 @@ export class UserQueryResolver {
                         mods.map((m: any) => {
                             const mod = m.toObject();
                             if (mod.gradeWeight !== undefined && mod.gradeWeight !== null) {
-                                score += mod.graded ? (mod.score * mod.gradeWeight) / 100 : 0;
-                                total += mod.gradeWeight;
+                                score += mod.releaseSubmission
+                                    ? mod.submittedAt && mod.graded
+                                        ? (mod.score * mod.gradeWeight) / 100
+                                        : 0
+                                    : 0;
+                                total += mod.releaseSubmission ? mod.gradeWeight : 0;
                                 totalAssessments += 1;
                                 if (mod.graded) {
                                     gradedAssessments += 1;
@@ -532,8 +533,6 @@ export class UserQueryResolver {
                 ssoEnabled: true,
                 workosConnection: { $ne: undefined }
             });
-
-            console.log('Found SSO', foundSSO);
 
             if (foundSSO && foundSSO.workosConnection && foundSSO.workosConnection.state === 'active') {
                 return true;

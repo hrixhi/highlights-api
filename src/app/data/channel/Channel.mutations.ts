@@ -1,4 +1,4 @@
-import { Arg, Field, ObjectType } from 'type-graphql';
+import { Arg, Field, ObjectType, Subscription } from 'type-graphql';
 import { ChannelModel } from './mongo/Channel.model'
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import Expo from 'expo-server-sdk';
@@ -16,6 +16,7 @@ import axios from 'axios'
 import shortid from 'shortid';
 import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials'
 import moment from 'moment';
+import { SchoolsModel } from '../school/mongo/School.model';
 
 /**
  * Channel Mutation Endpoints
@@ -656,177 +657,289 @@ export class ChannelMutationResolver {
 			const u: any = await UserModel.findById(userId);
 			const c: any = await ChannelModel.findById(channelId);
 			if (u && c) {
+
 				const user = u.toObject();
 				const channel = c.toObject();
 
-				if (!user.zoomInfo) {
-					return 'error'
-				} else {
-					accessToken = user.zoomInfo.accessToken
+				let useZoom = true;
+
+				if (user.schoolId && user.schoolId !== '') {
+					const org = await SchoolsModel.findById(user.schoolId);
+
+					if (org && org.meetingProvider && org.meetingProvider !== '') {
+						useZoom = false;
+					}
 				}
+				
 
-				const b = Buffer.from(zoomClientId + ":" + zoomClientSecret);
+				if (useZoom) {
 
-				const date = new Date()
-				const expiresOn = new Date(user.zoomInfo.expiresOn)
-
-				if (expiresOn <= date) {
-					// refresh access token
-
-					const zoomRes: any = await axios.post(
-						`https://zoom.us/oauth/token?grant_type=refresh_token&refresh_token=${user.zoomInfo.refreshToken}`, undefined, {
-						headers: {
-							Authorization: `Basic ${b.toString("base64")}`,
-							"Content-Type": 'application/x-www-form-urlencoded'
-						},
-					});
 					
-					if (zoomRes.status !== 200) {
+					if (!user.zoomInfo) {
 						return 'error'
+					} else {
+						accessToken = user.zoomInfo.accessToken
 					}
 
-					const zoomData: any = zoomRes.data
+					const b = Buffer.from(zoomClientId + ":" + zoomClientSecret);
 
-					const eOn = new Date()
-					eOn.setSeconds(eOn.getSeconds() + (Number.isNaN(Number(zoomData.expires_in)) ? 0 : Number(zoomData.expires_in)))
+					const date = new Date()
+					const expiresOn = new Date(user.zoomInfo.expiresOn)
 
-					accessToken = zoomData.access_token
+					if (expiresOn <= date) {
+						// refresh access token
 
-					await UserModel.updateOne({ _id: userId }, {
-						zoomInfo: {
-							...user.zoomInfo,
-							accessToken: zoomData.access_token,
-							refreshToken: zoomData.refresh_token,
-							expiresOn: eOn	// saved as a date
+						const zoomRes: any = await axios.post(
+							`https://zoom.us/oauth/token?grant_type=refresh_token&refresh_token=${user.zoomInfo.refreshToken}`, undefined, {
+							headers: {
+								Authorization: `Basic ${b.toString("base64")}`,
+								"Content-Type": 'application/x-www-form-urlencoded'
+							},
+						});
+						
+						if (zoomRes.status !== 200) {
+							return 'error'
 						}
-					})
 
-				}
+						const zoomData: any = zoomRes.data
 
-				let owner = true
-				if (channel.owners) {
-					channel.owners.map((uId: any) => {
-						if (uId.toString().trim() === userId.toString().trim()) {
-							owner = true
+						const eOn = new Date()
+						eOn.setSeconds(eOn.getSeconds() + (Number.isNaN(Number(zoomData.expires_in)) ? 0 : Number(zoomData.expires_in)))
+
+						accessToken = zoomData.access_token
+
+						await UserModel.updateOne({ _id: userId }, {
+							zoomInfo: {
+								...user.zoomInfo,
+								accessToken: zoomData.access_token,
+								refreshToken: zoomData.refresh_token,
+								expiresOn: eOn	// saved as a date
+							}
+						})
+
+					}
+
+					let owner = true
+					if (channel.owners) {
+						channel.owners.map((uId: any) => {
+							if (uId.toString().trim() === userId.toString().trim()) {
+								owner = true
+							}
+						})
+					}
+					if (channel.createdBy.toString().trim() === userId.toString().trim()) {
+						owner = true
+					}
+
+					if (!owner) {
+						// meeting not started
+						return 'error'
+					} else {
+
+						// CREATE MEETING
+						const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
+						.tz('UTC')
+						.format();
+
+						// create meeting
+						const zoomRes: any = await axios.post(
+							`https://api.zoom.us/v2/users/me/meetings`,
+							{
+								topic: channel.name + '- ' + title,
+								agenda: description,
+								type: 2,
+								start_time: utcTime + 'Z',
+								duration
+							}, {
+							headers: {
+								Authorization: `Bearer ${accessToken}`,
+							},
+						});
+
+						if (zoomRes.status !== 200 && zoomRes.status !== 201) {
+							return 'error'
 						}
-					})
-				}
-				if (channel.createdBy.toString().trim() === userId.toString().trim()) {
-					owner = true
-				}
 
-				if (!owner) {
-					// meeting not started
-					return 'error'
+						const zoomData: any = zoomRes.data
+
+						if (zoomData.id) {
+
+							// Create a new Date 
+							await DateModel.create({
+								userId,
+								title,
+								start: new Date(start),
+								end: new Date(end),
+								isNonMeetingChannelEvent: undefined,
+								scheduledMeetingForChannelId: channelId,
+								description,
+								zoomMeetingId: zoomData.id,
+								zoomStartUrl: zoomData.start_url,
+								zoomJoinUrl: zoomData.join_url,
+								zoomMeetingScheduledBy: userId,
+								recordMeeting: true
+							});
+
+						} else {
+							return 'error'
+
+						}
+
+						if (notifyUsers) {
+
+							const subscriptions = await SubscriptionModel.find({
+								channelId,
+								unsubscribedAt: { $exists: false }
+							})
+
+							const subscriberIds = subscriptions.map((sub: any) => sub.userId);
+
+							// Alert all the users in the channel
+							const userDocs = await UserModel.find({ _id: { $in: subscriberIds } })
+							let title = channel.name + '- New meeting started'
+							let messages: any[] = []
+
+							// Web notifications
+							const oneSignalClient = new OneSignal.Client(
+								'78cd253e-262d-4517-a710-8719abf3ee55',
+								'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+							);
+							const notification = {
+								contents: {
+									'en': channel.name + ' - New meeting started.'
+								},
+								include_external_user_ids: subscriberIds
+							}
+							const response = await oneSignalClient.createNotification(notification)
+							userDocs.map(u => {
+								const sub = u.toObject()
+								const notificationIds = sub.notificationId.split('-BREAK-')
+								notificationIds.map((notifId: any) => {
+									if (!Expo.isExpoPushToken(notifId)) {
+										return
+									}
+									messages.push({
+										to: notifId,
+										sound: 'default',
+										subtitle: '',
+										title,
+										data: { userId: sub._id },
+									})
+								})
+							})
+							const notificationService = new Expo()
+							let chunks = notificationService.chunkPushNotifications(messages);
+							for (let chunk of chunks) {
+								try {
+									await notificationService.sendPushNotificationsAsync(chunk);
+								} catch (e) {
+									console.error(e);
+								}
+							}
+
+						}
+
+						return zoomData.start_url
+					}
+
 				} else {
 
-					// CREATE MEETING
-					const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
-					.tz('UTC')
-					.format();
-
-					// create meeting
-					const zoomRes: any = await axios.post(
-						`https://api.zoom.us/v2/users/me/meetings`,
-						{
-							topic: channel.name + '- ' + title,
-							agenda: description,
-							type: 2,
-							start_time: utcTime + 'Z',
-							duration
-						}, {
-						headers: {
-							Authorization: `Bearer ${accessToken}`,
-						},
-					});
-
-					if (zoomRes.status !== 200 && zoomRes.status !== 201) {
-						return 'error'
+					let owner = true
+					if (channel.owners) {
+						channel.owners.map((uId: any) => {
+							if (uId.toString().trim() === userId.toString().trim()) {
+								owner = true
+							}
+						})
+					}
+					if (channel.createdBy.toString().trim() === userId.toString().trim()) {
+						owner = true
 					}
 
-					const zoomData: any = zoomRes.data
+					if (!owner) {
+						// meeting not started
+						return 'error'
+					} else {
 
-					if (zoomData.id) {
+						// CHECK IF MEETING LINK HAS BEEN SET FOR THE COURSE
 
-						// Create a new Date 
+						if (!channel.meetingUrl || channel.meetingUrl === '') {
+							return 'MEETING_LINK_NOT_SET'
+						}
+
+						// CREATE MEETING
 						await DateModel.create({
-							userId: undefined,
+							userId,
 							title,
 							start: new Date(start),
 							end: new Date(end),
 							isNonMeetingChannelEvent: undefined,
 							scheduledMeetingForChannelId: channelId,
 							description,
-							zoomMeetingId: zoomData.id,
-							zoomStartUrl: zoomData.start_url,
-							zoomJoinUrl: zoomData.join_url,
-							zoomMeetingScheduledBy: userId,
 							recordMeeting: true
 						});
 
-					} else {
-						return 'error'
+						if (notifyUsers) {
 
-					}
+							const subscriptions = await SubscriptionModel.find({
+								channelId,
+								unsubscribedAt: { $exists: false }
+							})
 
-					if (notifyUsers) {
+							const subscriberIds = subscriptions.map((sub: any) => sub.userId);
 
-						const subscriptions = await SubscriptionModel.find({
-							channelId,
-							unsubscribedAt: { $exists: false }
-						})
+							// Alert all the users in the channel
+							const userDocs = await UserModel.find({ _id: { $in: subscriberIds } })
+							let title = channel.name + '- New meeting started'
+							let messages: any[] = []
 
-						const subscriberIds = subscriptions.map((sub: any) => sub.userId);
-
-						// Alert all the users in the channel
-						const userDocs = await UserModel.find({ _id: { $in: subscriberIds } })
-						let title = channel.name + '- New meeting started'
-						let messages: any[] = []
-
-						// Web notifications
-						const oneSignalClient = new OneSignal.Client(
-							'78cd253e-262d-4517-a710-8719abf3ee55',
-							'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
-						);
-						const notification = {
-							contents: {
-								'en': channel.name + ' - New meeting started.'
-							},
-							include_external_user_ids: subscriberIds
-						}
-						const response = await oneSignalClient.createNotification(notification)
-						userDocs.map(u => {
-							const sub = u.toObject()
-							const notificationIds = sub.notificationId.split('-BREAK-')
-							notificationIds.map((notifId: any) => {
-								if (!Expo.isExpoPushToken(notifId)) {
-									return
-								}
-								messages.push({
-									to: notifId,
-									sound: 'default',
-									subtitle: '',
-									title,
-									data: { userId: sub._id },
+							// Web notifications
+							const oneSignalClient = new OneSignal.Client(
+								'78cd253e-262d-4517-a710-8719abf3ee55',
+								'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+							);
+							const notification = {
+								contents: {
+									'en': channel.name + ' - New meeting started.'
+								},
+								include_external_user_ids: subscriberIds
+							}
+							const response = await oneSignalClient.createNotification(notification)
+							userDocs.map(u => {
+								const sub = u.toObject()
+								const notificationIds = sub.notificationId.split('-BREAK-')
+								notificationIds.map((notifId: any) => {
+									if (!Expo.isExpoPushToken(notifId)) {
+										return
+									}
+									messages.push({
+										to: notifId,
+										sound: 'default',
+										subtitle: '',
+										title,
+										data: { userId: sub._id },
+									})
 								})
 							})
-						})
-						const notificationService = new Expo()
-						let chunks = notificationService.chunkPushNotifications(messages);
-						for (let chunk of chunks) {
-							try {
-								await notificationService.sendPushNotificationsAsync(chunk);
-							} catch (e) {
-								console.error(e);
+							const notificationService = new Expo()
+							let chunks = notificationService.chunkPushNotifications(messages);
+							for (let chunk of chunks) {
+								try {
+									await notificationService.sendPushNotificationsAsync(chunk);
+								} catch (e) {
+									console.error(e);
+								}
 							}
+
 						}
 
+						return channel.meetingUrl
 					}
 
-					return zoomData.start_url
 				}
 
-			}
+
+			} 
 			return 'error'
 		} catch (e) {
 			console.log(e)
@@ -1373,8 +1486,17 @@ export class ChannelMutationResolver {
 		try {
 
 			// Delete subscriptions
-			await SubscriptionModel.deleteMany({
+			// await SubscriptionModel.deleteMany({
+			// 	channelId
+			// })
+
+			// First 
+
+			await SubscriptionModel.updateMany({
 				channelId
+			}, {
+				unsubscribedAt: new Date(),
+				keepContent: true
 			})
 
 			// Delete all channel related stuff too
@@ -1382,12 +1504,11 @@ export class ChannelMutationResolver {
 				channelId
 			})
 
-			await ActivityModel.deleteMany({
-				channelId
-			})
 
-			await ChannelModel.deleteOne({
+			await ChannelModel.updateOne({
 				_id: channelId
+			}, {
+				deletedAt: new Date()
 			})
 
 			return true;
@@ -1413,7 +1534,9 @@ export class ChannelMutationResolver {
 		@Arg('colorCode', type => String, { nullable: true }) colorCode?: string,
 		@Arg('description', type => String, { nullable: true }) description?: string,
 		@Arg('tags', type => [String], { nullable: true }) tags?: string[],
-		@Arg('isPublic', type => Boolean, { nullable: true }) isPublic?: boolean
+		@Arg('isPublic', type => Boolean, { nullable: true }) isPublic?: boolean,
+		@Arg('sisId', type => String, { nullable: true }) sisId?: string,
+		@Arg('meetingUrl', type => String, { nullable: true }) meetingUrl?: string
 	) {
 		try {
 
@@ -1491,17 +1614,17 @@ export class ChannelMutationResolver {
 					})
 				})
 
-				await SubscriptionModel.updateMany({
-					userId,
-					channelId: channel._id,
-					unsubscribedAt: { $exists: true }
-				}, {
-					keepContent: false
-				})
+				// await SubscriptionModel.updateMany({
+				// 	userId,
+				// 	channelId: channel._id,
+				// 	unsubscribedAt: { $exists: true }
+				// }, {
+				// 	keepContent: false
+				// })
 				// subscribe 
-				await SubscriptionModel.create({
-					userId, channelId: channel._id
-				})
+				// await SubscriptionModel.create({
+				// 	userId, channelId: channel._id
+				// })
 
 				// Check if channel owner, if yes then update creatorUnsubscribed: true
 				if (channel.createdBy.toString().trim() === userId.toString().trim()) {
@@ -1524,7 +1647,9 @@ export class ChannelMutationResolver {
 					colorCode: colorCode ? colorCode : channel.colorCode,
 					isPublic: isPublic ? true : false,
 					tags: tags ? tags : [],
-					description
+					description,
+					sisId: sisId ? sisId : '',
+					meetingUrl: meetingUrl ? meetingUrl : ''
 				}
 			)
 

@@ -2,7 +2,6 @@ import { Field, ObjectType } from 'type-graphql';
 
 @ObjectType()
 export class ScoreObject {
-
     @Field()
     public cueId: string;
 
@@ -18,11 +17,12 @@ export class ScoreObject {
     @Field({ nullable: true })
     public graded: boolean;
 
+    @Field({ nullable: true })
+    public releaseSubmission: boolean;
 }
 
 @ObjectType()
 export class GradeObject {
-
     @Field()
     public userId: string;
 
@@ -30,12 +30,11 @@ export class GradeObject {
     public displayName: string;
 
     @Field(type => String)
-    public fullName: string
+    public fullName: string;
 
     @Field(type => String, { nullable: true })
-    public email: string
+    public email: string;
 
     @Field(type => [ScoreObject])
     public scores: ScoreObject[];
-
 }

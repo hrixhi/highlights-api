@@ -23,6 +23,9 @@ export interface IChannelModel extends Document {
     channelId?: string;
     schoolId?: string;
     sisId?: string;
+    deletedAt?: Date;
+    // FOR OTHER VIDEO CONFERENCING TOOLS
+    meetingUrl?: string;
 }
 
 export const ChannelModel: Model<IChannelModel> = model<IChannelModel>('channels', channelSchema);

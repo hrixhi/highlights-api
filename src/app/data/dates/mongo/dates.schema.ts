@@ -59,6 +59,11 @@ const schema = new Schema({
         type: String,
         required: false
     }
+    // NON-ZOOM VIDEO TOOLS
+    // meetingUrl: {
+    //     type: String,
+    //     required: false
+    // }
 });
 
 export const dateSchema = schema;

@@ -56,6 +56,14 @@ const schema = new Schema({
     sisId: {
         type: String,
         required: false
+    },
+    deletedAt: {
+        type: Date,
+        required: false
+    },
+    meetingUrl: {
+        type: String,
+        required: false
     }
 });
 

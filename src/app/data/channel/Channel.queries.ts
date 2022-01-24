@@ -17,6 +17,7 @@ import { DateModel } from '../dates/mongo/dates.model';
 import axios from 'axios';
 import { MeetingStatusObject } from './types/MeetingStatus.type';
 import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials';
+import { SchoolsModel } from '../school/mongo/School.model';
 
 /**
  * Channel Query Endpoints
@@ -543,7 +544,8 @@ export class ChannelQueryResolver {
                         gradeWeight: modification.gradeWeight,
                         cueId: modification.cueId,
                         graded: modification.graded,
-                        submittedAt: modification.submittedAt
+                        submittedAt: modification.submittedAt,
+                        releaseSubmission: modification.releaseSubmission
                     });
                 } else {
                     userIds.push(modification.userId);
@@ -553,7 +555,8 @@ export class ChannelQueryResolver {
                             gradeWeight: modification.gradeWeight,
                             cueId: modification.cueId,
                             graded: modification.graded,
-                            submittedAt: modification.submittedAt
+                            submittedAt: modification.submittedAt,
+                            releaseSubmission: modification.releaseSubmission
                         }
                     ];
                 }
@@ -734,20 +737,41 @@ export class ChannelQueryResolver {
                     isOwner = true;
                 }
 
-                const dates = await DateModel.find({
-                    scheduledMeetingForChannelId: channelId,
-                    isNonMeetingChannelEvent: { $ne: true },
-                    zoomMeetingId: { $ne: undefined },
-                    zoomMeetingScheduledBy: { $ne: undefined },
-                    start: { $lte: new Date() },
-                    end: { $gte: new Date() }
-                });
+                let useZoom = true;
+
+                if (user.schoolId) {
+                    const org = await SchoolsModel.findById(user.schoolId);
+
+                    if (org && org.meetingProvider && org.meetingProvider !== '') {
+                        useZoom = false;
+                    }
+                }
+
+                let dates: any[] = [];
+
+                if (useZoom) {
+                    dates = await DateModel.find({
+                        scheduledMeetingForChannelId: channelId,
+                        isNonMeetingChannelEvent: { $ne: true },
+                        zoomMeetingId: { $ne: undefined },
+                        zoomMeetingScheduledBy: { $ne: undefined },
+                        start: { $lte: new Date() },
+                        end: { $gte: new Date() }
+                    });
+                } else {
+                    dates = await DateModel.find({
+                        scheduledMeetingForChannelId: channelId,
+                        isNonMeetingChannelEvent: { $ne: true },
+                        start: { $lte: new Date() },
+                        end: { $gte: new Date() }
+                    });
+                }
+
+                let meetings: any[] = [];
 
                 if (dates.length === 0) {
                     return [];
-                } else {
-                    let meetings: any[] = [];
-
+                } else if (useZoom) {
                     for (let i = 0; i < dates.length; i++) {
                         const meet = dates[i];
 
@@ -848,6 +872,22 @@ export class ChannelQueryResolver {
                                 return;
                             }
                         }
+                    }
+
+                    return meetings;
+                } else {
+                    for (let i = 0; i < dates.length; i++) {
+                        const meet = dates[i];
+
+                        meetings.push({
+                            title: meet.title,
+                            description: meet.description,
+                            startUrl: '',
+                            joinUrl: channel.meetingUrl ? channel.meetingUrl : '',
+                            error: '',
+                            start: meet.start,
+                            end: meet.end
+                        });
                     }
 
                     return meetings;

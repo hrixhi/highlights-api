@@ -13,6 +13,7 @@ import moment from 'moment-timezone';
 import axios from 'axios';
 import { EventObject } from './types/Date.type';
 import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials';
+import { SchoolsModel } from '../school/mongo/School.model';
 
 /**
  * Date Mutation Endpoints
@@ -64,6 +65,23 @@ export class DateMutationResolver {
     ) {
         try {
             // isNonMeetingChannelEvent is set to undefined to differentiate meetings from events
+
+            const fetchUser = await UserModel.findById(userId);
+
+            let useZoom = false;
+
+            if (!fetchUser) {
+                return 'INVALID_USER';
+            }
+
+            // Check the meeting provider if it is a meeting
+            if (fetchUser.schoolId && meeting) {
+                const org = await SchoolsModel.findById(fetchUser.schoolId);
+
+                if (org && org.meetingProvider && org.meetingProvider !== '') {
+                    useZoom = false;
+                }
+            }
 
             let recurringId = nanoid();
 
@@ -177,7 +195,7 @@ export class DateMutationResolver {
 
             if (!channelId) return 'SUCCESS';
 
-            if (meeting) {
+            if (meeting && useZoom) {
                 let accessToken = '';
                 const u: any = await UserModel.findById(userId);
                 const c: any = await ChannelModel.findById(channelId);
