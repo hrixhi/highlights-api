@@ -77,8 +77,8 @@ export class SchoolQueryResolver {
                     const { link } = await workos.portal.generateLink({
                         organization: workosOrgId,
                         intent: GeneratePortalLinkIntent.SSO,
-                        // returnUrl: adminPortalDomain
-                        returnUrl: 'localhost:3000'
+                        returnUrl: adminPortalDomain
+                        // returnUrl: 'localhost:3000'
                     });
 
                     return link;

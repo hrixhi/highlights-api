@@ -298,7 +298,8 @@ export class SubscriptionMutationResolver {
 				// Remove all activity associated with this user and channel
 				await ActivityModel.deleteMany({
 					userId,
-					channelId
+					channelId,
+					target: { $ne: 'CHANNEL_UNSUBSCRIBED' }
 				})
 
 				const subtitle = 'You have been removed from the course.'
@@ -307,6 +308,15 @@ export class SubscriptionMutationResolver {
 				const subscribersAdded = await UserModel.find({ _id: userId })
 				const activity: any[] = []
 				subscribersAdded.map((sub) => {
+					activity.push({
+						userId: sub._id,
+						subtitle,
+						title: 'Unsubscribed',
+						status: 'unread',
+						date: new Date(),
+						channelId: channel._id,
+						target: "CHANNEL_UNSUBSCRIBED"
+					})
 					const notificationIds = sub.notificationId.split('-BREAK-')
 					notificationIds.map((notifId: any) => {
 						if (!Expo.isExpoPushToken(notifId)) {
@@ -320,18 +330,11 @@ export class SubscriptionMutationResolver {
 							body: '',
 							data: { userId: sub._id },
 						})
-						activity.push({
-							userId: sub._id,
-							subtitle,
-							title: 'Unsubscribed',
-							status: 'unread',
-							date: new Date(),
-							channelId: channel._id,
-							target: "CHANNEL_UNSUBSCRIBED"
-						})
 					})
 				})
-				await ActivityModel.insertMany(activity)
+				console.log("Activity", activity)
+				const createdUnsubscribeActivity = await ActivityModel.insertMany(activity);
+				console.log('Unsubscribe activity', createdUnsubscribeActivity)
 				const oneSignalClient = new OneSignal.Client('78cd253e-262d-4517-a710-8719abf3ee55', 'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5')
 				const notification = {
 					contents: {

@@ -62,8 +62,6 @@ export class SchoolMutationResolver {
                     domains: [ssoDomain]
                 });
 
-                console.log('Created WorkOS Organization', organization);
-
                 if (organization && organization.id) {
                     const updateMongo = await SchoolsModel.updateOne(
                         {
@@ -75,7 +73,6 @@ export class SchoolMutationResolver {
                         }
                     );
 
-                    console.log('updateMongo', updateMongo);
                 }
             }
 
@@ -111,8 +108,6 @@ export class SchoolMutationResolver {
                 domains: [ssoDomain]
             });
 
-            console.log('Created WorkOS Organization', organization);
-
             if (organization && organization.id) {
                 const updateMongo = await SchoolsModel.updateOne(
                     {
@@ -124,8 +119,6 @@ export class SchoolMutationResolver {
                         ssoEnabled: true
                     }
                 );
-
-                console.log('updateMongo', updateMongo);
 
                 return true;
             }
@@ -146,6 +139,8 @@ export class SchoolMutationResolver {
         recoveryEmail: string,
         @Arg('allowStudentChannelCreation', type => Boolean)
         allowStudentChannelCreation: boolean,
+        @Arg('meetingProvider', type => String)
+        meetingProvider: string,
         @Arg('logo', type => String, { nullable: true })
         logo?: string,
         @Arg('streamId', type => String, { nullable: true })
@@ -158,7 +153,8 @@ export class SchoolMutationResolver {
                     recoveryEmail,
                     allowStudentChannelCreation,
                     logo: logo && logo !== '' ? logo : undefined,
-                    streamId: streamId === '' ? undefined : streamId
+                    streamId: streamId === '' ? undefined : streamId,
+                    meetingProvider: meetingProvider === 'zoom' ? undefined : meetingProvider
                 }
             );
 
@@ -250,8 +246,11 @@ export class SchoolMutationResolver {
                 };
             }
 
-            const addSuccess: any[] = [];
-            const failed: any[] = [];
+            const addSuccess: string[] = [];
+            const noOwnerFound: string[] = [];
+            const courseIdFound: string[] = [];
+            const studentOwner: string[] = [];
+            let failedToAdd: string[] = [];
 
             for (const course of courses) {
                 let fetchOwner: any = {};
@@ -266,12 +265,13 @@ export class SchoolMutationResolver {
                     });
                 }
 
-                console.log('Owner', fetchOwner);
-
                 // Check if owner exists first
 
                 if (!fetchOwner || !fetchOwner._id) {
-                    failed.push(course.name);
+                    noOwnerFound.push(course.name);
+                    continue;
+                } else if (fetchOwner && fetchOwner.role.toLowerCase() === 'student') {
+                    studentOwner.push(course.name);
                     continue;
                 }
 
@@ -296,12 +296,24 @@ export class SchoolMutationResolver {
                     '#607db8'
                 ];
 
+                if (course.sisId && course.sisId !== '') {
+                    const channel = await ChannelModel.findOne({
+                        schoolId: fetchOwner.schoolId ? fetchOwner.schoolId : '',
+                        sisId: course.sisId
+                    });
+
+                    if (channel && channel._id) {
+                        courseIdFound.push(course.name);
+                        continue;
+                    }
+                }
+
                 const randomColorCode = THEME_CHOICES[Math.floor(Math.random() * THEME_CHOICES.length)];
 
                 // Create the channel
                 const createChannel = await ChannelModel.create({
                     name: course.name,
-                    sisId: course.sisId ? course.sisId : undefined,
+                    sisId: course.sisId && course.sisId !== '' ? course.sisId : undefined,
                     password: course.password ? course.password : undefined,
                     temporary: false,
                     colorCode: randomColorCode,
@@ -311,8 +323,6 @@ export class SchoolMutationResolver {
                     schoolId: fetchOwner.schoolId ? fetchOwner.schoolId : ''
                 });
 
-                console.log('Create a channel', createChannel);
-
                 if (createChannel && createChannel._id) {
                     // Subscribe Owner
                     const subscription = await SubscriptionModel.create({
@@ -320,24 +330,28 @@ export class SchoolMutationResolver {
                         channelId: createChannel._id
                     });
 
-                    console.log('Subscription', subscription);
-
                     addSuccess.push(course.name);
                 } else {
-                    failed.push(course.name);
+                    failedToAdd.push(course.name);
                 }
             }
 
             return {
                 successful: addSuccess,
-                failed,
+                courseIdFound,
+                noOwnerFound,
+                studentOwner,
+                failedToAdd,
                 error: ''
             };
         } catch (e) {
             console.log(e);
             return {
                 successful: [],
-                failed: [],
+                courseIdFound: [],
+                noOwnerFound: [],
+                studentOwner: [],
+                failedToAdd: [],
                 error: 'Something went wrong. Try again.'
             };
         }
@@ -367,6 +381,7 @@ export class SchoolMutationResolver {
 
             const addSuccess: any[] = [];
             const failed: any[] = [];
+            const alreadyExist: any[] = [];
 
             for (const enrollment of enrollments) {
                 const courseSisId = enrollment.courseSisId ? enrollment.courseSisId : '';
@@ -391,8 +406,6 @@ export class SchoolMutationResolver {
                     });
                 }
 
-                console.log('Found course', findCourse);
-
                 if (!findCourse) {
                     failed.push({
                         index: enrollment.index,
@@ -403,7 +416,7 @@ export class SchoolMutationResolver {
 
                 let findUser: any = {};
 
-                if (userSisId !== '') {
+                if (userSisId && userSisId.trim() !== '') {
                     findUser = await UserModel.findOne({
                         sisId: userSisId
                     });
@@ -428,11 +441,12 @@ export class SchoolMutationResolver {
 
                 const sub = await SubscriptionModel.findOne({
                     userId,
-                    channel: findCourse._id,
+                    channelId,
                     unsubscribedAt: { $exists: false }
                 });
 
                 if (sub) {
+                    alreadyExist.push(enrollment.index)
                     continue;
                 }
 
@@ -488,8 +502,6 @@ export class SchoolMutationResolver {
                     channelId
                 });
 
-                console.log('Subscription', newSubscription);
-
                 // Check if channel owner, if yes then update creatorUnsubscribed: true
                 if (findCourse.createdBy.toString().trim() === userId.toString().trim()) {
                     await ChannelModel.updateOne(
@@ -530,6 +542,7 @@ export class SchoolMutationResolver {
 
             return {
                 successful: addSuccess,
+                alreadyExist,
                 failed,
                 error: ''
             };
@@ -538,6 +551,7 @@ export class SchoolMutationResolver {
             return {
                 successful: [],
                 failed: [],
+                alreadyExist: [],
                 error: 'Something went wrong. Try again.'
             };
         }
@@ -561,8 +575,6 @@ export class SchoolMutationResolver {
                     meetingProvider: meetingProvider === 'zoom' ? undefined : meetingProvider
                 }
             );
-
-            console.log('Update meeting', updateMeeting);
 
             return updateMeeting.nModified > 0;
         } catch (e) {

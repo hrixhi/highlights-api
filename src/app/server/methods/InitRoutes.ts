@@ -21,12 +21,62 @@ import { AttendanceModel } from '@app/data/attendance/mongo/attendance.model';
 import WorkOS from '@workos-inc/node';
 import { WORKOS_API_KEY, WORKOS_WEBHOOK_KEY } from '@helper/workosCredentials';
 import { SchoolsModel } from '@app/data/school/mongo/School.model';
+import { EmailService } from '../../../emailservice/Postmark';
+const FormData = require('form-data')
+const fs = require('fs')
+import axios from 'axios'
+import { PassThrough } from 'stream';
+
+const PSPDFKIT_API_KEY = 'pdf_live_pixgIxf3rrhpCL1z6QqEhWzU2q2fSPmrwA7bHv6hp5r';
 
 /**
  * This is the function used to initializeroutes that is going to let uses upload to the s3 bucket.
  * Either third party pdfs or images for the events
  */
 export function initializeRoutes(GQLServer: GraphQLServer) {
+    // Check for SSO
+    GQLServer.post('/checkSSO', async (req: any, res: any) => {
+        const { ssoDomain } = req.body;
+
+        const foundSSO = await SchoolsModel.findOne({
+            ssoDomain,
+            ssoEnabled: true,
+            workosConnection: { $ne: undefined }
+        });
+
+        if (foundSSO && foundSSO.workosConnection && foundSSO.workosConnection.state === 'active') {
+            return res.json({
+                ssoFound: true
+            });
+        }
+
+        return res.json({
+            ssoFound: false
+        });
+    });
+
+    // Landing page queries
+    GQLServer.post('/contactSales', async (req: any, res: any) => {
+        const {
+            name,
+            email,
+            orgName = '',
+            numOfInstructors = '',
+            numOfStudents = '',
+            country = '',
+            learningModel = ''
+        } = req.body;
+
+        if (!name || !email) {
+            res.status(400).send({ error: 'Name and Email are required.' });
+        }
+
+        const emailService = new EmailService();
+        emailService.contactSales(name, email, orgName, numOfInstructors, numOfStudents, country, learningModel);
+
+        return res.status(200).send('Successful!');
+    });
+
     // Joined Zoom meeting
     GQLServer.post('/zoom_participant_joined', async (req: any, res: any) => {
         // console.log('Req', req.headers.authorization);
@@ -353,15 +403,71 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
         const typeOfUpload = req.body.typeOfUpload;
         const busboy = new Busboy({ headers: req.headers });
+
+       
+
         // The file upload has completed
         busboy.on('finish', async () => {
             let file;
+            let body;
+            let s3FileName;
+            let s3TypeOfUpload;
+
             try {
                 // Grabs your file object from the request.`
                 file = req.files.attachment;
             } catch (e) {
-                //
+                res.json({
+                    status: 'error',
+                    url: null
+                });
             }
+
+            if (typeOfUpload === 'ppt' || typeOfUpload === 'pptx' || typeOfUpload === 'doc' || typeOfUpload === 'docx' || typeOfUpload === 'xlsx' || typeOfUpload === 'xls') {
+                
+                s3FileName = basename(file.name).split('.')[0] + '.pdf';
+                s3TypeOfUpload = 'pdf';
+                
+                // Need to convert to PDF by using PSPDFKIT
+                const formData = new FormData()
+
+                formData.append('instructions', JSON.stringify({
+                    parts: [
+                      {
+                        file: "document"
+                      }
+                    ]
+                }))
+
+                formData.append('document', Buffer.from(file.data, 'base64'))
+                // formData.append('document', fs.createReadStream('document.docx'))
+
+                try {
+                    const response = await axios.post('https://api.pspdfkit.com/build', formData, {
+                        headers: formData.getHeaders({
+                            'Authorization': `Bearer ${PSPDFKIT_API_KEY}`
+                        }),
+                        responseType: "stream"
+                    })
+                
+                    const passThrough = new PassThrough()
+                    response.data.pipe(passThrough)
+                    // body = await stream2buffer(response.data)
+                    body = passThrough
+
+
+                } catch (e) {
+                    const errorString = await streamToString(e.response.data)
+                    console.log(errorString)
+                }
+
+            } else {
+                body = file.data;
+                s3FileName = basename(file.name);
+                s3TypeOfUpload = typeOfUpload;
+            }
+
+            console.log("Body", body)
             AWS.config.update({
                 accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',
                 secretAccessKey: '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'
@@ -374,8 +480,8 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             try {
                 params = {
                     Bucket: 'cues-files',
-                    Body: file.data,
-                    Key: filePath + typeOfUpload + '/' + Date.now() + '_' + basename(file.name)
+                    Body: body,
+                    Key: filePath + s3TypeOfUpload + '/' + Date.now() + '_' + s3FileName
                 };
 
                 s3.upload(params, (err: any, data: any) => {
@@ -396,10 +502,33 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 });
             } catch (e) {
                 //
+                console.log('error', e);
             }
         });
         req.pipe(busboy);
     });
+
+    function streamToString(stream: any) {
+        const chunks: any[] = []
+        return new Promise((resolve, reject) => {
+          stream.on("data", (chunk: any) => chunks.push(Buffer.from(chunk)))
+          stream.on("error", (err: any) => reject(err))
+          stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")))
+        })
+    }
+
+    async function stream2buffer(stream: any): Promise<Buffer> {
+
+        return new Promise < Buffer > ((resolve, reject) => {
+            
+            const _buf = Array < any > ();
+    
+            stream.on("data", (chunk: any) => _buf.push(chunk));
+            stream.on("end", () => resolve(Buffer.concat(_buf)));
+            stream.on("error", (err: any) => reject(`error converting stream - ${err}`));
+    
+        });
+    } 
 
     GQLServer.post('/api/imageUploadEditor', (req: any, res: any) => {
         // console.log('Req', req.files);
@@ -416,11 +545,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         const s3 = new AWS.S3();
         // configuring parameters
 
-        console.log('request', file);
-
         let filePath = userId !== '' ? 'media/' + userId + '/' : 'media/all/';
-
-        console.log('File path', filePath);
 
         let params: any;
         try {
@@ -656,7 +781,8 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         const channels: any[] = [];
 
         const subscriptions = await SubscriptionModel.find({
-            userId
+            userId,
+            unsubscribedAt: { $exists: false }
         });
 
         // loop over all the channel and fetch users role

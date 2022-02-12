@@ -2,12 +2,47 @@ const postmark = require('postmark');
 const client = new postmark.Client('d381fb20-f2d7-4b6b-9c97-0da983ae885d');
 
 export class EmailService {
+    public contactSales(
+        name: string,
+        email: string,
+        orgName: string,
+        numOfInstructors: string,
+        numOfStudents: string,
+        country: string,
+        learningModel: string
+    ) {
+        client.sendEmail({
+            From: 'support@learnwithcues.com',
+            To: 'hrishi@learnwithcues.com',
+            Subject: 'CUES - New sales inquiry',
+            TextBody:
+                'New sales inquiry from ' +
+                name +
+                ' , with email ' +
+                email +
+                '. ' +
+                (orgName !== '' ? 'Org name is ' + orgName + '.' : '') +
+                (numOfInstructors !== '' ? 'Number of instructors is ' + numOfInstructors + '.' : '') +
+                (numOfStudents !== '' ? 'Number of students is ' + numOfStudents + '.' : '') +
+                (country !== '' ? 'Country is ' + country + '.' : '') +
+                (learningModel !== '' ? 'Learning model is ' + learningModel + '.' : '')
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
+        });
+    }
+
     public addedToOrgConfirm(email: string, orgName: string) {
         client.sendEmail({
             From: 'support@learnwithcues.com',
             To: email,
             Subject: 'CUES - You have been added to the ' + orgName + ' organisation.',
             TextBody: 'Visit app.learnwithcues.com to log in. You will be notified if you are added to any courses.'
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
         });
     }
 
@@ -24,6 +59,10 @@ export class EmailService {
                 ' & password: ' +
                 password +
                 '. You will be notified when you are added to any courses. You can update your password from within the app.'
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
         });
     }
 
@@ -39,6 +78,10 @@ export class EmailService {
                 orgName +
                 ' organisation. ' +
                 'You will be notified when you are added to any courses.'
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
         });
     }
 
@@ -48,6 +91,10 @@ export class EmailService {
             To: email,
             Subject: 'CUES - You have been added to the ' + channelName + ' classroom.',
             TextBody: 'Visit app.learnwithcues.com to log in and view your course.'
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
         });
     }
 
@@ -62,6 +109,10 @@ export class EmailService {
                 ' & password: ' +
                 password +
                 ' to view course. If you are a new user, you must update your personal details by accessing your profile.'
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
         });
     }
 
@@ -73,6 +124,10 @@ export class EmailService {
             TextBody:
                 'Visit app.learnwithcues.com to log in using this temporary password which you should then update: ' +
                 password
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
         });
     }
 
@@ -89,6 +144,10 @@ export class EmailService {
                 '. Requested domain to be used for SSO is ' +
                 ssoDomain +
                 '.'
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
         });
     }
 }

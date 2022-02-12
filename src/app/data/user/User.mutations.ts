@@ -376,7 +376,7 @@ export class UserMutationResolver {
 	// 		return "Error: Somthing went wrong";
 	// 	}
 	// }
-	@Field((type) => Boolean)
+	@Field((type) => String)
 	public async updateUserAdmin(
 		@Arg("userId", type => String)
 		userId: string,
@@ -402,6 +402,17 @@ export class UserMutationResolver {
 
 		try {
 
+			// Check if sisID exist 
+			if (sisId && sisId !== '') {
+				const checkExistingUser = await UserModel.findOne({
+					sisId
+				})
+
+				if (checkExistingUser && checkExistingUser._id && checkExistingUser._id.toString() !== userId) {
+					return 'DUPLICATE_SIS_ID'
+				}
+			}
+
 			const updateUser = await UserModel.updateOne({
 				_id: userId,
 			}, {
@@ -419,10 +430,10 @@ export class UserMutationResolver {
 
 			console.log("Update user", updateUser)
 	
-			return true;
+			return 'SUCCESS';
 		} catch (e) {
 			console.log('error', e);
-			return false;
+			return 'ERROR';
 		}
 		
 	}
@@ -449,8 +460,10 @@ export class UserMutationResolver {
 			}
 		
 			const notificationId = "NOT_SET";
-			let schoolIdExist = [];
-			let addSuccess = [];
+			let schoolIdExist: string[] = [];
+			let sisIdExist: string[] = [];
+			let addSuccess: string[] = [];
+			let failedToAdd: string[] = [];
 
 			for (const user of users) {
 
@@ -466,8 +479,7 @@ export class UserMutationResolver {
 
 					if (!existingUser.schoolId || existingUser.schoolId === "" || (existingUser.schoolId && existingUser.schoolId.toString() === schoolId)) {
 
-						console.log("Updating user")
-
+						
 						await UserModel.updateOne({
 							email: user.email 
 						}, {
@@ -477,19 +489,21 @@ export class UserMutationResolver {
 							grade: user.role === "instructor" || user.grade === "-" ? undefined : user.grade,
 							section:
 								user.role === "instructor" || user.section === "-" ? undefined : user.section,
-							sisId: user.sisId && user.sisId ? user.sisId : undefined,
+							sisId: user.sisId && user.sisId !== '' ? user.sisId : undefined,
 							preferredName: user.preferredName ? user.preferredName : undefined,
 							gradYear: user.gradYear ? user.gradYear : undefined,
-							
+							deletedAt: undefined
 						})
 	
 						const emailService = new EmailService();
 						const org: any = await SchoolsModel.findById(schoolId);
+
 						emailService.existingAccountAddedToOrgConfirm(
 							user.email,
 							user.fullName,
 							org.name
-						);	
+						);
+						
 	
 						addSuccess.push(user.email)
 					} else {
@@ -497,8 +511,27 @@ export class UserMutationResolver {
 					}
 					
 				}  else {
-					// Create new user
+					
 
+					// Check for duplicate SIS ID if it is present
+					if (user.sisId && user.sisId !== '') {
+
+						const existingUserWithId = await UserModel.findOne({
+							schoolId,
+							sisId: user.sisId
+						})
+						
+						console.log("ExistingUserWithSisID", existingUserWithId);
+
+						if (existingUserWithId && existingUserWithId._id) {
+							sisIdExist.push(user.email);
+							continue;
+						}
+						
+					}
+
+
+					// Create new user
 					const username =
 						user.email.split("@")[0] +
 						Math.floor(Math.random() * (999 - 100 + 1) + 100).toString();
@@ -510,7 +543,7 @@ export class UserMutationResolver {
 					const hash = await hashPassword(password);
 					const newUser = await UserModel.create({
 						schoolId,
-						email: user.email,
+						email: user.email.toLowerCase(),
 						fullName,
 						displayName,
 						password: hash,
@@ -525,38 +558,49 @@ export class UserMutationResolver {
 						gradYear: user.gradYear ? user.gradYear : undefined
 					});
 
-					addSuccess.push(newUser.email)
+					if (!newUser || !newUser.email) {
+						failedToAdd.push(user.email)
+						continue;
+					} else {
+						addSuccess.push(newUser.email)
+					}
+
+					
+					const emailService = new EmailService();
+					const org: any = await SchoolsModel.findById(schoolId);
 
 					if (!fetchSchool.ssoEnabled || !fetchSchool.workosConnection) {
 						// If school uses SSO then don't email passwords for the users 
-						const emailService = new EmailService();
-						const org: any = await SchoolsModel.findById(schoolId);
 						emailService.newAccountAddedToOrgConfirm(
 							user.email,
 							fullName,
 							dupPassword,
 							org.name
 						);
-					} 				
+					} else {
+						emailService.existingAccountAddedToOrgConfirm(
+							user.email,
+							user.fullName,
+							org.name
+						);	
+					}		
 				}
 
 			}
 
-			console.log("result", {
-				successful: addSuccess,
-				failed: schoolIdExist,
-				error: ''
-			})
-
 			return {
 				successful: addSuccess,
-				failed: schoolIdExist,
+				schoolIdExist,
+				sisIdExist,
+				failedToAdd,
 				error: ''
 			}
 		} catch (e) {
 			return {
 				successful: [],
-				failed: [],
+				schoolIdExist: [],
+				sisIdExist: [],
+				failedToAdd: [],
 				error: "Error: Somthing went wrong"
 			}
 			// return "Error: Somthing went wrong";

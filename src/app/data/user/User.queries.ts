@@ -573,4 +573,38 @@ export class UserQueryResolver {
             return null;
         }
     }
+
+    @Field(type => String, { nullable: true })
+    public async getSsoLinkNative(
+        @Arg('ssoDomain', type => String)
+        ssoDomain: string,
+        @Arg('redirectURI', type => String)
+        redirectURI: string
+    ) {
+        try {
+
+            console.log("Redirect URI", redirectURI)
+            const foundSSO = await SchoolsModel.findOne({
+                ssoDomain,
+                ssoEnabled: true,
+                workosConnection: { $ne: undefined }
+            });
+
+            if (foundSSO && foundSSO.workosConnection && foundSSO.workosConnection.state === 'active') {
+                const workos = new WorkOS(WORKOS_API_KEY);
+
+                const authorizationURL = workos.sso.getAuthorizationURL({
+                    clientID: WORKOS_CLIENT_ID,
+                    redirectURI,
+                    connection: foundSSO.workosConnection.id
+                });
+
+                return authorizationURL;
+            }
+
+            return null;
+        } catch (e) {
+            return null;
+        }
+    }
 }

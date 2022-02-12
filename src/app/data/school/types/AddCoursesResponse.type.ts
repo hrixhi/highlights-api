@@ -6,7 +6,16 @@ export class AddCoursesResponseObject {
     public successful: [String];
 
     @Field(type => [String])
-    public failed: [String];
+    public noOwnerFound: [String];
+
+    @Field(type => [String])
+    public courseIdFound: [String];
+
+    @Field(type => [String])
+    public studentOwner: [String];
+
+    @Field(type => [String])
+    public failedToAdd: [String];
 
     @Field(type => String)
     public error: String;

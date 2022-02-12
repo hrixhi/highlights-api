@@ -41,12 +41,15 @@ export class ChannelMutationResolver {
 		@Arg('sisId', type => String, { nullable: true }) sisId?: string,
 	) {
 		try {
+
+			
 			// name should be valid
 			if (name
 				&& name.toString().trim() !== ''
 				&& name.toString().trim() !== 'All'
 				&& name.toString().trim() !== 'All-Channels' 
-				&& name.toString().trim() !== 'Home'
+				&& name.toString().trim().toLowerCase() !== 'home'
+				&& name.toString().trim().toLowerCase() !== 'cues'
 			) {
 
 				const fetchUser = await UserModel.findById(createdBy);
@@ -54,6 +57,19 @@ export class ChannelMutationResolver {
 				if (!fetchUser) {
 					return 'invalid-user'
 				}
+
+				// Check if SIS ID is duplicate
+				if (sisId && sisId !== '') {
+					const existingChannel = await ChannelModel.findOne({
+						sisId,
+						schoolId: fetchUser.schoolId ? fetchUser.schoolId : undefined,
+					})
+
+					if (existingChannel) {
+						return 'sisid-in-use'
+					}
+				} 
+
 
 				const channel = await ChannelModel.create({
 					name: name.toString().trim(),
@@ -1520,6 +1536,21 @@ export class ChannelMutationResolver {
 		}
 
 
+	}
+
+	@Field(type => Boolean, {
+		description: 'Used to check if a SIS ID is already assigned to a course'
+	})
+	public async checkSisIdInUse(
+		@Arg('schoolId', type => String) schoolId: string,
+		@Arg('sisId', type => String) sisId: string,
+	) {
+		const existingChannel = await ChannelModel.findOne({
+			schoolId,
+			sisId
+		})
+
+		return existingChannel && existingChannel._id !== '' ? true : false
 	}
 
 	@Field(type => Boolean, {

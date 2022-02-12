@@ -185,4 +185,7 @@ export class ChannelObject {
 
     @Field(type => String, { nullable: true })
     public meetingUrl?: string;
+
+    @Field(type => Date, { nullable: true })
+    public deletedAt?: Date;
 }

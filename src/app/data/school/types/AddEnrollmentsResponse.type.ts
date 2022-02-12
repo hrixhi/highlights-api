@@ -17,6 +17,9 @@ export class AddEnrollmentsResponseObject {
     @Field(type => [Failed])
     public failed: [Failed];
 
+    @Field(type => [String])
+    public alreadyExist: [String]
+
     @Field(type => String)
     public error: String;
 }

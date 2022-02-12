@@ -6,7 +6,13 @@ export class AddUsersResponseObject {
     public successful: [String];
 
     @Field(type => [String])
-    public failed: [String];
+    public schoolIdExist: [String];
+
+    @Field(type => [String])
+    public sisIdExist: [String];
+
+    @Field(type => [String])
+    public failedToAdd: [String];
 
     @Field(type => String)
     public error: String;

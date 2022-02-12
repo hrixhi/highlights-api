@@ -80,6 +80,8 @@ export class DateMutationResolver {
 
                 if (org && org.meetingProvider && org.meetingProvider !== '') {
                     useZoom = false;
+                } else {
+                    useZoom = true;
                 }
             }
 
@@ -123,7 +125,7 @@ export class DateMutationResolver {
                         recurringId
                     });
                 }
-            } else if (repeatTill && frequency && frequency == '1-W' && repeatDays) {
+            } else if (repeatTill && frequency && frequency === '1-W' && repeatDays) {
                 const startDate = new Date(start);
 
                 const startDay = startDate.getDay() + 1;
@@ -305,17 +307,6 @@ export class DateMutationResolver {
                                 recurrence.monthly_day = new Date(start).getDate();
                             }
 
-                            console.log('Zoom', {
-                                topic: channel.name + '- ' + title,
-                                agenda: description,
-                                type: 8,
-                                start_time: start,
-                                duration,
-                                recurrence
-                            });
-
-                            console.log('Recurrence', recurrence);
-
                             // CREATE MEETING
                             const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
                                 .tz('UTC')
@@ -374,17 +365,6 @@ export class DateMutationResolver {
                                 weekly_days: repeatDays.join(',')
                             };
 
-                            console.log('Zoom', {
-                                topic: channel.name + '- ' + title,
-                                agenda: description,
-                                type: 8,
-                                start_time: start,
-                                duration,
-                                recurrence
-                            });
-
-                            console.log('Recurrence', recurrence);
-
                             // CREATE MEETING
                             const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
                                 .tz('UTC')
@@ -436,7 +416,6 @@ export class DateMutationResolver {
                                 .tz('UTC')
                                 .format();
 
-                            console.log('START TIME', utcTime);
                             const zoomRes: any = await axios.post(
                                 `https://api.zoom.us/v2/users/me/meetings`,
                                 {
@@ -452,8 +431,6 @@ export class DateMutationResolver {
                                     }
                                 }
                             );
-
-                            console.log('Zoom Res', zoomRes);
 
                             if (zoomRes.status === 200 || zoomRes.status === 201) {
                                 const zoomData: any = zoomRes.data;
@@ -628,7 +605,6 @@ export class DateMutationResolver {
                     .tz('UTC')
                     .format();
 
-                console.log('START TIME', utcTime);
                 const zoomRes: any = await axios.post(
                     `https://api.zoom.us/v2/users/me/meetings`,
                     {
@@ -644,8 +620,6 @@ export class DateMutationResolver {
                         }
                     }
                 );
-
-                console.log('Zoom Res', zoomRes);
 
                 if (zoomRes.status === 200 || zoomRes.status === 201) {
                     const zoomData: any = zoomRes.data;
@@ -802,9 +776,6 @@ export class DateMutationResolver {
                 await DateModel.deleteOne({ _id: id });
             }
 
-            console.log('ZoomMeetingId', zoomMeetingId);
-            console.log('ZoomMeetingScheduledBy', zoomMeetingScheduledBy);
-
             if (zoomMeetingId !== '' && zoomMeetingScheduledBy !== '') {
                 let accessToken = '';
                 const u: any = await UserModel.findById(zoomMeetingScheduledBy);
@@ -863,8 +834,6 @@ export class DateMutationResolver {
                         );
                     }
 
-                    // console.log('Zoom Access token', accessToken);
-
                     // delete meeting
 
                     const zoomRes: any = await axios.delete(`https://api.zoom.us/v2/meetings/${zoomMeetingId}`, {
@@ -872,8 +841,6 @@ export class DateMutationResolver {
                             Authorization: `Bearer ${accessToken}`
                         }
                     });
-
-                    console.log('Zoom res', zoomRes);
 
                     if (zoomRes.status !== 204) {
                         return 'ZOOM_MEETING_DELETE_FAILED';

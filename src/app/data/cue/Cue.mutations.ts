@@ -386,7 +386,7 @@ export class CueMutationResolver {
 								_id: cue._id
 							}, {
 								...c,
-								gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined,
+								gradeWeight: (c.submission && c.gradeWeight) ? Number(c.gradeWeight) : undefined,
 								allowedAttempts: (c.allowedAttempts) ? Number(c.allowedAttempts) : null
 							})
 						} else {
@@ -395,7 +395,7 @@ export class CueMutationResolver {
 							}, {
 								...c,
 								cue: tempOriginal,
-								gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined,
+								gradeWeight: (c.submission && c.gradeWeight) ? Number(c.gradeWeight) : undefined,
 								allowedAttempts: (c.allowedAttempts) ? Number(c.allowedAttempts) : null
 							})
 						}
@@ -404,7 +404,7 @@ export class CueMutationResolver {
 							userId: { $in: userIds }
 						}, {
 							...c,
-							gradeWeight: (c.submission) ? Number(c.gradeWeight) : undefined,
+							gradeWeight: (c.submission && c.gradeWeight) ? Number(c.gradeWeight) : undefined,
 							allowedAttempts: (c.allowedAttempts) ? Number(c.allowedAttempts) : null
 						})
 						// get the cue back to the main owner
