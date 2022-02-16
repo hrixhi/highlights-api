@@ -97,6 +97,8 @@ export class DateMutationResolver {
                 // Construct dates for creating and set a recurring Id
                 const dates = this.getAllDates(start, frequency, repeatTill);
 
+                console.log("All dates", dates);
+
                 // const recurringId = nanoid();
 
                 for (let i = 0; i < dates.length; i++) {
@@ -107,11 +109,11 @@ export class DateMutationResolver {
                     const endDate = new Date(end);
 
                     // Update start and end date to Scheduled Date
-                    startDate.setDate(scheduledDate.getDate());
-                    startDate.setMonth(scheduledDate.getMonth());
+                    // startDate.setDate(scheduledDate.getDate());
+                    startDate.setMonth(scheduledDate.getMonth(), scheduledDate.getDate());
 
-                    endDate.setDate(scheduledDate.getDate());
-                    endDate.setMonth(scheduledDate.getMonth());
+                    // endDate.setDate(scheduledDate.getDate());
+                    endDate.setMonth(scheduledDate.getMonth(), scheduledDate.getDate());
 
                     await DateModel.create({
                         userId: channelId && channelId !== '' ? undefined : userId,
@@ -137,6 +139,8 @@ export class DateMutationResolver {
                     let key = repeatDays[i];
                     let beginDate = '';
 
+                    console.log("Begin date", beginDate)
+
                     if (startDay.toString() === key) {
                         beginDate = startDate.toUTCString();
                     } else if (Number(key) > startDay) {
@@ -155,6 +159,7 @@ export class DateMutationResolver {
                 }
 
                 for (let i = 0; i < allDates.length; i++) {
+
                     const scheduledDate = allDates[i];
 
                     const startDate = new Date(start);
@@ -162,11 +167,12 @@ export class DateMutationResolver {
                     const endDate = new Date(end);
 
                     // Update start and end date to Scheduled Date
-                    startDate.setDate(scheduledDate.getDate());
-                    startDate.setMonth(scheduledDate.getMonth());
+                    startDate.setMonth(scheduledDate.getMonth(), scheduledDate.getDate());
+                    endDate.setMonth(scheduledDate.getMonth(), scheduledDate.getDate());
 
-                    endDate.setDate(scheduledDate.getDate());
-                    endDate.setMonth(scheduledDate.getMonth());
+                    console.log("Scheduled date", scheduledDate.toUTCString())
+                    console.log("Start date", startDate.toUTCString())
+                    console.log("End date", endDate.toUTCString())
 
                     await DateModel.create({
                         userId: channelId && channelId !== '' ? undefined : userId,

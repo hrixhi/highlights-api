@@ -86,22 +86,153 @@ export class ChannelMutationResolver {
 					sisId: sisId ? sisId : ''
 				})
 
+				if (!channel || !channel._id) {
+					return 'error'
+				}
+
 				// Subscribe Owner
 				await SubscriptionModel.create({
 					userId: createdBy,
 					channelId: channel._id
 				})
 
+				let usersAdded: string[] =  []
+
 				// Rest of Subscribers and Moderators
 				if (subscribers && subscribers.length > 0) {
-					subscribers.map(async (sub: string) => {
+
+					for (const sub of subscribers) {
+
 						if (sub.toString().trim() !== createdBy.toString().trim()) {
-							await SubscriptionModel.create({
+
+							const newSub = await SubscriptionModel.create({
 								userId: sub,
 								channelId: channel._id
 							})
+
+							// console.log("New Sub", newSub)
+							// Add alerts for subscribers when they are added to the channel
+							if (newSub) {
+								usersAdded.push(sub.toString().trim());
+							}
+
 						}
-					}) 
+						
+					}
+
+				}
+
+				const subtitle = 'You have been added to the course.'
+				const title = channel.name + ' - Subscribed!'
+				const messages: any[] = []
+				const subscribersAdded = await UserModel.find({ _id: { $in: usersAdded } })
+				const activity: any[] = []
+				
+				// console.log("Subscribers Added", subscribersAdded);
+
+				subscribersAdded.map((sub) => {
+					const notificationIds = sub.notificationId.split('-BREAK-')
+					notificationIds.map((notifId: any) => {
+						if (!Expo.isExpoPushToken(notifId)) {
+							return
+						}
+						messages.push({
+							to: notifId,
+							sound: 'default',
+							subtitle: subtitle,
+							title: title,
+							body: '',
+							data: { userId: sub._id },
+						})
+					})
+					activity.push({
+						userId: sub._id,
+						subtitle,
+						title: 'Subscribed',
+						status: 'unread',
+						date: new Date(),
+						channelId: channel._id,
+						target: 'CHANNEL_SUBSCRIBED'
+					})
+				})
+
+				// console.log("Send notifications to", usersAdded);
+
+
+				await ActivityModel.insertMany(activity)
+				const oneSignalClient = new OneSignal.Client('78cd253e-262d-4517-a710-8719abf3ee55', 'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5')
+				const notification = {
+					contents: {
+						'en': title,
+					},
+					include_external_user_ids: usersAdded
+				}
+				const notificationService = new Expo()
+				await oneSignalClient.createNotification(notification)
+				let chunks = notificationService.chunkPushNotifications(messages);
+				for (let chunk of chunks) {
+					try {
+						await notificationService.sendPushNotificationsAsync(chunk);
+					} catch (e) {
+						console.error(e);
+					}
+				}
+
+				if (moderators && moderators.length !== 0) {
+					const subtitle = 'Your role has been updated.'
+					const title = name + ' - Added as moderator'
+					const messages: any[] = []
+					const activity1: any[] = []
+					const moderatorsAdded = await UserModel.find({ _id: { $in: moderators } })
+					moderatorsAdded.map((sub) => {
+						const notificationIds = sub.notificationId.split('-BREAK-')
+						notificationIds.map((notifId: any) => {
+							if (!Expo.isExpoPushToken(notifId)) {
+								return
+							}
+							messages.push({
+								to: notifId,
+								sound: 'default',
+								subtitle: subtitle,
+								title: title,
+								body: '',
+								data: { userId: sub._id },
+							})
+						})
+						activity1.push({
+							userId: sub._id,
+							subtitle,
+							title: 'Added as moderator',
+							status: 'unread',
+							date: new Date(),
+							channelId: channel._id,
+							target: "CHANNEL_MODERATOR_ADDED"
+						})
+					})
+					await ActivityModel.insertMany(activity1)
+
+					const oneSignalClient = new OneSignal.Client(
+						'78cd253e-262d-4517-a710-8719abf3ee55',
+						'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+					);
+					const notification = {
+						contents: {
+							'en': title,
+						},
+						include_external_user_ids: [...moderators]
+					}
+					const notificationService = new Expo()
+					if (moderators.length > 0) {
+						await oneSignalClient.createNotification(notification)
+					}
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+						} catch (e) {
+							console.error(e);
+						}
+					}
 				}
 
 				return 'created'

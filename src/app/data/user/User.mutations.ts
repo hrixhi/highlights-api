@@ -1253,6 +1253,31 @@ export class UserMutationResolver {
 					attempts: allAttempts,
 					submissionDraft: obj.submissionDraft
 				};
+				
+				await ModificationsModel.updateOne({
+					cueId,
+					userId
+				}, {
+					cue: JSON.stringify(updateCue)
+				})
+			} else if (source === "CREATE_SUBMISSION") {
+				if (!mod.cue) return false;
+
+				const currCueValue = mod.cue;
+
+				const obj = JSON.parse(currCueValue);
+
+				const currSubmissionDraft = JSON.parse(obj.submissionDraft);
+
+				const updateSubmissionDraft = {
+					...currSubmissionDraft,
+					annotations 
+				}
+
+				const updateCue = {
+					attempts: obj.attempts,
+					submissionDraft: JSON.stringify(updateSubmissionDraft)
+				};
 
 				await ModificationsModel.updateOne({
 					cueId,
