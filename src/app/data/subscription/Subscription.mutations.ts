@@ -332,9 +332,7 @@ export class SubscriptionMutationResolver {
 						})
 					})
 				})
-				console.log("Activity", activity)
 				const createdUnsubscribeActivity = await ActivityModel.insertMany(activity);
-				console.log('Unsubscribe activity', createdUnsubscribeActivity)
 				const oneSignalClient = new OneSignal.Client('78cd253e-262d-4517-a710-8719abf3ee55', 'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5')
 				const notification = {
 					contents: {

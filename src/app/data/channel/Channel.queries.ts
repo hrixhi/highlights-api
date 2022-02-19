@@ -780,8 +780,6 @@ export class ChannelQueryResolver {
                         const zoomMeetingScheduledBy = meet.zoomMeetingScheduledBy;
                         const meetingId = meet.zoomMeetingId;
 
-                        console.log('Zoom meeting scheduled by', zoomMeetingScheduledBy);
-                        console.log('Meeting id', meetingId);
 
                         const u = await UserModel.findOne({
                             _id: zoomMeetingScheduledBy
@@ -789,8 +787,6 @@ export class ChannelQueryResolver {
 
                         if (u) {
                             const user = u.toObject();
-
-                            console.log('User', user);
 
                             const b = Buffer.from(zoomClientId + ':' + zoomClientSecret);
 
@@ -840,16 +836,12 @@ export class ChannelQueryResolver {
                                 accessToken = user.zoomInfo.accessToken;
                             }
 
-                            console.log('Access Token', accessToken);
-
                             // create meeting
                             const zoomRes: any = await axios.get(`https://api.zoom.us/v2/meetings/${meetingId}`, {
                                 headers: {
                                     Authorization: `Bearer ${accessToken}`
                                 }
                             });
-
-                            console.log('Zoom res', zoomRes);
 
                             if (zoomRes.status !== 200 && zoomRes.status !== 201) {
                                 return;

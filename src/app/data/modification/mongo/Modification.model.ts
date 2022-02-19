@@ -29,6 +29,7 @@ export interface IModificationsModel extends Document {
 	folderId?: string;
 	allowedAttempts?: number; 
 	availableUntil?: Date; 
+	restrictAccess?: boolean;
 }
 
 export const ModificationsModel: Model<IModificationsModel> = model<IModificationsModel>(

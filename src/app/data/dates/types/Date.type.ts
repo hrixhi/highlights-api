@@ -196,7 +196,6 @@ export class EventObject {
             const course = await ChannelModel.findById(scheduledMeetingForChannelId);
 
             if (course && course.meetingUrl) {
-                console.log('Meeting link', course.meetingUrl);
                 return course.meetingUrl;
             }
 

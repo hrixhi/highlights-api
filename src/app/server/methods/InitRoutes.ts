@@ -80,7 +80,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     // Joined Zoom meeting
     GQLServer.post('/zoom_participant_joined', async (req: any, res: any) => {
         // console.log('Req', req.headers.authorization);
-        console.log('Participant joined', req.body);
 
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
@@ -104,15 +103,11 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             start: { $lte: plus60 },
             end: { $gte: minus60 }
         });
-        console.log('Active date', activeDate);
 
         const u = await UserModel.findOne({ 'zoomInfo.accountId': accountId });
-        console.log('User found', u);
 
         if (u && activeDate) {
             const dateObject = activeDate.toObject();
-
-            console.log('scheduledMeetingForChannelId', dateObject.scheduledMeetingForChannelId);
 
             const attendanceMarked = await AttendanceModel.findOne({
                 dateId: dateObject._id,
@@ -128,7 +123,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     joinedAt: new Date(),
                     channelId: dateObject.scheduledMeetingForChannelId
                 });
-                console.log('Attendane marked', res);
             }
         }
 
@@ -165,8 +159,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             end: { $gte: minus60 }
         });
 
-        console.log('Active date', activeDate);
-
         const u = await UserModel.findOne({ 'zoomInfo.accountId': accountId });
 
         if (u && activeDate) {
@@ -177,8 +169,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 userId: u._id,
                 channelId: dateObject.scheduledMeetingForChannelId
             });
-
-            console.log('Existing attendance', attendanceMarked);
 
             // If attendance object does not exist
             if (!attendanceMarked || !attendanceMarked.joinedAt) {
@@ -208,7 +198,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
     // Deauthorized app Zoom
     GQLServer.post('/zoom_deauth', async (req: any, res: any) => {
-        console.log('Req', req.headers.authorization);
 
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
@@ -239,7 +228,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
     // Zoom user profile updated
     GQLServer.post('/zoom_profile_updated', async (req: any, res: any) => {
-        console.log('Req', req.headers.authorization);
 
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
@@ -283,8 +271,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     GQLServer.post('/zoom_meeting_deleted', async (req: any, res: any) => {
         // const accountId = req.body.payload.account_id;
 
-        console.log('Req', req.headers.authorization);
-
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
                 error: 1,
@@ -294,15 +280,11 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
         const zoomMeetingId = req.body.payload.object.id;
 
-        console.log('Meeting id', zoomMeetingId);
-
         const dateObjects = await DateModel.find({
             zoomMeetingId
         });
 
         const dateIds: string[] = dateObjects.map((d: any) => d._id);
-
-        console.log('Update date ids', dateIds);
 
         await DateModel.updateMany(
             {
@@ -333,8 +315,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
         const webhook = workos.webhooks.constructEvent({ payload, sigHeader, secret: WORKOS_WEBHOOK_KEY });
 
-        console.log('Webhook', webhook);
-
         if (webhook.event === 'connection.activated' && webhook.id !== '') {
             const { data } = webhook;
 
@@ -354,7 +334,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 }
             ).then(res => console.log(res));
 
-            // console.log('Update', update);
         } else if (webhook.event === 'connection.deactivated' && webhook.id !== '') {
             const { data } = webhook;
 
@@ -369,7 +348,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 }
             ).then(res => console.log(res));
 
-            // console.log('Update', update);
         } else if (webhook.event === 'connection.deleted' && webhook.id !== '') {
             const { data } = webhook;
 
@@ -384,7 +362,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 }
             ).then(res => console.log(res));
 
-            // console.log('Update', update);
         }
         res.status(200).json({
             status: 'ok'
@@ -467,7 +444,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 s3TypeOfUpload = typeOfUpload;
             }
 
-            console.log("Body", body)
             AWS.config.update({
                 accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',
                 secretAccessKey: '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'
@@ -531,7 +507,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     } 
 
     GQLServer.post('/api/imageUploadEditor', (req: any, res: any) => {
-        // console.log('Req', req.files);
 
         const { userId } = req.body;
         // return res.status(400);
@@ -610,7 +585,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                         console.log(err);
                         res.send('');
                     }
-                    console.log('Data', data);
                     // success
                     res.send(data.Location);
                 }
@@ -652,15 +626,8 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     });
 
     GQLServer.post('/search', async (req: any, res: any) => {
-        console.log('in api');
-        // this body field is used for recognizition if attachment is EventImage, Asset or simillar.
-        console.log('request body');
-        console.log(req.body);
 
         const { term, userId } = req.body;
-
-        console.log('User id', userId);
-        console.log('Term', term);
 
         if (term === '' || userId === '') return '';
 
@@ -699,15 +666,11 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             });
             toReturn['personalCues'] = personalCues;
 
-            console.log('Personal cues', personalCues);
-
             const channelCues = await CueModel.find({
                 channelId: { $in: channelIds },
                 cue: new RegExp(term, 'i')
             });
             toReturn['channelCues'] = channelCues;
-
-            console.log('Channel Cues', channelCues);
 
             // Messages
             const groups = await GroupModel.find({
@@ -981,7 +944,6 @@ const uploadFiles = async (file: any, type: any, res: any) => {
                 count = count + 1;
                 links.push(result1);
                 if (count == file.length) {
-                    console.log('creating resp', links);
                     res.json({
                         status: 'success',
                         url: links

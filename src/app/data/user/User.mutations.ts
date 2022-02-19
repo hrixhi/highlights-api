@@ -428,8 +428,6 @@ export class UserMutationResolver {
 				avatar: avatar ? avatar : undefined
 			})
 
-			console.log("Update user", updateUser)
-	
 			return 'SUCCESS';
 		} catch (e) {
 			console.log('error', e);
@@ -470,8 +468,6 @@ export class UserMutationResolver {
 				const fetchUser = await UserModel.findOne({
 					email: user.email
 				})
-
-				console.log("Existing users", fetchUser)
 
 				if (fetchUser) {
 					
@@ -1119,8 +1115,6 @@ export class UserMutationResolver {
 					})
 	
 				}
-
-				console.log("Access token", accessToken)
 	
 				const zoomRes: any = await axios.post(
 					`https://zoom.us/oauth/revoke?token=${accessToken}`,
@@ -1130,8 +1124,6 @@ export class UserMutationResolver {
 						"Content-Type": 'application/x-www-form-urlencoded'
 					},
 				});
-	
-				console.log("Zoom res", zoomRes);
 	
 				if (!zoomRes || !zoomRes.data) {
 					return false;

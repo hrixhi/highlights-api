@@ -168,7 +168,11 @@ export class ChannelMutationResolver {
 					include_external_user_ids: usersAdded
 				}
 				const notificationService = new Expo()
-				await oneSignalClient.createNotification(notification)
+
+				if (usersAdded.length > 0) {
+					await oneSignalClient.createNotification(notification)
+				}
+				
 				let chunks = notificationService.chunkPushNotifications(messages);
 				for (let chunk of chunks) {
 					try {
@@ -460,7 +464,11 @@ export class ChannelMutationResolver {
 					}
 
 					const notificationService = new Expo()
-					await oneSignalClient.createNotification(notification)
+
+					if (subscriberIds.length > 0) {
+						await oneSignalClient.createNotification(notification)
+					}
+					
 					let chunks = notificationService.chunkPushNotifications(messages);
 					for (let chunk of chunks) {
 						try {
@@ -561,7 +569,11 @@ export class ChannelMutationResolver {
 						include_external_user_ids: subscriberIds
 					}
 					const notificationService = new Expo()
-					await oneSignalClient.createNotification(notification)
+
+					if (subscriberIds.length > 0) {
+						await oneSignalClient.createNotification(notification)
+					}
+					
 					let chunks = notificationService.chunkPushNotifications(messages);
 					for (let chunk of chunks) {
 						try {
@@ -744,7 +756,9 @@ export class ChannelMutationResolver {
 						include_external_user_ids: userIds
 					}
 
-					const response = await oneSignalClient.createNotification(notification)
+					if (userIds.length > 0) {
+						const response = await oneSignalClient.createNotification(notification)
+					} 
 
 					const users = await UserModel.find({ _id: { $in: userIds } })
 					users.map(sub => {
@@ -957,7 +971,11 @@ export class ChannelMutationResolver {
 								},
 								include_external_user_ids: subscriberIds
 							}
-							const response = await oneSignalClient.createNotification(notification)
+
+							if (subscriberIds.length > 0) {
+								const response = await oneSignalClient.createNotification(notification)
+							} 
+							
 							userDocs.map(u => {
 								const sub = u.toObject()
 								const notificationIds = sub.notificationId.split('-BREAK-')
@@ -1051,7 +1069,11 @@ export class ChannelMutationResolver {
 								},
 								include_external_user_ids: subscriberIds
 							}
-							const response = await oneSignalClient.createNotification(notification)
+
+							if (subscriberIds.length > 0) {
+								const response = await oneSignalClient.createNotification(notification)
+							} 
+							
 							userDocs.map(u => {
 								const sub = u.toObject()
 								const notificationIds = sub.notificationId.split('-BREAK-')
@@ -1441,7 +1463,11 @@ export class ChannelMutationResolver {
 							},
 							include_external_user_ids: users
 						}
-						const response = await oneSignalClient.createNotification(notification)
+
+						if (users.length > 0) {
+							const response = await oneSignalClient.createNotification(notification)
+						}
+						
 						userDocs.map(u => {
 							const sub = u.toObject()
 							const notificationIds = sub.notificationId.split('-BREAK-')
@@ -1583,7 +1609,11 @@ export class ChannelMutationResolver {
 						},
 						include_external_user_ids: users
 					}
-					const response = await oneSignalClient.createNotification(notification)
+
+					if (users.length > 0) {
+						const response = await oneSignalClient.createNotification(notification)
+					}
+					
 					userDocs.map(u => {
 						const sub = u.toObject()
 						const notificationIds = sub.notificationId.split('-BREAK-')

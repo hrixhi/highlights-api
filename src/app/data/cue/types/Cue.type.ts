@@ -213,5 +213,7 @@ export class CueObject {
   @Field({ nullable: true })
   public availableUntil: Date;
 
+  @Field({ nullable: true })
+  public restrictAccess: boolean;
 
 }

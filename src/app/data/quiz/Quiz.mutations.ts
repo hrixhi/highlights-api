@@ -312,10 +312,6 @@ export class QuizMutationResolver {
 
                     parse.attempts = updatedAttempts;
 
-                    // console.log("After Regrade data", parse)
-                    // console.log("New Active score", activeAttemptNewScore)
-                    console.log('Updated Attempts', updatedAttempts);
-
                     // Save the changes in the modifications along with the RegradedAt date
                     await ModificationsModel.updateOne(
                         {

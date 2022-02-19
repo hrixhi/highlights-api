@@ -2,6 +2,7 @@ import { Ctx, Field, ObjectType } from 'type-graphql';
 import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
 import { MessageStatusModel } from '@app/data/message-status/mongo/message-status.model';
 import { GroupModel } from '@app/data/group/mongo/Group.model';
+import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
 
 @ObjectType()
 export class ZoomObject {
@@ -105,6 +106,23 @@ export class UserObject {
 
     @Field({ nullable: true })
     public role?: string;
+
+    @Field(type => Boolean, { nullable: true })
+    public async allowQuizCreation(@Ctx() context: IGraphQLContext) {
+        const localThis: any = this;
+        const { _id, role } = localThis._doc || localThis;
+
+        const isOwner = await ChannelModel.findOne({
+            owners: { $all: [_id] }
+        })
+
+        if ((isOwner && isOwner?._id) || role === 'instructor') {
+            return true
+        }
+
+        return false
+        
+    }
 
     @Field({ nullable: true })
     public avatar?: string;

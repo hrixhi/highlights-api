@@ -96,8 +96,9 @@ export class CueMutationResolver {
 			const notificationService = new Expo()
 			let userIds: string[] = []
 			const messages: any[] = []
-			const tickets = [];
-			const notSetUserIds: any[] = []
+			const statuses: any[] = []
+			// const tickets = [];
+			// const notSetUserIds: any[] = []
 			const modifications: any[] = []
 
 			if (shareWithUserIds !== undefined && shareWithUserIds !== null) {
@@ -138,7 +139,6 @@ export class CueMutationResolver {
 			// load subscribers
 			const subscribers = await UserModel.find({ _id: { $in: userIds } })
 
-
 			const activity: any[] = []
 
 			subscribers.map((sub) => {
@@ -159,9 +159,16 @@ export class CueMutationResolver {
 					})
 				}
 
+				statuses.push({
+					userId: sub._id,
+					channelId,
+					cueId: newCue._id,
+					status: 'delivered'
+				})
+
 				notificationIds.map((notifId: any) => {
 					if (!Expo.isExpoPushToken(notifId)) {
-						notSetUserIds.push(sub._id)
+						// notSetUserIds.push(sub._id)
 						return
 					}
 					messages.push({
@@ -176,6 +183,8 @@ export class CueMutationResolver {
 			})
 
 			await ActivityModel.insertMany(activity)
+
+			await StatusModel.insertMany(statuses)
 
 			// Web notifications
 
@@ -193,32 +202,32 @@ export class CueMutationResolver {
 			const response = await oneSignalClient.createNotification(notification)
 
 			// for user Ids that have no notification receiver attached to them
-			notSetUserIds.map(async uId => {
-				await StatusModel.create({
-					userId: uId,
-					channelId,
-					cueId: newCue._id,
-					status: 'not-delivered'
-				})
-			})
+			// notSetUserIds.map(async uId => {
+			// 	await StatusModel.create({
+			// 		userId: uId,
+			// 		channelId,
+			// 		cueId: newCue._id,
+			// 		status: 'not-delivered'
+			// 	})
+			// })
 
 			let chunks = notificationService.chunkPushNotifications(messages);
 			for (let chunk of chunks) {
 				try {
 					let ticketChunk = await notificationService.sendPushNotificationsAsync(chunk);
-					tickets.push(...ticketChunk);
+					// tickets.push(...ticketChunk);
 				} catch (e) {
 					console.error(e);
 				}
 			}
-			tickets.map(async (ticket: any, index: any) => {
-				await StatusModel.create({
-					userId: messages[index].data.userId,
-					channelId,
-					cueId: newCue._id,
-					status: ticket.status === 'ok' ? 'delivered' : 'not-delivered'
-				})
-			})
+			// tickets.map(async (ticket: any, index: any) => {
+			// 	await StatusModel.create({
+			// 		userId: messages[index].data.userId,
+			// 		channelId,
+			// 		cueId: newCue._id,
+			// 		status: ticket.status === 'ok' ? 'delivered' : 'not-delivered'
+			// 	})
+			// })
 
 			return true
 
@@ -665,8 +674,6 @@ export class CueMutationResolver {
 					// Convert html submission into pdf
 					const pdfPath = await getHTMLToPDF(cue)
 
-					console.log(pdfPath)
-
 					let saveSubmission = {
 						html: cue,
 						submittedAt: new Date(),
@@ -1111,50 +1118,94 @@ export class CueMutationResolver {
 		}
 	}
 
-
 	@Field(type => Boolean)
-	public async shareCueWithMoreIds(
-		@Arg('userId', type => String)
-		userId: string,
+	public async shareWithAll(
 		@Arg('cueId', type => String)
 		cueId: string,
 	) {
-		try {
-			const c: any = await CueModel.findOne({ _id: cueId })
-			if (c) {
-				const cue = c.toObject()
+		const c: any = await CueModel.findOne({ _id: cueId });
 
-				const { submission } = cue;
+		if (c) {
+			const cue = c.toObject()
+			const { submission } = cue;
 
-				cue.cueId = cue._id;
-				delete cue._id;
-				delete cue.limitedShares;
-				cue.userId = userId;
-				cue.cue = '';
-				cue.score = 0;
-				cue.graded = false;
-				delete cue.__v;
-				delete cue.__typename;
-				await ModificationsModel.create({ ...cue })
-				// create status here
-				await StatusModel.create({
-					userId,
-					channelId: cue.channelId,
-					status: 'not-delivered',
-					cueId: cue.cueId
+			const channel: any = await ChannelModel.findById(cue.channelId)
+
+			// Get all subscribers first
+			const subscriptions = await SubscriptionModel.find({
+				channelId: cue.channelId, unsubscribedAt: { $exists: false } 
+			})
+
+			const userIds: string[] = [];
+
+			subscriptions.map((s) => {
+				userIds.push(s.userId)
+			})
+
+			// Extra step to prevent duplication in case there are multiple subs created by mistake
+			const allUsers = await UserModel.find({ _id: { $in: userIds } })
+
+			const mods: any[] = []
+			const statuses: any[] = []
+			const alertUsers: any[] = []
+
+			// Check if modification already exist and turn restrictAccess off
+			for (const user of allUsers) {
+				const existingModification = await ModificationsModel.findOne({
+					cueId: cue._id,
+					userId: user._id
 				})
-				const user: any = await UserModel.findById(userId)
+
+				const clone = Object.assign({}, cue);
+	
+				clone.cueId = clone._id;
+				delete clone._id;
+				delete clone.limitedShares;
+				clone.userId = user._id;
+				clone.cue = '';
+				clone.score = 0;
+				clone.graded = false;
+				delete clone.__v;
+				delete clone.__typename;
+
+				if (existingModification && existingModification._id) {
+					// update restrictAccess
+					await ModificationsModel.updateOne({
+						cueId: cue._id,
+						userId: user._id
+					}, {
+						restrictAccess: false
+					})
+				} else {
+					mods.push(clone)
+
+					statuses.push({
+						userId: user._id,
+						channelId: clone.channelId,
+						status: 'delivered',
+						cueId: clone.cueId
+					})
+
+					alertUsers.push(user._id)
+				}
+			}
+
+			await ModificationsModel.insertMany(mods);
+				// create status here
+			await StatusModel.insertMany(statuses);
+
+			const added = await UserModel.find({ _id: { $in: alertUsers }})
+
+			added.map(async (user: any) => {
 				const messages: any[] = []
 				const notificationService = new Expo()
-
-				const channel: any = await ChannelModel.findById(cue.channelId)
+	
 				const notificationIds = user.notificationId.split('-BREAK-')
-
+	
 				const { title, subtitle: body } = htmlStringParser(cue.cue)
-
-
+	
 				if (submission) {
-
+	
 					const activity: any = {
 						userId: user._id,
 						subtitle: title,
@@ -1166,16 +1217,16 @@ export class CueMutationResolver {
 						cueId: cueId,
 						target: "CUE"
 					}
-
+	
 					ActivityModel.create(activity);
-
+				
 				}
-
+	
 				notificationIds.map((notifId: any) => {
 					if (!Expo.isExpoPushToken(user.notificationId)) {
 						return
 					}
-
+	
 					messages.push({
 						to: user.notificationId,
 						sound: 'default',
@@ -1184,23 +1235,20 @@ export class CueMutationResolver {
 						data: { userId: user._id },
 					})
 				})
-
-
-
+		
 				// Web notifications
 
 				const oneSignalClient = new OneSignal.Client('78cd253e-262d-4517-a710-8719abf3ee55', 'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5')
-
-
+	
 				const notification = {
 					contents: {
 						'en': `${channel.name}` + (submission ? ' - New Assignment created ' : ' - New Content ') + title,
 					},
 					include_external_user_ids: [user._id]
 				}
-
+	
 				const response = await oneSignalClient.createNotification(notification)
-
+	
 				let chunks = notificationService.chunkPushNotifications(messages);
 				for (let chunk of chunks) {
 					try {
@@ -1209,6 +1257,179 @@ export class CueMutationResolver {
 						console.error(e);
 					}
 				}
+
+			})
+								
+			return true
+		}
+
+		return false
+	}
+
+	@Field(type => Boolean)
+	public async unshareCueWithIds(
+		@Arg('userIds', type => [String])
+		userIds: string[],
+		@Arg('cueId', type => String)
+		cueId: string,
+	) {
+
+		const c: any = await CueModel.findOne({ _id: cueId });
+
+		if (c) {
+
+			const cue = c.toObject()
+			const res = await ModificationsModel.updateMany({
+				userId: { $in: userIds }, cueId: cue._id 
+			}, {
+				restrictAccess: true
+			})
+
+			console.log("Res", res)
+
+			return true
+		}
+
+		return false
+		
+	}
+
+
+	@Field(type => Boolean)
+	public async shareCueWithMoreIds(
+		@Arg('userIds', type => [String])
+		userIds: string[],
+		@Arg('cueId', type => String)
+		cueId: string,
+	) {
+		try {
+			const c: any = await CueModel.findOne({ _id: cueId })
+			if (c) {
+
+				const mods: any[] = []
+				const statuses: any[] = []
+				const alertUsers: any[] = []
+
+				const cue = c.toObject();
+
+				const { submission } = cue;
+
+				const channel: any = await ChannelModel.findById(cue.channelId)
+
+				// userIds.map(async (userId: string) => {
+
+				for (const userId of userIds) {
+
+					const clone = Object.assign({}, cue);
+	
+					clone.cueId = clone._id;
+					delete clone._id;
+					delete clone.limitedShares;
+					clone.userId = userId;
+					clone.cue = '';
+					clone.score = 0;
+					clone.graded = false;
+					delete clone.__v;
+					delete clone.__typename;
+
+					// Check if modification already exist or else push a new modification
+					const existingModification = await ModificationsModel.findOne({ 
+						cueId: cue._id, 
+						userId
+					})
+
+					if (existingModification && existingModification._id) {
+						await ModificationsModel.updateOne({
+							cueId: cue._id,
+							userId
+						}, {
+							restrictAccess: false
+						})
+					} else {
+						mods.push(clone)
+
+						statuses.push({
+							userId,
+							channelId: clone.channelId,
+							status: 'delivered',
+							cueId: clone.cueId
+						})
+
+						alertUsers.push(userId)
+					}
+
+				}
+
+				await ModificationsModel.insertMany(mods);
+				// create status here
+				await StatusModel.insertMany(statuses);
+
+				const added = await UserModel.find({ _id: { $in: alertUsers }})
+
+				added.map(async (user: any) => {
+					const messages: any[] = []
+					const notificationService = new Expo()
+	
+					const notificationIds = user.notificationId.split('-BREAK-')
+	
+					const { title, subtitle: body } = htmlStringParser(cue.cue)
+	
+					if (submission) {
+	
+						const activity: any = {
+							userId: user._id,
+							subtitle: title,
+							title: 'New Assignment created',
+							body,
+							status: 'unread',
+							date: new Date(),
+							channelId: cue.channelId,
+							cueId: cueId,
+							target: "CUE"
+						}
+	
+						ActivityModel.create(activity);
+	
+					}
+	
+					notificationIds.map((notifId: any) => {
+						if (!Expo.isExpoPushToken(user.notificationId)) {
+							return
+						}
+	
+						messages.push({
+							to: user.notificationId,
+							sound: 'default',
+							subtitle: title,
+							title: channel.name + (submission ? ' - New Assignment created' : ' - New Content'),
+							data: { userId: user._id },
+						})
+					})
+		
+					// Web notifications
+	
+					const oneSignalClient = new OneSignal.Client('78cd253e-262d-4517-a710-8719abf3ee55', 'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5')
+	
+					const notification = {
+						contents: {
+							'en': `${channel.name}` + (submission ? ' - New Assignment created ' : ' - New Content ') + title,
+						},
+						include_external_user_ids: [user._id]
+					}
+	
+					const response = await oneSignalClient.createNotification(notification)
+	
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+						} catch (e) {
+							console.error(e);
+						}
+					}
+
+				})
+								
 				return true
 			}
 			return false

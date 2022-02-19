@@ -1,1 +1,1 @@
-zip ./dist/istkt-api.zip -r src bin tslint.json tsconfig.test.json package.json tsconfig.json package-lock.json .env .npmrc temp public dist.sh Dockerfile test.sh .elasticbeanstalk .ebextensions
+zip ./dist/cues-api.zip -r src bin tslint.json tsconfig.test.json package.json tsconfig.json package-lock.json .env .npmrc temp public dist.sh Dockerfile test.sh .elasticbeanstalk .ebextensions

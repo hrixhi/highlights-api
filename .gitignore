@@ -11,7 +11,7 @@ app/.mongo-db
 node_modules/
 app/test-results\.xml
 app/yarn-error\.log
-dist/istkt-api\.zip
+dist/cues-api\.zip
 bin/
 dist/
 

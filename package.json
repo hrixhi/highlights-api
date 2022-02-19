@@ -1,7 +1,7 @@
 {
-	"name": "istkt-api",
+	"name": "cues-api",
 	"version": "4.2.0",
-	"description": "Isotope ticketing is platform for venue ticketing, created by Isotope inc.",
+	"description": "Cues app API developed by Cues Technologies, Inc.",
 	"main": "build/index.js",
 	"scripts": {
 		"start:watch": "nodemon --watch src --exec ts-node -r tsconfig-paths/register src/index.ts",

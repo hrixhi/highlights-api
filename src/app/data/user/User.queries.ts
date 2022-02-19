@@ -148,7 +148,6 @@ export class UserQueryResolver {
         code: string
     ) {
         try {
-            console.log('Code', code);
 
             const workos = new WorkOS(WORKOS_API_KEY);
 
@@ -157,13 +156,9 @@ export class UserQueryResolver {
                 clientID: WORKOS_CLIENT_ID
             });
 
-            console.log('Profile', profile);
-
             const user = await UserModel.findOne({
                 email: profile.email
             });
-
-            console.log('User', user);
 
             if (user) {
                 await UserModel.updateOne({ _id: user._id }, { lastLoginAt: new Date() });
@@ -583,7 +578,6 @@ export class UserQueryResolver {
     ) {
         try {
 
-            console.log("Redirect URI", redirectURI)
             const foundSSO = await SchoolsModel.findOne({
                 ssoDomain,
                 ssoEnabled: true,

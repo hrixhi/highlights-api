@@ -107,6 +107,10 @@ const schema = new Schema(
       type: Date,
       required: false
     },
+    restrictAccess: {
+      type: Boolean,
+      required: false
+    }
   }
 )
 

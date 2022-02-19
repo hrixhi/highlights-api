@@ -25,6 +25,6 @@ export class SharedWithObject {
   public value: string;
 
   @Field()
-  public isFixed: boolean;
+  public sharedWith: boolean;
 
 }

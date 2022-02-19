@@ -78,7 +78,8 @@ export class CueQueryResolver {
         channelId: null
       })
       const channelCues: any[] = await ModificationsModel.find({
-        userId
+        userId,
+        restrictAccess: { $ne: true }
       })
 
       const filterInitiateAt = channelCues.filter((cue: any) => cue.initiateAt !== null)
@@ -112,18 +113,26 @@ export class CueQueryResolver {
       const subscribers = await SubscriptionModel.find({
         channelId, unsubscribedAt: { $exists: false }
       })
-      const modifications = cueId ? await ModificationsModel.find({ cueId }) : []
+      const modifications = cueId ? await ModificationsModel.find({ cueId, restrictAccess: { $ne: true } }) : []
 
       const sharedWith: any[] = [];
+
+      console.log("Owners", owners)
 
       subscribers.map((s) => {
         const sub = s.toObject()
         const mod = modifications.find((m) => m.userId.toString().trim() === sub.userId.toString().trim())
-        sharedWith.push({
-          value: sub.userId,
-          isFixed: mod ? true : false
-        })
+
+        if (!owners.includes(sub.userId.toString())) {
+          sharedWith.push({
+            value: sub.userId,
+            sharedWith: mod ? true : false
+          })
+        }
+        
       })
+
+      console.log("Shared with", sharedWith)
       return sharedWith
     } catch (e) {
       console.log(e)
@@ -215,7 +224,6 @@ export class CueQueryResolver {
         return data.Location
       })
 
-      console.log("To Return", toReturn);
       return toReturn;
     
     } catch (e) {
