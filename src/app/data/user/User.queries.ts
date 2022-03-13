@@ -499,13 +499,26 @@ export class UserQueryResolver {
         @Arg('userId', type => String)
         userId: string,
         @Arg('cueId', type => String)
-        cueId: string
+        cueId: string,
+        @Arg('myNotes', type => Boolean, { nullable: true })
+        myNotes?: boolean
     ) {
         try {
-            const mod = await ModificationsModel.findOne({
-                cueId,
-                userId
-            });
+
+            let mod: any = {}
+
+            if (myNotes) {
+                mod = await CueModel.findOne({
+                    _id: cueId,
+                    createdBy: userId
+                });
+            } else {
+                mod = await ModificationsModel.findOne({
+                    cueId,
+                    userId
+                });
+            }
+            console.log("Mod", mod)
 
             if (mod !== null && mod !== undefined) {
                 return mod;

@@ -85,8 +85,10 @@ export class CueMutationResolver {
 				initiateAt: (initiateAt && initiateAt !== '') ? new Date(initiateAt) : null,
 				availableUntil: (availableUntil && availableUntil !== '') ? new Date(availableUntil) : null,
 				submission,
-				allowedAttempts: Number.isNaN(Number(allowedAttempts)) ? null : Number(allowedAttempts)
+				allowedAttempts: allowedAttempts === "" ? null : Number(allowedAttempts)
 			}
+
+			console.log("New Cue", c);
 
 			const newCue = await CueModel.create({
 				...c,
@@ -199,7 +201,9 @@ export class CueMutationResolver {
 				include_external_user_ids: userIds
 			}
 
-			const response = await oneSignalClient.createNotification(notification)
+			if (userIds.length > 0) {
+				const response = await oneSignalClient.createNotification(notification)
+			}
 
 			// for user Ids that have no notification receiver attached to them
 			// notSetUserIds.map(async uId => {
@@ -232,7 +236,7 @@ export class CueMutationResolver {
 			return true
 
 		} catch (e) {
-			console.log(e)
+			console.log("Error creating",e)
 			return false
 		}
 	}
@@ -597,7 +601,9 @@ export class CueMutationResolver {
 
 				isQuizFullyGraded = saveCue.attempts[bestAttempt].isFullyGraded
 
-				await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue: JSON.stringify(saveCue), graded: isQuizFullyGraded, score: Number(((highestScore / total) * 100).toFixed(2)) })
+				const quizUpdate = await ModificationsModel.updateOne({ cueId, userId }, { submittedAt: new Date(), cue: JSON.stringify(saveCue), graded: isQuizFullyGraded, score: Number(((highestScore / total) * 100).toFixed(2)) })
+				console.log("Quiz Update", quizUpdate)
+				console.log("Time ", new Date().toUTCString())
 			} else {
 
 				// Get current submissions object from modification
@@ -1107,7 +1113,10 @@ export class CueMutationResolver {
 					include_external_user_ids: userIds
 				}
 
-				const response = await oneSignalClient.createNotification(notification)
+				if (userIds.length > 0) {
+					const response = await oneSignalClient.createNotification(notification)
+				}
+
 
 			}
 
@@ -1436,6 +1445,64 @@ export class CueMutationResolver {
 		} catch (e) {
 			console.log(e)
 			return false;
+		}
+	}
+
+	@Field(type => String)
+	public async duplicateQuiz(
+		@Arg('quizId', type => String)
+		quizId: string,
+	) {
+		try {
+
+			const fetchQuiz = await QuizModel.findById(quizId) 
+
+			if (!fetchQuiz || fetchQuiz._id === '') {
+				return ''
+			}
+
+			// Sanitize problems to remove regrade stuff
+			// Santize answers
+			const previousProblems = fetchQuiz.problems;
+
+			const updatedProblems = previousProblems.map((problem: any) => {
+				let updatedAnswers = null;
+
+				if (problem.options) {
+					updatedAnswers = problem.options.map((option: any) => {
+						return {
+							isCorrect: option.isCorrect,
+							option: option.option
+						}
+					})
+				}
+
+				return {
+					question: problem.question,
+					questionType: problem.questionType,
+					points: problem.points,
+					required: problem.required,
+					options: updatedAnswers
+				}
+			})
+
+			const duplicate = await QuizModel.create({
+				problems: updatedProblems,
+				duration: fetchQuiz.duration,
+				shuffleQuiz: fetchQuiz.shuffleQuiz,
+				instructions: fetchQuiz.instructions,
+				headers: fetchQuiz.headers
+			})
+
+			if (duplicate && duplicate._id) {
+				return duplicate._id.toString()
+			} else {
+				return ''
+			}
+
+		} catch (e) {
+			console.log("Error", e)
+			return ''
 		}
 	}
 

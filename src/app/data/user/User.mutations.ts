@@ -649,7 +649,8 @@ export class UserMutationResolver {
 				},
 				{
 					deletedAt: new Date(),
-					notificationId: 'NOT_SET'
+					notificationId: 'NOT_SET',
+					schoolId: undefined
 				}
 			);
 
@@ -1192,7 +1193,10 @@ export class UserMutationResolver {
 				zoomInfo
 			})
 
-			return zoomInfo;
+			return {
+				email: zoomUserData.email,
+				accountId: zoomUserData.account_id,
+			};
 		} catch (e) {
 			console.log(e);
 			return null;
@@ -1213,13 +1217,22 @@ export class UserMutationResolver {
 		try {
 
 			if (!cueId || !userId) return false;
+			
+			let mod: any = {}
 
-			const mod = await ModificationsModel.findOne({ cueId, userId })
+			if (source === 'MY_NOTES') {
+				mod = await CueModel.findOne({
+					_id: cueId,
+					createdBy: userId
+				})
+			} else {
+				mod = await ModificationsModel.findOne({ cueId, userId })
+			}
 
 			if (!mod) return false;
 
 			if (source === "UPDATE") {
-				const updateAnnotation = await ModificationsModel.updateOne({
+				await ModificationsModel.updateOne({
 					cueId,
 					userId
 				}, {
@@ -1277,6 +1290,15 @@ export class UserMutationResolver {
 				}, {
 					cue: JSON.stringify(updateCue)
 				})
+			} else if (source === 'MY_NOTES') {
+				const updateCue = await CueModel.updateOne({
+					_id: cueId,
+					createdBy: userId
+				}, {
+					annotations
+				})
+
+				console.log("Updated cue", updateCue)
 			}
 			
 

@@ -69,6 +69,10 @@ const schema = new Schema({
     meetingProvider: {
         type: String,
         required: false
+    },
+    createdByUser: {
+        type: Types.ObjectId,
+        required: false
     }
 });
 

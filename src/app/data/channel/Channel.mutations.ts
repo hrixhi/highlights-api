@@ -17,6 +17,9 @@ import shortid from 'shortid';
 import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials'
 import moment from 'moment';
 import { SchoolsModel } from '../school/mongo/School.model';
+import { hashPassword } from '../methods';
+import { AddUsersEmailObject } from './types/AddUsersEmailObject.type';
+import { EmailService } from '../../../emailservice/Postmark';
 
 /**
  * Channel Mutation Endpoints
@@ -50,6 +53,7 @@ export class ChannelMutationResolver {
 				&& name.toString().trim() !== 'All-Channels' 
 				&& name.toString().trim().toLowerCase() !== 'home'
 				&& name.toString().trim().toLowerCase() !== 'cues'
+				&& name.toString().trim().toLowerCase() !== 'my notes'
 			) {
 
 				const fetchUser = await UserModel.findById(createdBy);
@@ -307,16 +311,11 @@ export class ChannelMutationResolver {
 			if (name
 				&& name.toString().trim() !== ''
 				&& name.toString().trim() !== 'All'
-				&& name.toString().trim() !== 'All-Channels'
+				&& name.toString().trim() !== 'All-Channels' 
+				&& name.toString().trim().toLowerCase() !== 'home'
+				&& name.toString().trim().toLowerCase() !== 'cues'
+				&& name.toString().trim().toLowerCase() !== 'my notes'
 			) {
-				// check for existing channel
-				const exists = await ChannelModel.findOne({
-					name: name.toString().trim()
-				})
-				if (exists) {
-					return 'exists'
-				}
-
 				// Fetch current channel
 				const channel = await ChannelModel.findById(channelId);
 
@@ -327,8 +326,9 @@ export class ChannelMutationResolver {
 					name: name.toString().trim(),
 					password,
 					createdBy: channel.createdBy,
-					temporary: temporary ? true : false,
+					temporary: channel.temporary ? channel.temporary : false,
 					colorCode,
+					schoolId: channel.schoolId ? channel.schoolId : null,
 					accessCode: shortid.generate(),
 				})
 
@@ -681,6 +681,201 @@ export class ChannelMutationResolver {
 			return 'error'
 		}
 	}
+
+	@Field(type => AddUsersEmailObject, {
+		description: 'Add users by email to course and organization'
+	}) 
+	public async addUsersByEmail(
+		@Arg('channelId', type => String) channelId: string,
+		@Arg('userId', type => String) userId: string,
+		@Arg('emails', type => [String]) emails: string[],
+	) {
+		try {
+
+			const fetchCourse = await ChannelModel.findOne({
+				_id: channelId,
+			})
+
+			let isOwner = false;
+	
+			if (!fetchCourse || !fetchCourse._id) {
+				return {
+					success: [],
+					failed: [],
+					error: 'No Course found'
+				};
+			} 
+
+			// Ensure the userId is the course creator or a moderator of the course
+			
+			if (fetchCourse.createdBy.toString() === userId) {
+				isOwner = true;
+			} 
+
+			if (fetchCourse.owners && fetchCourse.owners.length > 0 && fetchCourse.owners.includes(userId)) {
+				isOwner = true;
+			}
+
+			if (!isOwner) {
+				return {
+					success: [],
+					failed: [],
+					error: 'You are not authorized to add users to this course.'
+				};
+			}
+
+			const fetchInstructor = await UserModel.findOne({
+				_id: userId
+			})
+
+			if (!fetchInstructor || !fetchInstructor._id) {
+				return {
+					success: [],
+					failed: [],
+					error: 'Invalid user id'
+				};
+			} 
+
+			console.log("Course", fetchCourse)
+	
+			let failed: string[] = []
+			let success: string[] = []
+	
+			const addedStudentActivities: any[] = []
+			let addedPasswords: any = {}
+
+			const emailSet = new Set(emails)
+	
+			// Step 4: Create student accounts
+			for (const studentEmail of emailSet) {
+				// Create account for student
+				let student: any = {}
+	
+				const email = studentEmail.toLowerCase().trim()
+	
+				const existingStudent = await UserModel.findOne({
+					email
+				})
+	
+				if (existingStudent && existingStudent._id) {
+					// Existing user found but part of different org
+					if (existingStudent.schoolId && fetchInstructor.schoolId && existingStudent.schoolId?.toString()  !== fetchInstructor?.schoolId.toString()) {
+						// In a different org
+						failed.push(email);
+						continue;
+					} else {
+						student = existingStudent
+	
+						UserModel.updateOne({
+							_id: student._id
+						}, {
+							schoolId: fetchInstructor.schoolId
+						})
+					} 
+	
+				} else {
+	
+					let name = studentEmail.toLowerCase().trim().split('@')[0]
+
+					const randomInt = Math.floor(Math.random() * 9999)
+	
+					// Generate a password and hash it 
+					const password = name + '@' + randomInt.toString() 
+	
+					const hash = await hashPassword(password)
+	
+					student = await UserModel.create({
+						email,
+						fullName: name,
+						displayName: name,
+						notificationId: 'NOT_SET',
+						password: hash,
+						schoolId: fetchInstructor.schoolId,
+						role: 'student'
+					})
+	
+					if (!student || !student._id) {
+						failed.push(email)
+						continue
+					}
+		
+					addedPasswords[email] = password
+
+					console.log("Student", student)            
+				}
+
+				// Check if subscription exists
+				const existingSub = await SubscriptionModel.findOne({
+					userId: student._id,
+					channel: fetchCourse._id,
+					unsubscribedAt: { $exists: false }
+				})
+
+				if (existingSub && existingSub._id) {
+					success.push(email)
+					continue;
+				}
+	
+				// Subscribe the student to the course 
+				const sub = await SubscriptionModel.create({
+					userId: student._id,
+					channelId: fetchCourse._id,
+				})
+	
+				console.log("New Sub", sub)
+				
+				if (sub && sub._id) {
+					addedStudentActivities.push({
+						userId: student._id,
+						subtitle: 'You have been added to the course.',
+						title: 'Subscribed',
+						status: 'unread',
+						date: new Date(),
+						channelId: fetchCourse._id,
+						target: 'CHANNEL_SUBSCRIBED'
+					})
+	
+					success.push(email)
+				} else {
+					failed.push(email)
+				}
+	
+			}
+	
+			console.log("Success", success)
+	
+			console.log("Failed", failed)
+	
+			const subscribeActivites = ActivityModel.insertMany(addedStudentActivities)
+
+			for (const student_email of Object.keys(addedPasswords)) {
+
+				const name = student_email.split('@')[0];
+				
+				const student_password = addedPasswords[student_email]
+	
+				const emailService = new EmailService()
+	
+				emailService.sendWelcomeEmailStudent(name, student_email, fetchCourse.name, student_password, fetchInstructor.fullName)
+	
+			}
+
+			// Return 
+			return {
+				success,
+				failed,
+				error: ''
+			}
+
+		} catch (e) {
+			return {
+				success: [],
+				failed: [],
+				error: 'Something went wrong. Try again.'
+			}
+		}
+	}
+
 
 
 	@Field(type => Boolean, {

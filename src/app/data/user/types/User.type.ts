@@ -12,17 +12,6 @@ export class ZoomObject {
     @Field()
     public accountId: string;
 
-    @Field()
-    public refreshToken: string;
-
-    @Field()
-    public accessToken: string;
-
-    @Field(type => Date)
-    public expiresOn: Date;
-
-    @Field(type => Number, { nullable: true })
-    public accountType: Number;
 }
 
 @ObjectType()

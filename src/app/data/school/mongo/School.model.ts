@@ -14,6 +14,7 @@ export interface ISchoolsModel extends Document {
     ssoDomain?: string;
     workosConnection?: any;
     meetingProvider?: string;
+    createdByUser?: string;
 }
 
 export const SchoolsModel: Model<ISchoolsModel> = model<ISchoolsModel>('schools', schoolSchema);

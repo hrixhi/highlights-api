@@ -43,12 +43,12 @@ export class FolderMutationResolver {
             const folder = await FolderModel.updateOne({
                 _id: folderId
             }, {
-                $push: { cueIds: cueId }
+                $addToSet: { cueIds: cueId }
             })
 
             if (folder.nModified > 0) {
                 await CueModel.updateOne({ _id: cueId }, { folderId })
-                await ModificationsModel.updateOne({ cueId: cueId }, { folderId }) 
+                await ModificationsModel.updateMany({ cueId: cueId }, { folderId }) 
             }
 
 

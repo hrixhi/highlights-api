@@ -26,6 +26,8 @@ const FormData = require('form-data')
 const fs = require('fs')
 import axios from 'axios'
 import { PassThrough } from 'stream';
+import { hashPassword } from '@app/data/methods';
+import shortid from 'shortid';
 
 const PSPDFKIT_API_KEY = 'pdf_live_pixgIxf3rrhpCL1z6QqEhWzU2q2fSPmrwA7bHv6hp5r';
 
@@ -691,7 +693,18 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             const messages = await MessageModel.find({
                 message: new RegExp(term, 'i'),
                 groupId: { $in: groupIds }
-            });
+            })
+            .populate({
+                path: "groupId",
+                model: "groups", 
+                select: ["name", "users", "image"],
+                populate: { 
+                    path:  'users', 
+                    model: 'users',
+                    select: ["_id", "fullName", "avatar",]
+                }
+              })
+              
 
             console.log('Messages', messages);
 
@@ -712,6 +725,8 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     users: []
                 };
             });
+
+            console.log("Message with users", messagesWithUsers)
 
             toReturn['messages'] = messagesWithUsers;
 
@@ -926,6 +941,270 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             scores
         });
     });
+
+
+    // ONBOARDING
+    GQLServer.post('/onboard_course', async (req: any, res: any) => {
+        
+        const { name, email, password, organizationName, country, courseName, studentEmails } = req.body;
+
+        console.log("Inputs", { name, email, password, organizationName, country, courseName, studentEmails })
+
+        // Validation 
+        if (!email || email.trim() === '' || !password || password.trim() === '' || !courseName || courseName.trim() === '' || !studentEmails || studentEmails.length === 0) {
+            return res.status(400).send({ error: 'One of the required fields not provided.' });
+        }
+
+        // Validation for Course name
+        if (courseName.toString().trim() === 'All'
+            || courseName.toString().trim() === 'All-Channels' 
+            || courseName.toString().trim().toLowerCase() === 'home'
+            || courseName.toString().trim().toLowerCase() === 'cues'
+            || courseName.toString().trim().toLowerCase() === 'my notes') {
+            return res.status(400).send({ error: 'Cannot use this course name. Try using a different one.' });
+        }
+
+        // Step 1: Create instructor account
+        const existingInstructor = await UserModel.findOne({
+            email,
+        });
+
+        let instructor: any = {}
+
+        if (existingInstructor && existingInstructor._id) {
+
+            // Edge case
+            if (existingInstructor.schoolId && existingInstructor.schoolId.toString() !== '') {
+                return res.status(400).send({ error: 'An account with this email already exists.' });
+            }
+
+            instructor = existingInstructor
+        } else {
+            // Create new instructor
+
+            // Hash the password
+            const hash = await hashPassword(password);
+
+            instructor = await UserModel.create({
+				email,
+				fullName: name,
+				displayName: name.toLowerCase(),
+				notificationId: 'NOT_SET',
+				password: hash,
+                role: 'instructor'
+			})
+        }
+        
+        if (!instructor || !instructor._id) {
+            return res.status(400).send({ error: 'Something went wrong. Try again.' });
+        }
+
+        console.log("Instructor", instructor)
+
+        // Step 2: Create the organization
+        const hash = await hashPassword(password);
+
+        let org: any = {}
+
+        const existingOrg = await SchoolsModel.findOne({
+            createdByUser: instructor._id
+        })
+
+        if (existingOrg && existingOrg._id) {
+            org = existingOrg
+        } else {
+
+            const encodeOrgName = name
+            .split(' ')
+            .join('_')
+            .toLowerCase();
+
+            org = await SchoolsModel.create({
+                name,
+                password: hash,
+                cuesDomain: encodeOrgName + '.learnwithcues.com',
+                createdByUser: instructor._id
+            });
+        }
+
+        if (!org || !org._id) {
+            return res.status(400).send({ error: 'Something went wrong. Try again.' });
+        }
+
+        console.log("Org", org)
+
+        // Update user
+        await UserModel.updateOne({
+            _id: instructor._id
+        }, {
+            schoolId: org._id
+        })
+
+        const colorChoices = ["#f44336", "#e91e63", "#9c27b0", "#673ab7", "#3f51b5", "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#4caf50", "#8bc34a", "#cddc39", "#ff5722", "#795548"]
+
+        const randomColor = colorChoices[Math.floor(Math.random() * colorChoices.length)];
+
+        // Step 3: Create the course
+        const createCourse = await ChannelModel.create({
+            name: courseName.toString().trim(),
+		    createdBy: instructor._id,
+			temporary: true,
+			accessCode: shortid.generate(),
+            colorCode: randomColor,
+			owners: [],
+			schoolId: org._id,
+        })
+
+        if (!createCourse || !createCourse._id) {
+            return res.status(400).send({ error: 'Something went wrong. Try again.' });
+        } 
+
+        // Subscribe instructor to the course
+        const sub = await SubscriptionModel.create({
+            userId: instructor._id,
+            channelId: createCourse._id,
+        })
+
+        console.log("Course", createCourse)
+
+        let failed = []
+        let success = []
+
+        const addedStudentActivities: any[] = []
+        let addedPasswords: any = {}
+
+        const emailSet = new Set<string>(studentEmails)
+
+        // Step 4: Create student accounts
+        for (const studentEmail of emailSet) {
+            // Create account for student
+            let student: any = {}
+
+            const email = studentEmail.toLowerCase().trim()
+
+            const existingStudent = await UserModel.findOne({
+                email
+            })
+
+            if (existingStudent && existingStudent._id) {
+                // Existing user found but part of different org
+                if (existingStudent.schoolId?.toString() !== org._id.toString()) {
+                    failed.push(email);
+                    continue;
+                } else {
+                    student = existingStudent
+
+                    UserModel.updateOne({
+                        _id: student._id
+                    }, {
+                        schoolId: org._id
+                    })
+                } 
+
+            } else {
+
+                let name = studentEmail.toLowerCase().trim().split('@')[0]
+
+                // Generate a password and hash it 
+                const password = name + '@' + getRandomInt(99999).toString() 
+
+                const hash = await hashPassword(password)
+
+                student = await UserModel.create({
+                    email,
+                    fullName: name,
+                    displayName: name,
+                    notificationId: 'NOT_SET',
+                    password: hash,
+                    schoolId: org._id,
+                    role: 'student'
+                })
+
+                if (!student || !student._id) {
+                    failed.push(email)
+                    continue
+                }
+    
+                addedPasswords[email] = password
+            
+            }
+
+            // Subscribe the student to the course 
+            const sub = await SubscriptionModel.create({
+                userId: student._id,
+                channelId: createCourse._id,
+            })
+
+            console.log("New Sub", sub)
+            
+            if (sub && sub._id) {
+                addedStudentActivities.push({
+                    userId: student._id,
+					subtitle: 'You have been added to the course.',
+					title: 'Subscribed',
+					status: 'unread',
+					date: new Date(),
+					channelId: createCourse._id,
+					target: 'CHANNEL_SUBSCRIBED'
+                })
+
+                success.push(email)
+            } else {
+                failed.push(email)
+            }
+
+        }
+
+        console.log("Success", success)
+
+        console.log("Failed", failed)
+
+        const subscribeActivites = ActivityModel.insertMany(addedStudentActivities)
+    
+        // Send out email invites to both instructors and students
+
+        const emailService = new EmailService();
+
+        console.log("Email Instructor", {
+            name: instructor.fullName, 
+            email: instructor.email, 
+            course_name: createCourse.name,
+        })
+
+        emailService.sendWelcomeEmailInstructor(instructor.fullName, instructor.email, createCourse.name)
+
+        for (const student_email of Object.keys(addedPasswords)) {
+
+            const name = student_email.split('@')[0];
+            
+            const student_password = addedPasswords[student_email]
+
+            console.log("Email Student", {
+                name, 
+                student_email, 
+                course_name: createCourse.name,
+                password: student_password, 
+                instructor_name: instructor.fullName
+            })
+
+            emailService.sendWelcomeEmailStudent(name, student_email, createCourse.name, student_password, instructor.fullName)
+
+        }
+
+        emailService.newOnboardAlert(instructor.fullName, instructor.email, createCourse.name, success.length, organizationName, country)
+
+        res.status(200).json({
+            success,
+            failed,
+            redirectUri: 'https://app.learnwithcues.com/login?' + 'email=' + instructor.email + '&password=' + encodeURIComponent(password) 
+        });
+        
+    })
+
+}
+
+const getRandomInt = (max: number) => {
+    return Math.floor(Math.random() * max);
 }
 
 const uploadFiles = async (file: any, type: any, res: any) => {

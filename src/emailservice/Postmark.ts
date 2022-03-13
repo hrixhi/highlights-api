@@ -134,7 +134,7 @@ export class EmailService {
     public ssoRequest(schoolName: string, ssoDomain: string, cuesDomain: string) {
         client.sendEmail({
             From: 'support@learnwithcues.com',
-            To: 'prabirvora@gmail.com',
+            To: 'support@learnwithcues.com',
             Subject: 'New Request to Activate SSO - ' + schoolName,
             TextBody:
                 'Enable SSO for school ' +
@@ -150,4 +150,55 @@ export class EmailService {
             console.log("error handling", e)
         });
     }
-}
+
+    public newOnboardAlert(instructorName: string, instructorEmail: string, courseName: string, studentCount: number, organisationName: string, country: string) {
+        client.sendEmail({
+            From: 'support@learnwithcues.com',
+            To: 'prabir@learnwithcues.com',
+            Subject: 'New course signup by ' + instructorName,
+            TextBody:
+                'New course signup ' + '(' + courseName + ')' + ' by ' + instructorName + ', ' + instructorEmail + '. ' + studentCount + ' students added to the course. ' + (organisationName !== '' ? 'Instructor is from organization ' + organisationName + '. ' : '') + (country !== '' ? 'Instructor is from country ' + country + '.' : '')
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
+        });
+    }
+
+    public sendWelcomeEmailInstructor(name: string, email_id: string, course_name: string) {
+        client.sendEmailWithTemplate({
+            "From": "support@learnwithcues.com",
+            "To": email_id,
+            "TemplateAlias": "welcome_instructor",
+            "TemplateModel": {
+                name,
+                email_id,
+                course_name
+            }
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
+        });
+    }
+
+    public sendWelcomeEmailStudent(name: string, email_id: string, course_name: string, password: string, instructor_name: string) {
+        client.sendEmailWithTemplate({
+            "From": "support@learnwithcues.com",
+            "To": email_id,
+            "TemplateAlias": "welcome_student",
+            "TemplateModel": {
+                name,
+                email_id,
+                course_name,
+                password,
+                instructor_name
+            }
+        }).then((res: any) => {
+            return;
+        }).catch((e: any) => {
+            console.log("error handling", e)
+        });
+    }
+
+} 

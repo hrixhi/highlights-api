@@ -55,7 +55,10 @@ export class AttendanceMutationResolver {
                 include_external_user_ids: userIds
             };
 
-            const response = await oneSignalClient.createNotification(notification);
+            if (userIds.length > 0) {
+                const response = await oneSignalClient.createNotification(notification);
+            }
+            
 
             users.map(sub => {
                 const notificationIds = sub.notificationId.split('-BREAK-');
