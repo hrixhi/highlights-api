@@ -3,6 +3,7 @@ import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
 import { MessageStatusModel } from '@app/data/message-status/mongo/message-status.model';
 import { GroupModel } from '@app/data/group/mongo/Group.model';
 import { ChannelModel } from '@app/data/channel/mongo/Channel.model';
+import { SchoolsModel } from '@app/data/school/mongo/School.model';
 
 @ObjectType()
 export class ZoomObject {
@@ -116,6 +117,24 @@ export class UserObject {
     @Field({ nullable: true })
     public avatar?: string;
 
+    @Field({ nullable: true })
+    public schoolId?: string;
+
+    @Field(type => String, { nullable: true })
+    public async orgName(@Ctx() context: IGraphQLContext) {
+        const localThis: any = this;
+        const { schoolId } = localThis._doc || localThis;
+
+        if (schoolId && schoolId !== '') {
+            const fetchSchool = await SchoolsModel.findById(schoolId)
+
+            return fetchSchool?.name
+        }
+
+        return ''
+        
+    }
+
     @Field(type => Date, { nullable: true })
     public lastLoginAt?: Date;
 
@@ -127,4 +146,23 @@ export class UserObject {
 
     @Field(type => [String], { nullable: true })
     public channelIds?: string[];
+
+    @Field(type => Boolean, { nullable: true })
+    public async userCreatedOrg(@Ctx() context: IGraphQLContext) {
+        const localThis: any = this;
+        const { schoolId } = localThis._doc || localThis;
+
+        if (schoolId && schoolId !== '') {
+            const fetchSchool = await SchoolsModel.findById(schoolId)
+
+            if (fetchSchool && fetchSchool?.createdByUser) {
+                return true
+            } else {
+                return false
+            }
+        }
+
+        return false
+        
+    } 
 }

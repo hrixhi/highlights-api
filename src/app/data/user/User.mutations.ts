@@ -660,7 +660,7 @@ export class UserMutationResolver {
 				// Fetch user first
 				const user = await UserModel.findOne({ _id: id, schoolId })
 
-				if (!user) return;
+				if (!user) continue;
 
 				// Unsubscriber user from all the channels
 				await SubscriptionModel.updateMany({

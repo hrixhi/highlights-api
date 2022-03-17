@@ -1880,7 +1880,8 @@ export class ChannelMutationResolver {
 			await ChannelModel.updateOne({
 				_id: channelId
 			}, {
-				deletedAt: new Date()
+				deletedAt: new Date(),
+				creatorUnsubscribed: true
 			})
 
 			return true;

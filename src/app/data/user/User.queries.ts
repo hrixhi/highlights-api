@@ -251,7 +251,8 @@ export class UserQueryResolver {
                         const subscription = subs[x].toObject();
                         const mods = await ModificationsModel.find({
                             channelId: subscription.channelId,
-                            userId
+                            userId,
+                            submission: true
                         });
 
                         let score = 0;
@@ -263,6 +264,9 @@ export class UserQueryResolver {
 
                         mods.map((m: any) => {
                             const mod = m.toObject();
+                            totalAssessments += 1;
+
+                            // Graded assignments
                             if (mod.gradeWeight !== undefined && mod.gradeWeight !== null) {
                                 score += mod.releaseSubmission
                                     ? mod.submittedAt && mod.graded
@@ -270,21 +274,24 @@ export class UserQueryResolver {
                                         : 0
                                     : 0;
                                 total += mod.releaseSubmission ? mod.gradeWeight : 0;
-                                totalAssessments += 1;
-                                if (mod.graded) {
-                                    gradedAssessments += 1;
-                                }
-                                if (mod.submittedAt) {
-                                    submittedAssesments += 1;
-                                    if (mod.deadline) {
-                                        const sub = new Date(mod.submittedAt);
-                                        const dead = new Date(mod.deadline);
-                                        if (sub > dead) {
-                                            lateAssessments += 1;
-                                        }
+                                
+                                
+                            } 
+
+                            if (mod.graded && mod.releaseSubmission) {
+                                gradedAssessments += 1;
+                            }
+                            if (mod.submittedAt) {
+                                submittedAssesments += 1;
+                                if (mod.deadline) {
+                                    const sub = new Date(mod.submittedAt);
+                                    const dead = new Date(mod.deadline);
+                                    if (sub > dead) {
+                                        lateAssessments += 1;
                                     }
                                 }
                             }
+                            
                         });
 
                         scoreMap[subscription.channelId] =

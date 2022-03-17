@@ -121,7 +121,8 @@ export class ChannelQueryResolver {
                         owners: userId
                     }
                 ],
-                creatorUnsubscribed: { $ne: true }
+                creatorUnsubscribed: { $ne: true },
+                deletedAt: { $exists: false }
             });
         } catch (e) {
             console.log(e);
@@ -178,7 +179,8 @@ export class ChannelQueryResolver {
 
             const channels = await ChannelModel.find({
                 createdBy: { $in: userIds },
-                creatorUnsubscribed: { $ne: true }
+                creatorUnsubscribed: { $ne: true },
+                deletedAt: { $exists: false }
             });
 
             return channels;
