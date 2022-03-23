@@ -14,6 +14,16 @@ class AnswerObject {
 
 }
 
+@ObjectType()
+class HotSpotObject {
+
+  @Field(type => Number)
+  public x: number;
+
+  @Field(type => Number)
+  public y: number;
+
+}
 
 @ObjectType()
 class ProblemObject {
@@ -21,7 +31,7 @@ class ProblemObject {
   @Field(type => String)
   public question: string;
 
-  @Field(type => String, { nullable: true})
+  @Field(type => String, { nullable: true })
   public questionType?: string;
 
   @Field(type => [AnswerObject])
@@ -36,8 +46,22 @@ class ProblemObject {
   @Field({ nullable: true })
   public updatedAt?: Date;
 
-  @Field(type => String,  { nullable: true })
+  @Field(type => String, { nullable: true })
   public regradeChoice?: string;
+
+  // Added for drag and drop
+  @Field(type => [[String]], { nullable: true })
+  public data?: string[][];
+
+  @Field(type => [String], { nullable: true })
+  public headers?: string[];
+
+  // hot spot
+  @Field(type => String, { nullable: true })
+  public imgUrl?: string;
+
+  @Field(type => [HotSpotObject], { nullable: true })
+  public hotspots?: HotSpotObject[];
 
 }
 

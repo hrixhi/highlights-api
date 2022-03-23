@@ -15,6 +15,45 @@ const answerSchema = new Schema({
   }
 })
 
+const hotspotSchema = new Schema({
+  x: {
+    type: Number,
+    required: true
+  },
+  y: {
+    type: Number,
+    required: true
+  },
+})
+
+// // Drag and drop
+// const itemSchema = new Schema({
+//   id: {
+//     type: Number,
+//     required: true
+//   },
+//   text: {
+//     type: String,
+//     required: true
+//   },
+// })
+
+// Drag and drop
+// const zoneSchema = new Schema({
+//   id: {
+//     type: Number,
+//     required: true
+//   },
+//   text: {
+//     type: String,
+//     required: true
+//   },
+//   items: {
+//     type: [itemSchema],
+//     required: false
+//   }
+// })
+
 const problemSchema = new Schema(
   {
     question: {
@@ -24,7 +63,6 @@ const problemSchema = new Schema(
     questionType: {
       type: String,
       required: false,
-      // Add more question Types here such as True and False, Fill in the blanks, etc. Undefined would be MCQs
     },
     options: {
       type: [answerSchema],
@@ -43,6 +81,24 @@ const problemSchema = new Schema(
       required: false
     },
     regradeChoice: {
+      type: String,
+      required: false
+    },
+    // Drag and drop
+    data: {
+      type: [[String]],
+      required: false
+    },
+    headers: {
+      type: [String],
+      required: false
+    },
+    // hotspot
+    hotspots: {
+      type: [hotspotSchema],
+      required: false
+    },
+    imgUrl: {
       type: String,
       required: false
     }
