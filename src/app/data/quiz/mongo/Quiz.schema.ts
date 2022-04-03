@@ -15,11 +15,71 @@ const answerSchema = new Schema({
   }
 })
 
+const dragDropDataSchema = new Schema({
+  id: {
+    type: String,
+    required: true
+  },
+  content: {
+    type: String,
+    required: true
+  }
+})
+
+const hotspotSchema = new Schema({
+  x: {
+    type: Number,
+    required: true
+  },
+  y: {
+    type: Number,
+    required: true
+  },
+})
+
+const hotspotOptionSchema = new Schema({
+  option: {
+    type: String,
+    required: false
+  },
+  isCorrect: {
+    type: Boolean,
+    required: true
+  }
+})
+
+const inlineChoiceOptionSchema = new Schema({
+  option: {
+    type: String,
+    required: true
+  },
+  isCorrect: {
+    type: Boolean,
+    required: true
+  }
+})
+
+
+const textEntryOptionSchema = new Schema({
+  option: {
+    type: String,
+    required: true
+  },
+  type: {
+    type: String,
+    required: true
+  },
+  points: {
+    type: Number,
+    required: true
+  }
+})
+
 const problemSchema = new Schema(
   {
     question: {
       type: String,
-      required: true
+      required: false
     },
     questionType: {
       type: String,
@@ -44,6 +104,80 @@ const problemSchema = new Schema(
     },
     regradeChoice: {
       type: String,
+      required: false
+    },
+    dragDropData: {
+      type: [[dragDropDataSchema]],
+      required: false
+    },
+    dragDropHeaders: {
+      type: [String],
+      required: false
+    },
+    // hotspot
+    hotspots: {
+      type: [hotspotSchema],
+      required: false
+    },
+    hotspotOptions: {
+      type: [hotspotOptionSchema],
+      required: false
+    },
+    imgUrl: {
+      type: String,
+      required: false
+    },
+    // highlightText
+    highlightTextHtml: {
+      type: String,
+      required: false
+    },
+    highlightTextChoices: {
+      type: [Boolean],
+      required: false
+    },
+    inlineChoiceHtml: {
+      type: String,
+      required: false
+    },
+    inlineChoiceOptions: {
+      type: [[inlineChoiceOptionSchema]],
+      required: false
+    },
+    textEntryHtml: {
+      type: String,
+      required: false,
+    },
+    textEntryOptions: {
+      type: [textEntryOptionSchema],
+      required: false
+    },
+    multipartQuestions: {
+      type: [String],
+      required: false
+    },
+    multipartOptions: {
+      type: [[inlineChoiceOptionSchema]],
+      required: false
+    },
+    correctEquations: {
+      type: [String],
+      required: false
+    },
+    maxCharCount: {
+      type: Number,
+      required: false
+    },
+    matchTableHeaders: {
+      type: [String],
+      required: false
+    }, 
+    matchTableOptions: {
+      type: [String],
+      required: false
+    },
+    matchTableChoices: {
+      type: [[Boolean]],
       required: false
     }
   }

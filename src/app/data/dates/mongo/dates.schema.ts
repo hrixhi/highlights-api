@@ -58,6 +58,15 @@ const schema = new Schema({
     zoomMeetingScheduledBy: {
         type: String,
         required: false
+    },
+    // Meetings created from Inbox
+    isNonChannelMeeting: {
+        type: Boolean,
+        required: false
+    },
+    nonChannelGroupId: {
+        type: Types.ObjectId,
+        required: false
     }
     // NON-ZOOM VIDEO TOOLS
     // meetingUrl: {

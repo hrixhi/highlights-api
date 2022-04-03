@@ -8,6 +8,12 @@ import { MessageModel } from "./mongo/Message.model";
 
 import * as OneSignal from "onesignal-node";
 import { ChannelModel } from "../channel/mongo/Channel.model";
+import { SchoolsModel } from '../school/mongo/School.model';
+import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials'
+import axios from 'axios'
+import moment from 'moment';
+import { group } from "console";
+import { DateModel } from "../dates/mongo/dates.model";
 
 /**
  * Message Mutation Endpoints
@@ -183,15 +189,9 @@ export class MessageMutationResolver {
                 // Existing chats or groups
                 let groupDoc : any = {};
 
-                // if (groupId) {
                 groupDoc = await GroupModel.findOne({
                     _id: groupId
                 })
-                // } else {
-                //     groupDoc = await GroupModel.findOne({
-                //         users: { $all: users, $size: users.length }
-                //     });
-                // }
 
                 id = groupDoc._id;
                 
@@ -236,6 +236,7 @@ export class MessageMutationResolver {
 
                 const notificationIds = sub.notificationId.split("-BREAK-");
                 notificationIds.map((notifId: any) => {
+                    console.log("Send notification to ID", notifId)
                     if (!Expo.isExpoPushToken(notifId)) {
                         return;
                     }
@@ -331,7 +332,249 @@ export class MessageMutationResolver {
             return false;
         }
         
-
-        
     }
+
+    @Field(type => String, {
+		description: 'Used when you want to create/join a meeting.'
+	})
+	public async startInstantMeetingInbox(
+		@Arg('userId', type => String) userId: string,
+		@Arg('start', type => String) start: string,
+		@Arg('end', type => String) end: string,
+        @Arg("users", type => [String]) users: string[],
+        @Arg("groupId", type => String, { nullable: true })
+        groupId?: string,
+        @Arg('topic', type => String, { nullable: true }) 
+        topic?: string,
+	) {
+		try {
+
+			const diff = Math.abs(new Date(start).getTime() - new Date(end).getTime());
+
+            const duration = Math.round(diff / 60000);
+			
+			let accessToken = ''
+			const u: any = await UserModel.findById(userId);
+
+            if (users.length === 0) {
+                return false;
+            }
+
+            let id = groupId
+
+            // Create new group if no groupId passed in 
+            if (!groupId || groupId === "") {
+
+                const newGroup = await GroupModel.create({
+                    users,
+                    createdBy: userId
+                });
+
+                id = newGroup._id;
+
+            } else {
+                // Existing chats or groups
+                let groupDoc : any = {};
+
+                groupDoc = await GroupModel.findOne({
+                    _id: groupId
+                })
+
+                id = groupDoc._id;
+                
+            }
+
+			if (u && id !== '') {
+
+				const user = u.toObject();
+
+				let useZoom = true;
+
+				if (user.schoolId && user.schoolId !== '') {
+					const org = await SchoolsModel.findById(user.schoolId);
+
+					if (org && org.meetingProvider && org.meetingProvider !== '') {
+						useZoom = false;
+					}
+				}
+				
+				if (useZoom) {
+
+					if (!user.zoomInfo) {
+						return 'error'
+					} else {
+						accessToken = user.zoomInfo.accessToken
+					}
+
+					const b = Buffer.from(zoomClientId + ":" + zoomClientSecret);
+
+					const date = new Date()
+					const expiresOn = new Date(user.zoomInfo.expiresOn)
+
+					if (expiresOn <= date) {
+						// refresh access token
+
+						const zoomRes: any = await axios.post(
+							`https://zoom.us/oauth/token?grant_type=refresh_token&refresh_token=${user.zoomInfo.refreshToken}`, undefined, {
+							headers: {
+								Authorization: `Basic ${b.toString("base64")}`,
+								"Content-Type": 'application/x-www-form-urlencoded'
+							},
+						});
+						
+						if (zoomRes.status !== 200) {
+							return 'error'
+						}
+
+						const zoomData: any = zoomRes.data
+
+						const eOn = new Date()
+						eOn.setSeconds(eOn.getSeconds() + (Number.isNaN(Number(zoomData.expires_in)) ? 0 : Number(zoomData.expires_in)))
+
+						accessToken = zoomData.access_token
+
+						await UserModel.updateOne({ _id: userId }, {
+							zoomInfo: {
+								...user.zoomInfo,
+								accessToken: zoomData.access_token,
+								refreshToken: zoomData.refresh_token,
+								expiresOn: eOn	// saved as a date
+							}
+						})
+
+					}
+
+                    const fetchGroup = await GroupModel.findById(id);
+
+					// CREATE MEETING
+					const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
+					.tz('UTC')
+					.format();
+
+				    // create meeting
+					const zoomRes: any = await axios.post(
+						`https://api.zoom.us/v2/users/me/meetings`,
+						{
+							topic: topic && topic !== '' ? topic : 'Meeting with ' + (fetchGroup && fetchGroup.name ? fetchGroup.name : user.fullName),
+							agenda: '',
+							type: 2,
+							start_time: utcTime + 'Z',
+							duration
+						}, {
+						headers: {
+			     			Authorization: `Bearer ${accessToken}`,
+						},
+					});
+
+					if (zoomRes.status !== 200 && zoomRes.status !== 201) {
+						return 'error'
+					}
+
+					const zoomData: any = zoomRes.data
+
+                    const meetingLinkMsg = {
+                        title: 'New meeting ' + (topic ? '- ' + topic : ''),
+                        url: zoomData.join_url,
+                        type: 'meeting_link'
+                    }
+
+					if (zoomData.id) {
+                        // Create and send link as message
+                        await MessageModel.create({
+                            groupId: id,
+                            message: JSON.stringify(meetingLinkMsg),
+                            sentBy: userId,
+                            sentAt: new Date()
+                        });
+                        users.map(async (u, i) => {
+                            if (userId === u) {
+                                return;
+                            }
+                            await MessageStatusModel.create({
+                                groupId: id,
+                                userId: users[i]
+                            });
+                        });
+
+                        // Schedule a meeting with the group
+                        await DateModel.create({
+                            userId,
+							title: (topic ? topic : ''),
+				        	start: new Date(start),
+							end: new Date(end),
+							isNonMeetingChannelEvent: undefined,
+							scheduledMeetingForChannelId: undefined,
+	    					description: '',
+							zoomMeetingId: zoomData.id,
+							zoomStartUrl: zoomData.start_url,
+							zoomJoinUrl: zoomData.join_url,
+							zoomMeetingScheduledBy: userId,
+                            isNonChannelMeeting: true,
+                            nonChannelGroupId: id,
+                        })
+                        
+					} else {
+						return 'error'
+					}
+
+
+					// Alert all the users in group
+					const userDocs = await UserModel.find({ _id: { $in: users } })
+					let title = 'Meeting with ' + (fetchGroup && fetchGroup.name ? fetchGroup.name : user.fullName)
+					let messages: any[] = []
+
+					// Web notifications
+					const oneSignalClient = new OneSignal.Client(
+						'78cd253e-262d-4517-a710-8719abf3ee55',
+						'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+					);
+					const notification = {
+						contents: {
+							'en': 'Meeting with ' + (fetchGroup && fetchGroup.name ? fetchGroup.name : user.fullName)
+						},
+						include_external_user_ids: users
+					}
+
+					if (users.length > 0) {
+						const response = await oneSignalClient.createNotification(notification)
+					} 
+						
+					userDocs.map(u => {
+						const sub = u.toObject()
+						const notificationIds = sub.notificationId.split('-BREAK-')
+						notificationIds.map((notifId: any) => {
+							if (!Expo.isExpoPushToken(notifId)) {
+   							    return
+							}
+							messages.push({
+								to: notifId,
+								sound: 'default',
+								subtitle: '',
+								title,
+								data: { userId: sub._id },
+							})
+					    })
+					})
+					const notificationService = new Expo()
+					let chunks = notificationService.chunkPushNotifications(messages);
+					for (let chunk of chunks) {
+						try {
+							await notificationService.sendPushNotificationsAsync(chunk);
+		     			} catch (e) {
+							console.error(e);
+						}
+					}
+
+					return zoomData.start_url
+		
+
+				} 
+
+			} 
+			return 'error'
+		} catch (e) {
+			console.log(e)
+			return 'error'
+		}
+	}
 }

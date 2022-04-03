@@ -5,6 +5,7 @@ import { ModificationsModel } from '@app/data/modification/mongo/Modification.mo
 import { CueModel } from '@app/data/cue/mongo/Cue.model';
 import { UserModel } from '@app/data/user/mongo/User.model';
 import { SchoolsModel } from '@app/data/school/mongo/School.model';
+import { GroupModel } from '@app/data/group/mongo/Group.model';
 
 @ObjectType()
 export class EventObject {
@@ -204,6 +205,49 @@ export class EventObject {
             return null;
         }
     }
+
+    @Field(type => Boolean, { nullable: true })
+    public isNonChannelMeeting?: boolean;
+
+    @Field(type => String, { nullable: true })
+    public nonChannelGroupId?: string;
+
+    @Field(type => String, { nullable: true })
+    public async groupUsername() {
+        const localThis: any = this;
+        const { userId, isNonChannelMeeting, nonChannelGroupId } = localThis._doc || localThis;
+
+        if (isNonChannelMeeting) {
+            const fetchGroup = await GroupModel.findById(nonChannelGroupId);
+
+            if (fetchGroup && fetchGroup.users.length > 2) {
+                return fetchGroup.name
+            } else if (fetchGroup && fetchGroup.users) {
+                let meetingBetween = [];
+
+                for (let i = 0; i < fetchGroup.users.length; i++) {
+                    const u = await UserModel.findById(fetchGroup.users[i]);
+
+                    if (u && u.fullName) {
+                        meetingBetween.push(u.fullName) 
+                    }
+                }
+
+                if (meetingBetween.length > 1) {
+                    return meetingBetween.join(' <> ');
+                }
+
+            }
+
+            return ''
+
+        }
+
+        return '';
+
+    }
+
+
 }
 
 @ObjectType()

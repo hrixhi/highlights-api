@@ -28,6 +28,7 @@ export class QuizMutationResolver {
 
             return newQuiz._id;
         } catch (e) {
+            console.log("Error quiz", e)
             return 'error';
         }
     }

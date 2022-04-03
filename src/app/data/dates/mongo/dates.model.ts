@@ -21,6 +21,8 @@ export interface IDateModel extends Document {
     zoomMeetingScheduledBy?: string;
     // NON-ZOOM VIDEO TOOLS
     // meetingUrl?: string;
+    isNonChannelMeeting?: boolean;
+    nonChannelGroupId?: string;
 }
 
 export const DateModel: Model<IDateModel> = model<IDateModel>('dates', dateSchema);

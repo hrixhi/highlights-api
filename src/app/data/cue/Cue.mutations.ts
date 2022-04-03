@@ -176,8 +176,8 @@ export class CueMutationResolver {
 					messages.push({
 						to: notifId,
 						sound: 'default',
-						subtitle: title,
-						title: channel.name + (submission ? ' - New Assignment created' : ' - New Content'),
+						subtitle: channel.name + ' - ' + title,
+						title: (submission ? 'New Assignment created' : 'New Content shared'),
 						body: '',
 						data: { userId: sub._id },
 					})
@@ -523,6 +523,309 @@ export class CueMutationResolver {
 						return;
 					}
 
+					// Drag & Drop
+
+					if (problem.questionType && problem.questionType === 'dragdrop') {
+						let correctAnswers = 0;
+						let totalAnswers = 0;
+
+						problem.dragDropData.map((group: any[]) => {
+							totalAnswers += group.length
+						})
+
+						const gradedDragDropChoices: any[] = []
+
+						solutions[i].dragDropChoices.map((group: any[], ind: number) => {
+
+							const gradedGroup: any[] = []
+
+							group.map((label: any) => {
+								const correct = problem.dragDropData[ind].find((val: any) => {
+									return val.id === label.id
+								})
+
+								if (correct && correct.id) {
+									gradedGroup.push({
+										id: label.id,
+										content: label.content,
+										correct: true
+									})
+
+									correctAnswers += 1
+								} else {
+									gradedGroup.push({
+										id: label.id,
+										content: label.content,
+										correct: false
+									})
+								}
+							})
+
+							gradedDragDropChoices.push(gradedGroup)
+						})
+
+						solutions[i].dragDropChoices = gradedDragDropChoices
+
+						console.log("gradedDragDropChoices", gradedDragDropChoices)
+
+						const calculatedScore = ((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
+
+						solutionsObject.problemScores.push(calculatedScore);
+						score += Number(calculatedScore)
+
+						return;
+					}
+
+					// Highlight Text
+
+					if (problem.questionType && problem.questionType === 'highlightText') {
+						
+						let correctAnswers = 0;
+						let totalAnswers = 0;
+
+						problem.highlightTextChoices.map((choice: boolean, ind: number) => {
+
+							if (choice) {
+								totalAnswers += 1;
+
+								if (solutions[i].highlightTextSelection[ind]) {
+									correctAnswers += 1;
+								}
+							}
+
+						})
+
+						const calculatedScore = ((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
+
+						solutionsObject.problemScores.push(calculatedScore);
+						score += Number(calculatedScore)
+
+						return;
+
+					}
+
+					// Hotspot
+
+					if (problem.questionType && problem.questionType === 'hotspot') {
+
+						const hotspotSelections = solutions[i].hotspotSelection;
+
+						let correctAnswers = 0;
+						let totalAnswers = 0;
+
+						problem.hotspotOptions.map((option: any, ind: number) => {
+
+							if (option.isCorrect) {
+								totalAnswers += 1;
+							}
+
+							if (option.isCorrect && hotspotSelections[ind]) {
+								correctAnswers += 1;
+							} 
+
+						})
+
+						console.log("Hotspot correct answers", correctAnswers);
+						console.log("Hotspot Total answers", totalAnswers);
+
+						const calculatedScore = ((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
+
+						solutionsObject.problemScores.push(calculatedScore);
+						score += Number(calculatedScore)
+
+						return;
+						
+					}
+
+					// Inline choice
+
+					if (problem.questionType && problem.questionType === 'inlineChoice') {
+						
+						const inlineChoiceSelection = solutions[i].inlineChoiceSelection;
+
+						const totalAnswers = problem.inlineChoiceOptions.length;
+
+						let correctAnswers = 0;
+
+						problem.inlineChoiceOptions.map((choice: any, ind: number) => {
+							
+							let isCorrectChosen = false;
+
+							choice.map((option: any) => {
+								if (option.option === inlineChoiceSelection[ind] && option.isCorrect) {
+									isCorrectChosen = true
+								}
+							})
+
+							if (isCorrectChosen) {
+								correctAnswers += 1;
+							}
+
+						})
+
+						console.log("Correct answers Inline choice", correctAnswers)
+
+
+						const calculatedScore = ((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
+
+						solutionsObject.problemScores.push(calculatedScore);
+						score += Number(calculatedScore)
+
+						return;
+
+					}
+
+					// Text Entry
+					if (problem.questionType && problem.questionType === 'textEntry') {
+
+						const textEntrySelection = solutions[i].textEntrySelection;
+
+						let totalPoints = 0;
+						let correctPoints = 0;
+
+						problem.textEntryOptions.map((option: any, optionIndex: number) => {
+
+							totalPoints += option.points;
+
+							// Type checks will only be performed on the frontend
+							if (option.option.toString().trim().toLowerCase() === textEntrySelection[optionIndex].toString().trim().toLowerCase()) {
+								correctPoints += option.points;
+							}	
+						})
+
+						console.log("Text entry total points", totalPoints);
+						console.log('Text entry correct points', correctPoints)
+
+
+						const calculatedScore = ((correctPoints / totalPoints) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
+
+						solutionsObject.problemScores.push(calculatedScore);
+						score += Number(calculatedScore)
+
+						return;
+
+					}
+
+					// Multipart
+					if (problem.questionType && problem.questionType === 'multipart') {
+
+						const multipartSelection = solutions[i].multipartSelection
+
+						// Part A
+						let correctAnswers = 0;
+						let totalAnswers = 0;
+
+						problem.multipartOptions[0].map((option: any, optionIndex: number) => {
+
+							if (option.isCorrect) {
+								totalAnswers += 1;
+							} 
+
+							if (option.isCorrect && multipartSelection[0][optionIndex]) {
+								correctAnswers += 1;
+							}
+
+						})
+
+						let partAScore = ((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1))
+
+						console.log("Part A Score", partAScore);
+
+						correctAnswers = 0;
+						totalAnswers = 0;
+
+						problem.multipartOptions[1].map((option: any, optionIndex: number) => {
+
+							if (option.isCorrect) {
+								totalAnswers += 1;
+							} 
+
+							if (option.isCorrect && multipartSelection[1][optionIndex]) {
+								correctAnswers += 1;
+							}
+
+						})
+
+						let partBScore = ((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1))
+
+						console.log("Part B Score", partBScore);
+						
+						const calculatedScore = ((partAScore + partBScore) / 2).toFixed(2)
+
+						console.log("Multipart score", calculatedScore)
+
+						solutionsObject.problemScores.push(calculatedScore);
+						score += Number(calculatedScore)
+
+						return;
+
+					}
+
+					// Equation Editor 
+					if (problem.questionType && problem.questionType === 'equationEditor') {
+
+						const equationResponse = solutions[i].equationResponse;
+
+						let isCorrect = false;
+
+						problem.correctEquations.map((equation: any, equationIndex: number) => {
+
+							// Need to perform check to remove spaces from both Latex formulas
+							if (equation === equationResponse) {
+								isCorrect = true;
+							}
+						})
+
+						if (isCorrect) {
+							const calculatedScore =  isCorrect ? (problem.points !== undefined && problem.points !== null ? problem.points : 1).toFixed(2) : '0';
+							solutionsObject.problemScores.push(calculatedScore);
+							score += Number(calculatedScore)
+						} else {
+							isSubjective = true;
+							solutionsObject.problemScores.push("");
+						}
+
+						// This can be used as a checkbox by instructor to manually override autograding
+						solutionsObject.solutions[i].isEquationResponseCorrect = isCorrect;
+						return;
+					}
+
+					// Match Table Grid
+
+					if (problem.questionType && problem.questionType === 'matchTableGrid') {
+
+						const matchTableSelection = solutions[i].matchTableSelection
+
+						let totalAnswers = problem.matchTableChoices.length;
+
+						let correctAnswers = 0;
+
+						problem.matchTableChoices.map((row: any, rowIndex: number) => {
+
+							let correctSelected = false;
+
+							row.map((option: boolean, optionIndex: number) => {
+								if (option && matchTableSelection[rowIndex][optionIndex]) {
+									correctSelected = true;
+								}
+							})
+
+							if (correctSelected) {
+								correctAnswers += 1;
+							}
+
+						})
+
+						const calculatedScore = ((correctAnswers / totalAnswers) * (problem.points !== undefined && problem.points !== null ? problem.points : 1)).toFixed(2)
+
+						solutionsObject.problemScores.push(calculatedScore);
+						score += Number(calculatedScore)
+
+						return;
+
+					}
+
+
 					// Add check for partial grading later for MCQs
 					let correctAnswers = 0;
 					let totalAnswers = 0;
@@ -729,8 +1032,8 @@ export class CueMutationResolver {
 				messages.push({
 					to: notifId,
 					sound: 'default',
-					subtitle: title,
-					title: channel.name + ' - Submission Complete',
+					subtitle: title + ' - ' + channel.name,
+					title: 'Submission Complete',
 					data: { userId: user._id },
 				})
 			})
