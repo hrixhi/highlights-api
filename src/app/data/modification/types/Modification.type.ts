@@ -15,17 +15,16 @@ export class ScoreObject {
     // @Field({ nullable: true })
     // public gradeWeight: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async gradeWeight(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
         const { gradeWeight } = localThis._doc || localThis;
         if (gradeWeight) {
-            return gradeWeight
+            return gradeWeight;
         }
 
-        return '0'
+        return '0';
     }
-    
 
     @Field({ nullable: true })
     public graded: boolean;
@@ -39,15 +38,18 @@ export class GradeObject {
     @Field()
     public userId: string;
 
-    @Field(type => String)
+    @Field((type) => String)
     public displayName: string;
 
-    @Field(type => String)
+    @Field((type) => String)
     public fullName: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
+    public avatar?: string;
+
+    @Field((type) => String, { nullable: true })
     public email: string;
 
-    @Field(type => [ScoreObject])
+    @Field((type) => [ScoreObject])
     public scores: ScoreObject[];
 }

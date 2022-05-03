@@ -18,6 +18,11 @@ const schema = new Schema(
       type: Types.ObjectId,
       required: false
     },
+    read: {
+      type: Boolean,
+      required: false,
+      default: false
+    }
   }
 )
 

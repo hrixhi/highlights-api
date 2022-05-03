@@ -12,7 +12,6 @@ export class ZoomObject {
 
     @Field()
     public accountId: string;
-
 }
 
 @ObjectType()
@@ -56,31 +55,31 @@ export class UserObject {
     @Field({ nullable: true })
     public currentDraft?: string;
 
-    @Field(type => Number)
+    @Field((type) => Number)
     public async unreadMessages(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
         const { _id } = localThis._doc || localThis;
         const group: any = await GroupModel.findOne({
-            $or: [{ users: [context.user?._id, _id] }, { users: [_id, context.user?._id] }]
+            $or: [{ users: [context.user?._id, _id] }, { users: [_id, context.user?._id] }],
         });
         if (!group) {
             return 0;
         }
         const statuses: any[] = await MessageStatusModel.find({
             groupId: group._id,
-            userId: context.user?._id
+            userId: context.user?._id,
         });
         return statuses.length;
     }
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async groupId(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
         const { _id } = localThis._doc || localThis;
         const group: any = await GroupModel.findOne({
             users: {
-                $all: [context.user?._id, _id]
-            }
+                $all: [context.user?._id, _id],
+            },
         });
         if (!group) {
             return '';
@@ -97,21 +96,20 @@ export class UserObject {
     @Field({ nullable: true })
     public role?: string;
 
-    @Field(type => Boolean, { nullable: true })
+    @Field((type) => Boolean, { nullable: true })
     public async allowQuizCreation(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
         const { _id, role } = localThis._doc || localThis;
 
         const isOwner = await ChannelModel.findOne({
-            owners: { $all: [_id] }
-        })
+            owners: { $all: [_id] },
+        });
 
         if ((isOwner && isOwner?._id) || role === 'instructor') {
-            return true
+            return true;
         }
 
-        return false
-        
+        return false;
     }
 
     @Field({ nullable: true })
@@ -120,49 +118,50 @@ export class UserObject {
     @Field({ nullable: true })
     public schoolId?: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async orgName(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
         const { schoolId } = localThis._doc || localThis;
 
         if (schoolId && schoolId !== '') {
-            const fetchSchool = await SchoolsModel.findById(schoolId)
+            const fetchSchool = await SchoolsModel.findById(schoolId);
 
-            return fetchSchool?.name
+            return fetchSchool?.name;
         }
 
-        return ''
-        
+        return '';
     }
 
-    @Field(type => Date, { nullable: true })
+    @Field((type) => Date, { nullable: true })
     public lastLoginAt?: Date;
 
-    @Field(type => ZoomObject, { nullable: true })
+    @Field((type) => ZoomObject, { nullable: true })
     public zoomInfo?: ZoomObject;
 
     @Field({ nullable: true })
     public inactive?: boolean;
 
-    @Field(type => [String], { nullable: true })
+    @Field((type) => [String], { nullable: true })
     public channelIds?: string[];
 
-    @Field(type => Boolean, { nullable: true })
+    @Field((type) => Boolean, { nullable: true })
     public async userCreatedOrg(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
         const { schoolId } = localThis._doc || localThis;
 
         if (schoolId && schoolId !== '') {
-            const fetchSchool = await SchoolsModel.findById(schoolId)
+            const fetchSchool = await SchoolsModel.findById(schoolId);
 
             if (fetchSchool && fetchSchool?.createdByUser) {
-                return true
+                return true;
             } else {
-                return false
+                return false;
             }
         }
 
-        return false
-        
-    } 
+        return false;
+    }
+
+    @Field((type) => String)
+    public createdAt: string;
 }

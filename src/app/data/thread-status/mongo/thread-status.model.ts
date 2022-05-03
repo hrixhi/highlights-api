@@ -6,6 +6,7 @@ export interface IThreadStatusModel extends Document {
 	userId: any;
 	channelId: string;
 	cueId?: string;
+	read?: boolean;
 }
 
 export const ThreadStatusModel: Model<IThreadStatusModel> = model<IThreadStatusModel>(

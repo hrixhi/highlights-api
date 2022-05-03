@@ -18,23 +18,24 @@ import axios from 'axios';
 import { MeetingStatusObject } from './types/MeetingStatus.type';
 import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials';
 import { SchoolsModel } from '../school/mongo/School.model';
+import { ZoomRegistrationModel } from '../zoom-registration/mongo/zoom-registration.model';
 
 /**
  * Channel Query Endpoints
  */
 @ObjectType()
 export class ChannelQueryResolver {
-    @Field(type => [ChannelObject], {
+    @Field((type) => [ChannelObject], {
         description: 'Returns list of channels created by a user.',
-        nullable: true
+        nullable: true,
     })
     public async getChannelsOutside(
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string
     ) {
         try {
             const activeSubscriptions = await SubscriptionModel.find({
-                $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }]
+                $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }],
             });
 
             const channelIds: any[] = [];
@@ -42,7 +43,7 @@ export class ChannelQueryResolver {
             activeSubscriptions.map((sub: any) => channelIds.push(sub.channelId));
 
             return await ChannelModel.find({
-                _id: { $in: channelIds }
+                _id: { $in: channelIds },
             });
         } catch (e) {
             console.log(e);
@@ -80,12 +81,12 @@ export class ChannelQueryResolver {
 
     // }
 
-    @Field(type => [UserObject], {
+    @Field((type) => [UserObject], {
         description: 'Returns list of subscribers for by a user.',
-        nullable: true
+        nullable: true,
     })
     public async getChannelModerators(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string
     ) {
         try {
@@ -93,7 +94,7 @@ export class ChannelQueryResolver {
 
             if (channel && channel.owners) {
                 return await UserModel.find({
-                    _id: { $in: channel.owners }
+                    _id: { $in: channel.owners },
                 });
             } else {
                 return [];
@@ -103,26 +104,26 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => [ChannelObject], {
+    @Field((type) => [ChannelObject], {
         description: 'Returns list of channels created by a user.',
-        nullable: true
+        nullable: true,
     })
     public async findByUserId(
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string
     ) {
         try {
             return await ChannelModel.find({
                 $or: [
                     {
-                        createdBy: userId
+                        createdBy: userId,
                     },
                     {
-                        owners: userId
-                    }
+                        owners: userId,
+                    },
                 ],
                 creatorUnsubscribed: { $ne: true },
-                deletedAt: { $exists: false }
+                deletedAt: { $exists: false },
             });
         } catch (e) {
             console.log(e);
@@ -130,12 +131,12 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => ChannelObject, {
+    @Field((type) => ChannelObject, {
         description: 'Returns channel by name.',
-        nullable: true
+        nullable: true,
     })
     public async findByName(
-        @Arg('name', type => String)
+        @Arg('name', (type) => String)
         name: string
     ) {
         try {
@@ -146,12 +147,12 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => ChannelObject, {
+    @Field((type) => ChannelObject, {
         description: 'Returns channel by id.',
-        nullable: true
+        nullable: true,
     })
     public async findById(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string
     ) {
         try {
@@ -162,12 +163,12 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => [ChannelObject], {
+    @Field((type) => [ChannelObject], {
         description: 'Returns list of channels belonging to channel.',
-        nullable: true
+        nullable: true,
     })
     public async findBySchoolId(
-        @Arg('schoolId', type => String)
+        @Arg('schoolId', (type) => String)
         schoolId: string
     ) {
         try {
@@ -180,7 +181,7 @@ export class ChannelQueryResolver {
             const channels = await ChannelModel.find({
                 createdBy: { $in: userIds },
                 creatorUnsubscribed: { $ne: true },
-                deletedAt: { $exists: false }
+                deletedAt: { $exists: false },
             });
 
             return channels;
@@ -190,13 +191,13 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => String, {
-        description: 'Returns "password-required", "password-not-required", "non-existant" statuses for a channel'
+    @Field((type) => String, {
+        description: 'Returns "password-required", "password-not-required", "non-existant" statuses for a channel',
     })
-    public async getChannelStatusForCode(@Arg('accessCode', type => String) accessCode: string) {
+    public async getChannelStatusForCode(@Arg('accessCode', (type) => String) accessCode: string) {
         try {
             const channel = await ChannelModel.findOne({
-                accessCode
+                accessCode,
             });
             if (channel) {
                 if (channel.password && channel.password !== '') {
@@ -212,10 +213,10 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => String, {
-        description: 'Returns "password-required", "password-not-required", "non-existant" statuses for a channel'
+    @Field((type) => String, {
+        description: 'Returns "password-required", "password-not-required", "non-existant" statuses for a channel',
     })
-    public async getChannelStatus(@Arg('channelId', type => String) channelId: string) {
+    public async getChannelStatus(@Arg('channelId', (type) => String) channelId: string) {
         try {
             const channel = await ChannelModel.findById(channelId);
             if (channel) {
@@ -232,16 +233,16 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => [String], {
-        description: 'Returns list of channel categories.'
+    @Field((type) => [String], {
+        description: 'Returns list of channel categories.',
     })
     public async getChannelCategories(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string
     ) {
         try {
             const channelCues = await CueModel.find({
-                channelId
+                channelId,
             });
             const categoryObject: any = {};
             channelCues.map((item: any) => {
@@ -262,13 +263,13 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => String, {
-        description: 'Returns meeting link.'
+    @Field((type) => String, {
+        description: 'Returns meeting link.',
     })
     public async getMeetingLink(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string,
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string
     ) {
         try {
@@ -309,13 +310,13 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => String, {
-        description: 'Returns meeting link that can be shared.'
+    @Field((type) => String, {
+        description: 'Returns meeting link that can be shared.',
     })
     public async getSharableLink(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string,
-        @Arg('moderator', type => Boolean)
+        @Arg('moderator', (type) => Boolean)
         moderator: boolean
     ) {
         try {
@@ -346,19 +347,19 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => String, {
-        description: 'Returns meeting link.'
+    @Field((type) => String, {
+        description: 'Returns meeting link.',
     })
     public async getPersonalMeetingLink(
-        @Arg('users', type => [String])
+        @Arg('users', (type) => [String])
         users: string[],
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string
     ) {
         try {
             const u: any = await UserModel.findById(userId);
             const groupDoc: any = await GroupModel.findOne({
-                users: { $all: users }
+                users: { $all: users },
             });
             const groupId = groupDoc._id;
             if (u) {
@@ -393,16 +394,16 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Returns meeting link status.'
+    @Field((type) => Boolean, {
+        description: 'Returns meeting link status.',
     })
     public async getPersonalMeetingLinkStatus(
-        @Arg('users', type => [String])
+        @Arg('users', (type) => [String])
         users: string[]
     ) {
         try {
             const groupDoc: any = await GroupModel.findOne({
-                users: { $all: users }
+                users: { $all: users },
             });
             if (groupDoc) {
                 const group = groupDoc.toObject();
@@ -416,11 +417,11 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => [CueObject], {
-        description: 'Returns a list of submission cues.'
+    @Field((type) => [CueObject], {
+        description: 'Returns a list of submission cues.',
     })
     public async getSubmissionCues(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string
     ) {
         try {
@@ -430,11 +431,11 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => String, {
-        description: 'Returns a list of submission cues.'
+    @Field((type) => String, {
+        description: 'Returns a list of submission cues.',
     })
     public async getChannelColorCode(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string
     ) {
         try {
@@ -449,11 +450,11 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => [SubmissionStatisticObject], {
-        description: 'Returns a list of submission cues.'
+    @Field((type) => [SubmissionStatisticObject], {
+        description: 'Returns a list of submission cues.',
     })
     public async getSubmissionCuesStatistics(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string
     ) {
         try {
@@ -461,7 +462,7 @@ export class ChannelQueryResolver {
 
             const gradedData: any = await ModificationsModel.find({
                 channelId,
-                submission: true
+                submission: true,
             });
 
             // Construct the total statistics - Minimum, Median, Maximum, Mean, STD Deviation
@@ -512,7 +513,7 @@ export class ChannelQueryResolver {
                     mean: mean.toFixed(1),
                     median: median.toFixed(1),
                     std: std.toFixed(2),
-                    submissionCount
+                    submissionCount,
                 });
             }
 
@@ -523,86 +524,147 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => [GradeObject], {
-        description: 'Returns a list of grade object.'
+    @Field((type) => [GradeObject], {
+        description: 'Returns a list of grade object.',
     })
     public async getGrades(
-        @Arg('channelId', type => String)
-        channelId: string
+        @Arg('channelId', (type) => String)
+        channelId: string,
+        @Arg('userId', (type) => String, { nullable: true })
+        userId?: string
     ) {
         try {
-            const gradedData: any = await ModificationsModel.find({
-                channelId,
-                submission: true
-            });
-            const gradesObject: any = {};
-            const userIds: any = [];
+            // Fetch Channel
+            const fetchChannel = await ChannelModel.findById(channelId);
 
-            gradedData.map((mod: any) => {
-                const modification = mod.toObject();
-                if (gradesObject[modification.userId]) {
-                    gradesObject[modification.userId].push({
-                        score: modification.score,
-                        gradeWeight: modification.gradeWeight,
-                        cueId: modification.cueId,
-                        graded: modification.graded,
-                        submittedAt: modification.submittedAt,
-                        releaseSubmission: modification.releaseSubmission
-                    });
-                } else {
-                    userIds.push(modification.userId);
-                    gradesObject[modification.userId] = [
-                        {
+            if (!fetchChannel) return [];
+
+            let isOwner = false;
+
+            const c = fetchChannel.toObject();
+
+            console.log('c.createdBy', c.createdBy.toString());
+            console.log('userId', userId);
+
+            if (userId && c.createdBy.toString() === userId.toString()) {
+                isOwner = true;
+            } else if (userId && c.owners && c.owners.includes(userId)) {
+                isOwner = true;
+            }
+
+            console.log('Is Owner', isOwner);
+
+            if (isOwner || !userId) {
+                const gradedData: any = await ModificationsModel.find({
+                    channelId,
+                    submission: true,
+                });
+                const gradesObject: any = {};
+                const userIds: any = [];
+
+                gradedData.map((mod: any) => {
+                    const modification = mod.toObject();
+                    if (gradesObject[modification.userId]) {
+                        gradesObject[modification.userId].push({
                             score: modification.score,
                             gradeWeight: modification.gradeWeight,
                             cueId: modification.cueId,
                             graded: modification.graded,
                             submittedAt: modification.submittedAt,
-                            releaseSubmission: modification.releaseSubmission
-                        }
-                    ];
-                }
-            });
-            const users: any = await UserModel.find({ _id: { $in: userIds } });
-            const grades: any[] = [];
-
-            const channel: any = await ChannelModel.findById(channelId);
-
-            let owners: any[] = [];
-
-            if (channel) {
-                owners = channel.owners
-                    ? [...channel.owners, channel.createdBy.toString()]
-                    : [channel.createdBy.toString()];
-            }
-
-            // Filter channel owners data out
-            const filteredUsers = users.filter((u: any) => {
-                const user = u.toObject();
-                return !owners.includes(user._id.toString());
-            });
-
-            filteredUsers.map((u: any) => {
-                const user = u.toObject();
-                grades.push({
-                    userId: user._id,
-                    displayName: user.displayName,
-                    fullName: user.fullName,
-                    email: user.email && user.email !== '' ? user.email : '',
-                    scores: gradesObject[user._id] ? gradesObject[user._id] : []
+                            releaseSubmission: modification.releaseSubmission,
+                        });
+                    } else {
+                        userIds.push(modification.userId);
+                        gradesObject[modification.userId] = [
+                            {
+                                score: modification.score,
+                                gradeWeight: modification.gradeWeight,
+                                cueId: modification.cueId,
+                                graded: modification.graded,
+                                submittedAt: modification.submittedAt,
+                                releaseSubmission: modification.releaseSubmission,
+                            },
+                        ];
+                    }
                 });
-            });
-            return grades;
+                const users: any = await UserModel.find({ _id: { $in: userIds } });
+                const grades: any[] = [];
+
+                // const channel: any = await ChannelModel.findById(channelId);
+
+                let owners: any[] = [];
+
+                owners = fetchChannel.owners
+                    ? [...fetchChannel.owners, fetchChannel.createdBy.toString()]
+                    : [fetchChannel.createdBy.toString()];
+
+                // Filter channel owners data out
+                const filteredUsers = users.filter((u: any) => {
+                    const user = u.toObject();
+                    return !owners.includes(user._id.toString());
+                });
+
+                filteredUsers.map((u: any) => {
+                    const user = u.toObject();
+                    grades.push({
+                        userId: user._id,
+                        displayName: user.displayName,
+                        fullName: user.fullName,
+                        email: user.email && user.email !== '' ? user.email : '',
+                        avatar: user.avatar && user.avatar !== '' ? user.avatar : '',
+                        scores: gradesObject[user._id] ? gradesObject[user._id] : [],
+                    });
+                });
+
+                console.log('Grades', grades);
+
+                return grades;
+            } else {
+                let userScores: any[] = [];
+
+                const gradedData: any = await ModificationsModel.find({
+                    channelId,
+                    submission: true,
+                    userId,
+                });
+
+                gradedData.map((modification: any) => {
+                    userScores.push({
+                        score: modification.releaseSubmission && modification.graded ? modification.score : undefined,
+                        gradeWeight: modification.gradeWeight,
+                        cueId: modification.cueId,
+                        graded: modification.graded,
+                        submittedAt: modification.submittedAt,
+                        releaseSubmission: modification.releaseSubmission,
+                    });
+                });
+
+                const fetchUser = await UserModel.findById(userId);
+
+                if (!fetchUser) return [];
+
+                const user = fetchUser.toObject();
+
+                return [
+                    {
+                        userId: user._id,
+                        displayName: user.displayName,
+                        fullName: user.fullName,
+                        email: user.email && user.email !== '' ? user.email : '',
+                        scores: userScores,
+                    },
+                ];
+            }
         } catch (e) {
             return [];
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Returns status of channel meeting.'
+    @Field((type) => Boolean, {
+        description: 'Returns status of channel meeting.',
     })
     public async getMeetingStatus(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string
     ) {
         try {
@@ -687,11 +749,11 @@ export class ChannelQueryResolver {
     //     }
     // }
 
-    @Field(type => Boolean, {
-        description: 'Returns true if channel can be deleted/is temporary.'
+    @Field((type) => Boolean, {
+        description: 'Returns true if channel can be deleted/is temporary.',
     })
     public async isChannelTemporary(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string
     ) {
         try {
@@ -709,13 +771,13 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field(type => [MeetingStatusObject], {
-        description: 'Fetch any ongoing meetings and returns URLs for them'
+    @Field((type) => [MeetingStatusObject], {
+        description: 'Fetch any ongoing meetings and returns URLs for them',
     })
     public async ongoingMeetings(
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string,
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string
     ) {
         try {
@@ -758,14 +820,14 @@ export class ChannelQueryResolver {
                         zoomMeetingId: { $ne: undefined },
                         zoomMeetingScheduledBy: { $ne: undefined },
                         start: { $lte: new Date() },
-                        end: { $gte: new Date() }
+                        end: { $gte: new Date() },
                     });
                 } else {
                     dates = await DateModel.find({
                         scheduledMeetingForChannelId: channelId,
                         isNonMeetingChannelEvent: { $ne: true },
                         start: { $lte: new Date() },
-                        end: { $gte: new Date() }
+                        end: { $gte: new Date() },
                     });
                 }
 
@@ -782,9 +844,8 @@ export class ChannelQueryResolver {
                         const zoomMeetingScheduledBy = meet.zoomMeetingScheduledBy;
                         const meetingId = meet.zoomMeetingId;
 
-
                         const u = await UserModel.findOne({
-                            _id: zoomMeetingScheduledBy
+                            _id: zoomMeetingScheduledBy,
                         });
 
                         if (u) {
@@ -804,8 +865,8 @@ export class ChannelQueryResolver {
                                     {
                                         headers: {
                                             Authorization: `Basic ${b.toString('base64')}`,
-                                            'Content-Type': 'application/x-www-form-urlencoded'
-                                        }
+                                            'Content-Type': 'application/x-www-form-urlencoded',
+                                        },
                                     }
                                 );
 
@@ -830,8 +891,8 @@ export class ChannelQueryResolver {
                                             ...user.zoomInfo,
                                             accessToken: zoomData.access_token,
                                             refreshToken: zoomData.refresh_token,
-                                            expiresOn: eOn // saved as a date
-                                        }
+                                            expiresOn: eOn, // saved as a date
+                                        },
                                     }
                                 );
                             } else {
@@ -841,8 +902,8 @@ export class ChannelQueryResolver {
                             // create meeting
                             const zoomRes: any = await axios.get(`https://api.zoom.us/v2/meetings/${meetingId}`, {
                                 headers: {
-                                    Authorization: `Bearer ${accessToken}`
-                                }
+                                    Authorization: `Bearer ${accessToken}`,
+                                },
                             });
 
                             if (zoomRes.status !== 200 && zoomRes.status !== 201) {
@@ -852,15 +913,22 @@ export class ChannelQueryResolver {
                             const zoomData: any = zoomRes.data;
 
                             if (zoomData.id) {
+                                // Check if registrations exists and if so then return the registration join url
+                                const registrationZoom = await ZoomRegistrationModel.findOne({
+                                    zoomMeetingId: zoomData.id.toString(),
+                                    userId,
+                                    channelId,
+                                });
+
                                 // Create a new Date
                                 meetings.push({
                                     title: meet.title,
                                     description: meet.description,
                                     startUrl: isOwner ? zoomData.start_url : '',
-                                    joinUrl: zoomData.join_url,
+                                    joinUrl: registrationZoom ? registrationZoom.zoom_join_url : zoomData.join_url,
                                     error: '',
                                     start: meet.start,
-                                    end: meet.end
+                                    end: meet.end,
                                 });
                             } else {
                                 return;
@@ -880,7 +948,7 @@ export class ChannelQueryResolver {
                             joinUrl: channel.meetingUrl ? channel.meetingUrl : '',
                             error: '',
                             start: meet.start,
-                            end: meet.end
+                            end: meet.end,
                         });
                     }
 

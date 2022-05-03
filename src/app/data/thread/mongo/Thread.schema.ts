@@ -1,44 +1,50 @@
 import { Schema, Types } from 'mongoose';
 
-const schema = new Schema(
-  {
+const schema = new Schema({
     message: {
-      type: String,
-      required: true
+        type: String,
+        required: true,
     },
     userId: {
-      type: Types.ObjectId,
-      required: true
+        type: Types.ObjectId,
+        required: true,
     },
     channelId: {
-      type: Types.ObjectId,
-      required: true
+        type: Types.ObjectId,
+        required: true,
     },
     isPrivate: {
-      type: Boolean,
-      required: true
+        type: Boolean,
+        required: true,
     },
     anonymous: {
-      type: Boolean,
-      required: true
+        type: Boolean,
+        required: true,
     },
     time: {
-      type: Date,
-      required: true
+        type: Date,
+        required: true,
     },
     cueId: {
-      type: Types.ObjectId,
-      required: false
+        type: Types.ObjectId,
+        required: false,
     },
     category: {
-      type: String,
-      required: false
+        type: String,
+        required: false,
     },
     parentId: {
-      type: Types.ObjectId,
-      required: false
-    }
-  }
-)
+        type: Types.ObjectId,
+        required: false,
+    },
+    title: {
+        type: String,
+        required: false,
+    },
+    edited: {
+        type: Boolean,
+        required: false,
+    },
+});
 
 export const threadSchema = schema;

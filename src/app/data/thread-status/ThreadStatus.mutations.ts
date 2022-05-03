@@ -15,7 +15,9 @@ export class ThreadStatusMutationResolver {
         @Arg('userId', type => String) userId: string
     ) {
         try {
-            await ThreadStatusModel.deleteMany({ threadId, userId })
+            await ThreadStatusModel.updateMany({ threadId, userId }, {
+                read: true
+            })
             return true;
         } catch (e) {
             return false

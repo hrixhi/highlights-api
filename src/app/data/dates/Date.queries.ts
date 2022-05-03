@@ -74,28 +74,30 @@ export class DateQueryResolver {
                     cueId: cue._id
                 });
             });
-            const addedDates: any[] = await DateModel.find({ userId, isNonChannelMeeting: { $ne: true } });
+            // Personal meetings
+            const addedDates: any[] = await DateModel.find({ userId, isNonChannelMeeting: { $ne: true }, scheduledMeetingForChannelId: { $eq: undefined }});
             addedDates.map(d => {
                 const date = d.toObject();
                 dates.push({
                     dateId: date._id,
                     title: date.title,
+                    description: date.description,
                     start: date.start,
                     end: date.end,
                     meeting: false,
-                    cueId: ''
+                    cueId: '',
                 });
             });
             const scheduledMeetings: any[] = await DateModel.find({
                 isNonMeetingChannelEvent: { $ne: true },
                 scheduledMeetingForChannelId: { $in: channelIdInputs },
-                end: { $gte: new Date() }
             });
             scheduledMeetings.map((d: any) => {
                 const date = d.toObject();
                 dates.push({
                     ...date,
                     title: date.title,
+                    description: date.description,
                     dateId: date._id,
                     meeting: true,
                     cueId: '',
@@ -111,9 +113,11 @@ export class DateQueryResolver {
             });
             nonMeetingChannelEvents.map((d: any) => {
                 const date = d.toObject();
+                console.log("Date", date);
                 dates.push({
                     ...date,
-                    title: date.title,
+                    // title: date.title,
+                    // description: date.description,
                     dateId: 'channel',
                     meeting: false,
                     cueId: ''
@@ -124,7 +128,6 @@ export class DateQueryResolver {
                 users: userId
             })
 
-            console.log("All Groups", allGroups)
 
             const groupIdInputs: any[] = []
             allGroups.map(g => {
@@ -132,21 +135,19 @@ export class DateQueryResolver {
                 groupIdInputs.push(grp._id);
             });
 
-            console.log("All groups", allGroups)
-
             const nonChannelMeetings: any[] = await DateModel.find({
                 isNonChannelMeeting: true,
                 nonChannelGroupId: { $in: groupIdInputs },
-                end: { $gte: new Date() }
+                end: { $gte: new Date() },
+                scheduledMeetingForChannelId: { $eq: undefined }
             })
-
-            console.log("Non channel meetings", nonChannelMeetings)
 
             nonChannelMeetings.map((d: any) => {
                 const date = d.toObject();
                 dates.push({
                     ...date,
                     title: date.title,
+                    description: date.description,
                     dateId: date._id,
                     meeting: true,
                     cueId: '',

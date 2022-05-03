@@ -22,24 +22,24 @@ import { WORKOS_API_KEY, WORKOS_CLIENT_ID, REDIRECT_URI } from '../../../helpers
  */
 @ObjectType()
 export class UserQueryResolver {
-    @Field(type => UserObject, {
+    @Field((type) => UserObject, {
         description: 'Returns a user by id.',
-        nullable: true
+        nullable: true,
     })
     public async findById(
-        @Arg('id', type => String)
+        @Arg('id', (type) => String)
         id: string
     ) {
         const result: any = await UserModel.findById(id);
         return result;
     }
 
-    @Field(type => String, {
+    @Field((type) => String, {
         description: 'Returns a user role.',
-        nullable: true
+        nullable: true,
     })
     public async getRole(
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string
     ) {
         const u: any = await UserModel.findById(userId);
@@ -52,19 +52,19 @@ export class UserQueryResolver {
         return '';
     }
 
-    @Field(type => [UserObject], {
-        description: 'Returns list of users by channelId.'
+    @Field((type) => [UserObject], {
+        description: 'Returns list of users by channelId.',
     })
     public async findByChannelId(
-        @Arg('channelId', type => String)
+        @Arg('channelId', (type) => String)
         channelId: string
     ) {
         try {
             const subscriptions = await SubscriptionModel.find({
-                $and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
+                $and: [{ channelId }, { unsubscribedAt: { $exists: false } }],
             });
             const ids: any[] = [];
-            subscriptions.map(subscriber => {
+            subscriptions.map((subscriber) => {
                 ids.push(subscriber.userId);
             });
             return await UserModel.find({ _id: { $in: ids }, deletedAt: undefined });
@@ -74,11 +74,11 @@ export class UserQueryResolver {
         }
     }
 
-    @Field(type => AuthResponseObject)
+    @Field((type) => AuthResponseObject)
     public async login(
-        @Arg('email', type => String)
+        @Arg('email', (type) => String)
         email: string,
-        @Arg('password', type => String)
+        @Arg('password', (type) => String)
         password: string
     ) {
         try {
@@ -88,7 +88,7 @@ export class UserQueryResolver {
                     return {
                         user: null,
                         error: 'This account is linked with ' + user.authProvider,
-                        token: ''
+                        token: '',
                     };
                 }
 
@@ -96,7 +96,7 @@ export class UserQueryResolver {
                     return {
                         user: null,
                         error: 'User account terminated by school administrator.',
-                        token: ''
+                        token: '',
                     };
                 }
 
@@ -104,7 +104,7 @@ export class UserQueryResolver {
                     return {
                         user: null,
                         error: 'Account inactive. Contact school administrator.',
-                        token: ''
+                        token: '',
                     };
                 }
 
@@ -117,47 +117,46 @@ export class UserQueryResolver {
                     return {
                         user,
                         error: '',
-                        token
+                        token,
                     };
                 } else {
                     return {
                         user: null,
                         error: 'Incorrect Password. Try again.',
-                        token: ''
+                        token: '',
                     };
                 }
             } else {
                 return {
                     user: null,
                     error: 'No user found with this email.',
-                    token: ''
+                    token: '',
                 };
             }
         } catch (e) {
             return {
                 user: null,
                 error: 'Something went wrong. Try again.',
-                token: ''
+                token: '',
             };
         }
     }
 
-    @Field(type => AuthResponseObject)
+    @Field((type) => AuthResponseObject)
     public async loginFromSso(
-        @Arg('code', type => String)
+        @Arg('code', (type) => String)
         code: string
     ) {
         try {
-
             const workos = new WorkOS(WORKOS_API_KEY);
 
             const { profile } = await workos.sso.getProfileAndToken({
                 code,
-                clientID: WORKOS_CLIENT_ID
+                clientID: WORKOS_CLIENT_ID,
             });
 
             const user = await UserModel.findOne({
-                email: profile.email
+                email: profile.email,
             });
 
             if (user) {
@@ -168,28 +167,28 @@ export class UserQueryResolver {
                 return {
                     user,
                     error: '',
-                    token
+                    token,
                 };
             } else {
                 return {
                     user: null,
                     error:
                         'No Cues account linked with this profile. Contact your school admin to be added to the roster.',
-                    token: ''
+                    token: '',
                 };
             }
         } catch (e) {
             return {
                 user: null,
                 error: 'Something went wrong. Try again.',
-                token: ''
+                token: '',
             };
         }
     }
 
-    @Field(type => [UserObject])
+    @Field((type) => [UserObject])
     public async getSchoolUsers(
-        @Arg('schoolId', type => String)
+        @Arg('schoolId', (type) => String)
         schoolId: string
     ) {
         try {
@@ -200,11 +199,11 @@ export class UserQueryResolver {
         }
     }
 
-    @Field(type => String)
+    @Field((type) => String)
     public async organisationLogin(
-        @Arg('cuesDomain', type => String)
+        @Arg('cuesDomain', (type) => String)
         cuesDomain: string,
-        @Arg('password', type => String)
+        @Arg('password', (type) => String)
         password: string
     ) {
         try {
@@ -223,12 +222,97 @@ export class UserQueryResolver {
         }
     }
 
-    @Field(type => [PerformanceObject], {
+    @Field((type) => PerformanceObject, {
         description: 'Returns total scores.',
-        nullable: true
+        nullable: true,
+    })
+    public async getChannelPerformanceReport(
+        @Arg('userId', (type) => String)
+        userId: string,
+        @Arg('channelId', (type) => String)
+        channelId: string
+    ) {
+        try {
+            // channel - score map
+            const u: any = await UserModel.findById(userId);
+            if (u) {
+                const mods = await ModificationsModel.find({
+                    channelId,
+                    userId,
+                    submission: true,
+                });
+
+                let score = 0;
+                let total = 0;
+                let totalAssessments = 0;
+                let gradedAssessments = 0;
+                let lateAssessments = 0;
+                let submittedAssessments = 0;
+                let upcomingAssessmentDate = '';
+
+                mods.map((m: any) => {
+                    const mod = m.toObject();
+                    totalAssessments += 1;
+
+                    // Graded assignments
+                    if (mod.gradeWeight !== undefined && mod.gradeWeight !== null) {
+                        score += mod.releaseSubmission
+                            ? mod.submittedAt && mod.graded
+                                ? (mod.score * mod.gradeWeight) / 100
+                                : 0
+                            : 0;
+                        total += mod.releaseSubmission ? mod.gradeWeight : 0;
+                    }
+
+                    if (mod.graded && mod.releaseSubmission) {
+                        gradedAssessments += 1;
+                    }
+                    if (mod.submittedAt) {
+                        submittedAssessments += 1;
+                        if (mod.deadline) {
+                            const sub = new Date(mod.submittedAt);
+                            const dead = new Date(mod.deadline);
+                            if (sub > dead) {
+                                lateAssessments += 1;
+                            }
+                        }
+                    }
+
+                    // Check if due date in the future
+                    const dueDate = new Date(mod.deadline);
+                    if (
+                        dueDate > new Date() &&
+                        (dueDate < new Date(upcomingAssessmentDate) || !upcomingAssessmentDate)
+                    ) {
+                        upcomingAssessmentDate = mod.deadline.toUTCString();
+                    }
+                });
+
+                return {
+                    channelId,
+                    score: total === 0 ? 0 : ((score / total) * 100).toFixed(2).replace(/\.0+$/, ''),
+                    total,
+                    totalAssessments,
+                    lateAssessments,
+                    gradedAssessments,
+                    submittedAssessments,
+                    upcomingAssessmentDate,
+                };
+            } else {
+                return [];
+            }
+        } catch (e) {
+            console.log(e);
+            return [];
+        }
+    }
+
+    @Field((type) => [PerformanceObject], {
+        description: 'Returns total scores.',
+        nullable: true,
     })
     public async getPerformanceReport(
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string
     ) {
         try {
@@ -241,9 +325,10 @@ export class UserQueryResolver {
                 const gradedAssessmentsMap: any = {};
                 const lateAssessmentsMap: any = {};
                 const submittedAssessmentsMap: any = {};
+                const upcomingAssessmentsMap: any = {};
 
                 const subs = await SubscriptionModel.find({
-                    $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }]
+                    $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }],
                 });
 
                 for (let x = 0; x < subs.length; x++) {
@@ -252,7 +337,7 @@ export class UserQueryResolver {
                         const mods = await ModificationsModel.find({
                             channelId: subscription.channelId,
                             userId,
-                            submission: true
+                            submission: true,
                         });
 
                         let score = 0;
@@ -261,6 +346,7 @@ export class UserQueryResolver {
                         let gradedAssessments = 0;
                         let lateAssessments = 0;
                         let submittedAssesments = 0;
+                        let upcomingAssignmentDate = '';
 
                         mods.map((m: any) => {
                             const mod = m.toObject();
@@ -274,9 +360,7 @@ export class UserQueryResolver {
                                         : 0
                                     : 0;
                                 total += mod.releaseSubmission ? mod.gradeWeight : 0;
-                                
-                                
-                            } 
+                            }
 
                             if (mod.graded && mod.releaseSubmission) {
                                 gradedAssessments += 1;
@@ -291,8 +375,18 @@ export class UserQueryResolver {
                                     }
                                 }
                             }
-                            
+
+                            // Check if due date in the future
+                            const dueDate = new Date(mod.deadline);
+                            if (
+                                dueDate > new Date() &&
+                                (dueDate < new Date(upcomingAssignmentDate) || !upcomingAssignmentDate)
+                            ) {
+                                upcomingAssignmentDate = mod.deadline.toUTCString();
+                            }
                         });
+
+                        console.log('Upcoming Assignment Date', upcomingAssignmentDate);
 
                         scoreMap[subscription.channelId] =
                             total === 0 ? 0 : ((score / total) * 100).toFixed(2).replace(/\.0+$/, '');
@@ -301,6 +395,7 @@ export class UserQueryResolver {
                         lateAssessmentsMap[subscription.channelId] = lateAssessments;
                         gradedAssessmentsMap[subscription.channelId] = gradedAssessments;
                         submittedAssessmentsMap[subscription.channelId] = submittedAssesments;
+                        upcomingAssessmentsMap[subscription.channelId] = upcomingAssignmentDate;
                     }
                 }
 
@@ -315,7 +410,8 @@ export class UserQueryResolver {
                         totalAssessments: totalAssessmentsMap[key],
                         lateAssessments: lateAssessmentsMap[key],
                         gradedAssessments: gradedAssessmentsMap[key],
-                        submittedAssessments: submittedAssessmentsMap[key]
+                        submittedAssessments: submittedAssessmentsMap[key],
+                        upcomingAssessmentDate: upcomingAssessmentsMap[key],
                     });
                 });
 
@@ -329,9 +425,9 @@ export class UserQueryResolver {
         }
     }
 
-    @Field(type => [UserObject])
+    @Field((type) => [UserObject])
     public async getAllUsers(
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string
     ) {
         try {
@@ -339,7 +435,7 @@ export class UserQueryResolver {
             if (u) {
                 const user = u.toObject();
                 const subs = await SubscriptionModel.find({
-                    $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }]
+                    $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }],
                 });
 
                 const channelIds: any = [];
@@ -355,8 +451,8 @@ export class UserQueryResolver {
                     $and: [
                         { channelId: { $in: channelIds } },
                         { keepContent: { $ne: false } },
-                        { unsubscribedAt: { $exists: false } }
-                    ]
+                        { unsubscribedAt: { $exists: false } },
+                    ],
                 });
 
                 allSubs.map((s: any) => {
@@ -376,7 +472,7 @@ export class UserQueryResolver {
                 if (user.role === 'instructor') {
                     const data = await UserModel.find({
                         _id: { $in: userIds },
-                        schoolId: user.schoolId ? user.schoolId : undefined
+                        schoolId: user.schoolId ? user.schoolId : undefined,
                     });
                     data.map((u: any) => {
                         const obj = u.toObject();
@@ -386,7 +482,7 @@ export class UserQueryResolver {
                     const data = await UserModel.find({
                         _id: { $in: userIds },
                         role: 'instructor',
-                        schoolId: user.schoolId ? user.schoolId : undefined
+                        schoolId: user.schoolId ? user.schoolId : undefined,
                     });
                     data.map((u: any) => {
                         const obj = u.toObject();
@@ -404,11 +500,11 @@ export class UserQueryResolver {
         }
     }
 
-    @Field(type => String)
+    @Field((type) => String)
     public async search(
-        @Arg('term', type => String)
+        @Arg('term', (type) => String)
         term: string,
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string
     ) {
         try {
@@ -417,7 +513,7 @@ export class UserQueryResolver {
 
             const toReturn: any = {};
             const subscriptions = await SubscriptionModel.find({
-                $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }]
+                $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }],
             });
             const channelIds = subscriptions.map((s: any) => {
                 const sub = s.toObject();
@@ -432,19 +528,19 @@ export class UserQueryResolver {
             const personalCues = await CueModel.find({
                 channelId: { $exists: false },
                 createdBy: userId,
-                cue: new RegExp(term, 'i')
+                cue: new RegExp(term, 'i'),
             });
             toReturn['personalCues'] = personalCues;
 
             const channelCues = await CueModel.find({
                 channelId: { $in: channelIds },
-                cue: new RegExp(term, 'i')
+                cue: new RegExp(term, 'i'),
             });
             toReturn['channelCues'] = channelCues;
 
             // Messages
             const groups = await GroupModel.find({
-                users: userId
+                users: userId,
             });
             const groupIds = groups.map((g: any) => {
                 const group = g.toObject();
@@ -460,7 +556,7 @@ export class UserQueryResolver {
 
             const messages = await MessageModel.find({
                 message: new RegExp(term, 'i'),
-                groupId: { $in: groupIds }
+                groupId: { $in: groupIds },
             });
 
             const messagesWithUsers = messages.map((mess: any) => {
@@ -471,13 +567,13 @@ export class UserQueryResolver {
                 if (users) {
                     return {
                         ...messObj,
-                        users
+                        users,
                     };
                 }
 
                 return {
                     ...messObj,
-                    users: []
+                    users: [],
                 };
             });
 
@@ -488,7 +584,7 @@ export class UserQueryResolver {
             // threads
             const threads = await ThreadModel.find({
                 channelId: { $in: channelIds },
-                message: new RegExp(term)
+                message: new RegExp(term),
             });
             toReturn['threads'] = threads;
 
@@ -501,31 +597,30 @@ export class UserQueryResolver {
         }
     }
 
-    @Field(type => CueObject, { nullable: true })
+    @Field((type) => CueObject, { nullable: true })
     public async fetchAnnotationsForViewer(
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string,
-        @Arg('cueId', type => String)
+        @Arg('cueId', (type) => String)
         cueId: string,
-        @Arg('myNotes', type => Boolean, { nullable: true })
+        @Arg('myNotes', (type) => Boolean, { nullable: true })
         myNotes?: boolean
     ) {
         try {
-
-            let mod: any = {}
+            let mod: any = {};
 
             if (myNotes) {
                 mod = await CueModel.findOne({
                     _id: cueId,
-                    createdBy: userId
+                    createdBy: userId,
                 });
             } else {
                 mod = await ModificationsModel.findOne({
                     cueId,
-                    userId
+                    userId,
                 });
             }
-            console.log("Mod", mod)
+            console.log('Mod', mod);
 
             if (mod !== null && mod !== undefined) {
                 return mod;
@@ -537,16 +632,16 @@ export class UserQueryResolver {
         }
     }
 
-    @Field(type => Boolean)
+    @Field((type) => Boolean)
     public async isSsoAvailable(
-        @Arg('ssoDomain', type => String)
+        @Arg('ssoDomain', (type) => String)
         ssoDomain: string
     ) {
         try {
             const foundSSO = await SchoolsModel.findOne({
                 ssoDomain,
                 ssoEnabled: true,
-                workosConnection: { $ne: undefined }
+                workosConnection: { $ne: undefined },
             });
 
             if (foundSSO && foundSSO.workosConnection && foundSSO.workosConnection.state === 'active') {
@@ -559,16 +654,16 @@ export class UserQueryResolver {
         }
     }
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async getSsoLink(
-        @Arg('ssoDomain', type => String)
+        @Arg('ssoDomain', (type) => String)
         ssoDomain: string
     ) {
         try {
             const foundSSO = await SchoolsModel.findOne({
                 ssoDomain,
                 ssoEnabled: true,
-                workosConnection: { $ne: undefined }
+                workosConnection: { $ne: undefined },
             });
 
             if (foundSSO && foundSSO.workosConnection && foundSSO.workosConnection.state === 'active') {
@@ -577,7 +672,7 @@ export class UserQueryResolver {
                 const authorizationURL = workos.sso.getAuthorizationURL({
                     clientID: WORKOS_CLIENT_ID,
                     redirectURI: REDIRECT_URI,
-                    connection: foundSSO.workosConnection.id
+                    connection: foundSSO.workosConnection.id,
                 });
 
                 return authorizationURL;
@@ -589,19 +684,18 @@ export class UserQueryResolver {
         }
     }
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async getSsoLinkNative(
-        @Arg('ssoDomain', type => String)
+        @Arg('ssoDomain', (type) => String)
         ssoDomain: string,
-        @Arg('redirectURI', type => String)
+        @Arg('redirectURI', (type) => String)
         redirectURI: string
     ) {
         try {
-
             const foundSSO = await SchoolsModel.findOne({
                 ssoDomain,
                 ssoEnabled: true,
-                workosConnection: { $ne: undefined }
+                workosConnection: { $ne: undefined },
             });
 
             if (foundSSO && foundSSO.workosConnection && foundSSO.workosConnection.state === 'active') {
@@ -610,7 +704,7 @@ export class UserQueryResolver {
                 const authorizationURL = workos.sso.getAuthorizationURL({
                     clientID: WORKOS_CLIENT_ID,
                     redirectURI,
-                    connection: foundSSO.workosConnection.id
+                    connection: foundSSO.workosConnection.id,
                 });
 
                 return authorizationURL;

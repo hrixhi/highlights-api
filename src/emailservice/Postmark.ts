@@ -154,7 +154,8 @@ export class EmailService {
     public newOnboardAlert(instructorName: string, instructorEmail: string, courseName: string, studentCount: number, organisationName: string, country: string) {
         client.sendEmail({
             From: 'support@learnwithcues.com',
-            To: 'prabir@learnwithcues.com',
+            To: 'hrishi@learnwithcues.com',
+            Cc: 'prabir@learnwithcues.com',
             Subject: 'New course signup by ' + instructorName,
             TextBody:
                 'New course signup ' + '(' + courseName + ')' + ' by ' + instructorName + ', ' + instructorEmail + '. ' + studentCount + ' students added to the course. ' + (organisationName !== '' ? 'Instructor is from organization ' + organisationName + '. ' : '') + (country !== '' ? 'Instructor is from country ' + country + '.' : '')

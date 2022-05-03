@@ -6,6 +6,7 @@ import { CueModel } from '@app/data/cue/mongo/Cue.model';
 import { UserModel } from '@app/data/user/mongo/User.model';
 import { SchoolsModel } from '@app/data/school/mongo/School.model';
 import { GroupModel } from '@app/data/group/mongo/Group.model';
+import { ZoomRegistrationModel } from '@app/data/zoom-registration/mongo/zoom-registration.model';
 
 @ObjectType()
 export class EventObject {
@@ -55,7 +56,7 @@ export class EventObject {
     @Field(type => String, { nullable: true })
     public async createdBy(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
-        const { scheduledMeetingForChannelId } = localThis._doc || localThis;
+        const { scheduledMeetingForChannelId, isNonChannelMeeting, zoomMeetingScheduledBy } = localThis._doc || localThis;
         if (scheduledMeetingForChannelId) {
             const channel = await ChannelModel.findById(scheduledMeetingForChannelId);
 
@@ -69,6 +70,8 @@ export class EventObject {
             }
 
             return channel ? channel.createdBy : '';
+        } else if (isNonChannelMeeting && zoomMeetingScheduledBy) {
+            return zoomMeetingScheduledBy;
         } else {
             if (context.user && context.user!._id !== '') {
                 return context.user!._id;
@@ -146,6 +149,38 @@ export class EventObject {
 
     @Field(type => String, { nullable: true })
     public zoomJoinUrl?: string;
+
+    @Field(type => String, { nullable: true })
+    public async zoomRegistrationJoinUrl(@Ctx() context: IGraphQLContext) {
+        const localThis: any = this;
+        const { isNonChannelMeeting, scheduledMeetingForChannelId, zoomJoinUrl, zoomMeetingId } = localThis._doc || localThis;
+
+        if (!zoomJoinUrl || zoomJoinUrl === '') return null;
+
+        if (isNonChannelMeeting) {
+            return zoomJoinUrl
+        } else if (scheduledMeetingForChannelId && scheduledMeetingForChannelId !== '') {
+
+            if (!context.user || context.user!._id === '') return null;
+
+            // Check if registration link exist
+            const registration = await ZoomRegistrationModel.findOne({
+                userId: context.user._id,
+                channelId: scheduledMeetingForChannelId,
+                zoomMeetingId
+            })
+
+            if (registration) {
+                return registration.zoom_join_url;
+            } else {
+                return zoomJoinUrl;
+            }
+    
+            
+        }
+        return null;
+    }
+
 
     @Field(type => String, { nullable: true })
     public zoomMeetingScheduledBy?: string;

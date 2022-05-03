@@ -22,12 +22,14 @@ import WorkOS from '@workos-inc/node';
 import { WORKOS_API_KEY, WORKOS_WEBHOOK_KEY } from '@helper/workosCredentials';
 import { SchoolsModel } from '@app/data/school/mongo/School.model';
 import { EmailService } from '../../../emailservice/Postmark';
-const FormData = require('form-data')
-const fs = require('fs')
-import axios from 'axios'
+const FormData = require('form-data');
+const fs = require('fs');
+import axios from 'axios';
 import { PassThrough } from 'stream';
 import { hashPassword } from '@app/data/methods';
 import shortid from 'shortid';
+import { EmailModel } from '@app/data/emails/mongo/email.model';
+import { ZoomRegistrationModel } from '@app/data/zoom-registration/mongo/zoom-registration.model';
 
 const PSPDFKIT_API_KEY = 'pdf_live_pixgIxf3rrhpCL1z6QqEhWzU2q2fSPmrwA7bHv6hp5r';
 
@@ -43,17 +45,17 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         const foundSSO = await SchoolsModel.findOne({
             ssoDomain,
             ssoEnabled: true,
-            workosConnection: { $ne: undefined }
+            workosConnection: { $ne: undefined },
         });
 
         if (foundSSO && foundSSO.workosConnection && foundSSO.workosConnection.state === 'active') {
             return res.json({
-                ssoFound: true
+                ssoFound: true,
             });
         }
 
         return res.json({
-            ssoFound: false
+            ssoFound: false,
         });
     });
 
@@ -66,7 +68,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             numOfInstructors = '',
             numOfStudents = '',
             country = '',
-            learningModel = ''
+            learningModel = '',
         } = req.body;
 
         if (!name || !email) {
@@ -82,16 +84,30 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     // Joined Zoom meeting
     GQLServer.post('/zoom_participant_joined', async (req: any, res: any) => {
         // console.log('Req', req.headers.authorization);
+        console.log('zoom_participant_joined Participant', req.body.payload.object.participant);
+        console.log('Req', req.headers.authorization);
 
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
                 error: 1,
-                msg: 'Invalid verification token.'
+                msg: 'Invalid verification token.',
             });
         }
 
-        const accountId = req.body.payload.account_id;
+        const registrant_id = req.body.payload.object.participant.registrant_id;
+
         const zoomMeetingId = req.body.payload.object.id;
+
+        if (!registrant_id || !zoomMeetingId) {
+            return;
+        }
+
+        const fetchRegistration = await ZoomRegistrationModel.findOne({
+            registrant_id,
+        });
+
+        if (!fetchRegistration) return;
+
         const currentDate = new Date();
 
         // Technically two recurring meetings must be atleast 24 hours apart
@@ -103,10 +119,12 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         const activeDate = await DateModel.findOne({
             zoomMeetingId,
             start: { $lte: plus60 },
-            end: { $gte: minus60 }
+            end: { $gte: minus60 },
         });
 
-        const u = await UserModel.findOne({ 'zoomInfo.accountId': accountId });
+        console.log('Active date', activeDate);
+
+        const u = await UserModel.findById(fetchRegistration.userId);
 
         if (u && activeDate) {
             const dateObject = activeDate.toObject();
@@ -114,40 +132,60 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             const attendanceMarked = await AttendanceModel.findOne({
                 dateId: dateObject._id,
                 userId: u._id,
-                channelId: dateObject.scheduledMeetingForChannelId
+                channelId: dateObject.scheduledMeetingForChannelId,
             });
+
+            console.log('Existing Attendance object ', attendanceMarked);
 
             // If attendance object does not exist then create one
             if (!attendanceMarked || !attendanceMarked.joinedAt) {
+                console.log('Mark attendance');
+
                 const res = await AttendanceModel.create({
                     userId: u._id,
                     dateId: dateObject._id,
                     joinedAt: new Date(),
-                    channelId: dateObject.scheduledMeetingForChannelId
+                    channelId: dateObject.scheduledMeetingForChannelId,
                 });
+
+                console.log('Attendance marked?', res);
             }
         }
 
         res.json({
-            status: 'ok'
+            status: 'ok',
         });
     });
 
     // Left Zoom
     GQLServer.post('/zoom_participant_left', async (req: any, res: any) => {
-        // console.log(req.body);
-        // console.log('Req', req.headers.authorization);
+        console.log('zoom_participant_left', req.body);
+        console.log('zoom_participant_left Participant', req.body.payload.object.participant);
+
+        console.log('Req', req.headers.authorization);
 
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
                 error: 1,
-                msg: 'Invalid verification token.'
+                msg: 'Invalid verification token.',
             });
         }
 
-        const accountId = req.body.payload.account_id;
+        const registrant_id = req.body.payload.object.participant.registrant_id;
 
         const zoomMeetingId = req.body.payload.object.id;
+
+        console.log('Meeting ID', zoomMeetingId);
+
+        if (!registrant_id || !zoomMeetingId) {
+            return;
+        }
+
+        const fetchRegistration = await ZoomRegistrationModel.findOne({
+            registrant_id,
+        });
+
+        if (!fetchRegistration) return;
 
         const currentDate = new Date();
 
@@ -158,10 +196,10 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         const activeDate = await DateModel.findOne({
             zoomMeetingId,
             start: { $lte: plus60 },
-            end: { $gte: minus60 }
+            end: { $gte: minus60 },
         });
 
-        const u = await UserModel.findOne({ 'zoomInfo.accountId': accountId });
+        const u = await UserModel.findById(fetchRegistration.userId);
 
         if (u && activeDate) {
             const dateObject = activeDate.toObject();
@@ -169,7 +207,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             const attendanceMarked = await AttendanceModel.findOne({
                 dateId: dateObject._id,
                 userId: u._id,
-                channelId: dateObject.scheduledMeetingForChannelId
+                channelId: dateObject.scheduledMeetingForChannelId,
             });
 
             // If attendance object does not exist
@@ -179,32 +217,31 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     dateId: dateObject._id,
                     joinedAt: new Date(),
                     leftAt: new Date(),
-                    channelId: dateObject.scheduledMeetingForChannelId
+                    channelId: dateObject.scheduledMeetingForChannelId,
                 });
             } else if (attendanceMarked) {
                 await AttendanceModel.updateOne(
                     {
-                        _id: attendanceMarked._id
+                        _id: attendanceMarked._id,
                     },
                     {
-                        leftAt: new Date()
+                        leftAt: new Date(),
                     }
                 );
             }
         }
 
         res.json({
-            status: 'ok'
+            status: 'ok',
         });
     });
 
     // Deauthorized app Zoom
     GQLServer.post('/zoom_deauth', async (req: any, res: any) => {
-
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
                 error: 1,
-                msg: 'Invalid verification token.'
+                msg: 'Invalid verification token.',
             });
         }
 
@@ -215,26 +252,25 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         if (u) {
             await UserModel.updateOne(
                 {
-                    _id: u._id
+                    _id: u._id,
                 },
                 {
-                    zoomInfo: undefined
+                    zoomInfo: undefined,
                 }
             );
         }
 
         res.json({
-            status: 'ok'
+            status: 'ok',
         });
     });
 
     // Zoom user profile updated
     GQLServer.post('/zoom_profile_updated', async (req: any, res: any) => {
-
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
                 error: 1,
-                msg: 'Invalid verification token.'
+                msg: 'Invalid verification token.',
             });
         }
 
@@ -247,25 +283,25 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         if (u && profile.email) {
             await UserModel.updateOne(
                 {
-                    _id: u._id
+                    _id: u._id,
                 },
                 {
-                    $set: { 'zoomInfo.email': profile.email }
+                    $set: { 'zoomInfo.email': profile.email },
                 }
             );
         } else if (u && profile.type) {
             await UserModel.updateOne(
                 {
-                    _id: u._id
+                    _id: u._id,
                 },
                 {
-                    $set: { 'zoomInfo.accountType': profile.type }
+                    $set: { 'zoomInfo.accountType': profile.type },
                 }
             );
         }
 
         res.json({
-            status: 'ok'
+            status: 'ok',
         });
     });
 
@@ -276,34 +312,34 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         if (!req || !req.headers || req.headers.authorization !== 'H-M9N9PcSq2fkx2nZWYcrQ') {
             res.json(400, {
                 error: 1,
-                msg: 'Invalid verification token.'
+                msg: 'Invalid verification token.',
             });
         }
 
         const zoomMeetingId = req.body.payload.object.id;
 
         const dateObjects = await DateModel.find({
-            zoomMeetingId
+            zoomMeetingId,
         });
 
         const dateIds: string[] = dateObjects.map((d: any) => d._id);
 
         await DateModel.updateMany(
             {
-                _id: { $in: dateIds }
+                _id: { $in: dateIds },
             },
             {
                 $set: {
                     zoomMeetingId: undefined,
                     zoomJoinUrl: undefined,
                     zoomStartUrl: undefined,
-                    zoomMeetingScheduledBy: undefined
-                }
+                    zoomMeetingScheduledBy: undefined,
+                },
             }
         );
 
         res.json({
-            status: 'ok'
+            status: 'ok',
         });
     });
 
@@ -324,18 +360,17 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
             SchoolsModel.updateOne(
                 {
-                    workosOrgId: organization_id
+                    workosOrgId: organization_id,
                 },
                 {
                     workosConnection: {
                         id,
                         connection_type,
                         name,
-                        state
-                    }
+                        state,
+                    },
                 }
-            ).then(res => console.log(res));
-
+            ).then((res) => console.log(res));
         } else if (webhook.event === 'connection.deactivated' && webhook.id !== '') {
             const { data } = webhook;
 
@@ -343,13 +378,12 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
             SchoolsModel.updateOne(
                 {
-                    workosOrgId: organization_id
+                    workosOrgId: organization_id,
                 },
                 {
-                    $set: { 'workosConnection.status': state }
+                    $set: { 'workosConnection.status': state },
                 }
-            ).then(res => console.log(res));
-
+            ).then((res) => console.log(res));
         } else if (webhook.event === 'connection.deleted' && webhook.id !== '') {
             const { data } = webhook;
 
@@ -357,16 +391,15 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
             SchoolsModel.updateOne(
                 {
-                    workosOrgId: organization_id
+                    workosOrgId: organization_id,
                 },
                 {
-                    workosConnection: null
+                    workosConnection: null,
                 }
-            ).then(res => console.log(res));
-
+            ).then((res) => console.log(res));
         }
         res.status(200).json({
-            status: 'ok'
+            status: 'ok',
         });
     });
 
@@ -383,8 +416,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         const typeOfUpload = req.body.typeOfUpload;
         const busboy = new Busboy({ headers: req.headers });
 
-       
-
         // The file upload has completed
         busboy.on('finish', async () => {
             let file;
@@ -398,48 +429,54 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             } catch (e) {
                 res.json({
                     status: 'error',
-                    url: null
+                    url: null,
                 });
             }
 
-            if (typeOfUpload === 'ppt' || typeOfUpload === 'pptx' || typeOfUpload === 'doc' || typeOfUpload === 'docx' || typeOfUpload === 'xlsx' || typeOfUpload === 'xls') {
-                
+            if (
+                typeOfUpload === 'ppt' ||
+                typeOfUpload === 'pptx' ||
+                typeOfUpload === 'doc' ||
+                typeOfUpload === 'docx' ||
+                typeOfUpload === 'xlsx' ||
+                typeOfUpload === 'xls'
+            ) {
                 s3FileName = basename(file.name).split('.')[0] + '.pdf';
                 s3TypeOfUpload = 'pdf';
-                
+
                 // Need to convert to PDF by using PSPDFKIT
-                const formData = new FormData()
+                const formData = new FormData();
 
-                formData.append('instructions', JSON.stringify({
-                    parts: [
-                      {
-                        file: "document"
-                      }
-                    ]
-                }))
+                formData.append(
+                    'instructions',
+                    JSON.stringify({
+                        parts: [
+                            {
+                                file: 'document',
+                            },
+                        ],
+                    })
+                );
 
-                formData.append('document', Buffer.from(file.data, 'base64'))
+                formData.append('document', Buffer.from(file.data, 'base64'));
                 // formData.append('document', fs.createReadStream('document.docx'))
 
                 try {
                     const response = await axios.post('https://api.pspdfkit.com/build', formData, {
                         headers: formData.getHeaders({
-                            'Authorization': `Bearer ${PSPDFKIT_API_KEY}`
+                            Authorization: `Bearer ${PSPDFKIT_API_KEY}`,
                         }),
-                        responseType: "stream"
-                    })
-                
-                    const passThrough = new PassThrough()
-                    response.data.pipe(passThrough)
+                        responseType: 'stream',
+                    });
+
+                    const passThrough = new PassThrough();
+                    response.data.pipe(passThrough);
                     // body = await stream2buffer(response.data)
-                    body = passThrough
-
-
+                    body = passThrough;
                 } catch (e) {
-                    const errorString = await streamToString(e.response.data)
-                    console.log(errorString)
+                    const errorString = await streamToString(e.response.data);
+                    console.log(errorString);
                 }
-
             } else {
                 body = file.data;
                 s3FileName = basename(file.name);
@@ -448,7 +485,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
             AWS.config.update({
                 accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',
-                secretAccessKey: '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'
+                secretAccessKey: 'hTpw16ja/ioQ0RyozJoa8YPGhjZzFGsTlm8LSu6N',
             });
 
             const s3 = new AWS.S3();
@@ -459,7 +496,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 params = {
                     Bucket: 'cues-files',
                     Body: body,
-                    Key: filePath + s3TypeOfUpload + '/' + Date.now() + '_' + s3FileName
+                    Key: filePath + s3TypeOfUpload + '/' + Date.now() + '_' + s3FileName,
                 };
 
                 s3.upload(params, (err: any, data: any) => {
@@ -467,14 +504,14 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     if (err) {
                         res.json({
                             status: 'error',
-                            url: null
+                            url: null,
                         });
                     }
                     // success
                     if (data) {
                         res.json({
                             status: 'success',
-                            url: data.Location
+                            url: data.Location,
                         });
                     }
                 });
@@ -486,37 +523,108 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         req.pipe(busboy);
     });
 
+    // Deauthorized app Zoom
+    GQLServer.post('/subscribeEmail', async (req: any, res: any) => {
+        const emailId = req.body.emailId;
+
+        if (!emailId) {
+            return res.status(400).send({ error: 'NO_EMAIL_PROVIDED' });
+        }
+
+        const fetchEmail = await EmailModel.findOne({
+            emailId,
+        });
+
+        if (fetchEmail && fetchEmail._id) {
+            if (fetchEmail.unsubscribedAt) {
+                // Resubscribe user
+                const updateEmail = await EmailModel.updateOne(
+                    {
+                        _id: fetchEmail._id,
+                    },
+                    {
+                        unsubscribedAt: undefined,
+                    }
+                );
+
+                res.json({
+                    status: 'ok',
+                });
+            } else {
+                // Already subscribed
+                return res.status(400).send({ error: 'EMAIL_ALREADY_ADDED' });
+            }
+        } else {
+            const createEmail = await EmailModel.create({
+                emailId,
+            });
+
+            return res.json({
+                status: 'ok',
+            });
+        }
+    });
+
+    // Deauthorized app Zoom
+    GQLServer.post('/unsubscribeEmail', async (req: any, res: any) => {
+        const emailId = req.body.emailId;
+
+        if (!emailId) {
+            return res.status(400).send({ error: 'NO_EMAIL_PROVIDED' });
+        }
+
+        // Fetch subscribed user
+        const fetchEmail = await EmailModel.findOne({
+            emailId,
+            unsubscribedAt: { $eq: undefined },
+        });
+
+        if (fetchEmail && fetchEmail._id) {
+            // Resubscribe user
+            const updateEmail = await EmailModel.updateOne(
+                {
+                    _id: fetchEmail._id,
+                },
+                {
+                    unsubscribedAt: new Date(),
+                }
+            );
+
+            res.json({
+                status: 'ok',
+            });
+        } else {
+            return res.status(400).send({ error: 'EMAIL_ALREADY_UNSUBSCRIBED' });
+        }
+    });
+
     function streamToString(stream: any) {
-        const chunks: any[] = []
+        const chunks: any[] = [];
         return new Promise((resolve, reject) => {
-          stream.on("data", (chunk: any) => chunks.push(Buffer.from(chunk)))
-          stream.on("error", (err: any) => reject(err))
-          stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")))
-        })
+            stream.on('data', (chunk: any) => chunks.push(Buffer.from(chunk)));
+            stream.on('error', (err: any) => reject(err));
+            stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+        });
     }
 
     async function stream2buffer(stream: any): Promise<Buffer> {
+        return new Promise<Buffer>((resolve, reject) => {
+            const _buf = Array<any>();
 
-        return new Promise < Buffer > ((resolve, reject) => {
-            
-            const _buf = Array < any > ();
-    
-            stream.on("data", (chunk: any) => _buf.push(chunk));
-            stream.on("end", () => resolve(Buffer.concat(_buf)));
-            stream.on("error", (err: any) => reject(`error converting stream - ${err}`));
-    
+            stream.on('data', (chunk: any) => _buf.push(chunk));
+            stream.on('end', () => resolve(Buffer.concat(_buf)));
+            stream.on('error', (err: any) => reject(`error converting stream - ${err}`));
         });
-    } 
+    }
 
     GQLServer.post('/api/imageUploadEditor', (req: any, res: any) => {
-
         const { userId } = req.body;
         // return res.status(400);
         const { file } = req.files;
 
         AWS.config.update({
             accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',
-            secretAccessKey: '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'
+            secretAccessKey: 'hTpw16ja/ioQ0RyozJoa8YPGhjZzFGsTlm8LSu6N',
         });
 
         const s3 = new AWS.S3();
@@ -529,7 +637,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             params = {
                 Bucket: 'cues-files',
                 Body: file.data,
-                Key: filePath + file.mimetype + '/' + Date.now() + '_' + basename(file.name)
+                Key: filePath + file.mimetype + '/' + Date.now() + '_' + basename(file.name),
             };
 
             s3.upload(params, (err: any, data: any) => {
@@ -537,14 +645,14 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 if (err) {
                     res.json({
                         // status: "error",
-                        url: null
+                        url: null,
                     });
                 }
                 // success
                 if (data) {
                     res.json({
                         // status: "success",
-                        link: data.Location
+                        link: data.Location,
                     });
                 }
             });
@@ -563,12 +671,12 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
         try {
             AWS.config.update({
                 accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',
-                secretAccessKey: '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'
+                secretAccessKey: 'hTpw16ja/ioQ0RyozJoa8YPGhjZzFGsTlm8LSu6N',
             });
 
             const options = {
                 uri: url,
-                encoding: null
+                encoding: null,
             };
 
             const body = await request(options);
@@ -579,7 +687,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 {
                     Bucket: 'cues-files',
                     Key: 'media/' + 'books/' + Date.now() + '_' + encodeURIComponent(title),
-                    Body: body
+                    Body: body,
                 },
                 (err: any, data: any) => {
                     // handle error
@@ -617,7 +725,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             }
             AWS.config.update({
                 accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',
-                secretAccessKey: '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'
+                secretAccessKey: 'hTpw16ja/ioQ0RyozJoa8YPGhjZzFGsTlm8LSu6N',
             });
 
             const s3 = new AWS.S3();
@@ -628,7 +736,6 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
     });
 
     GQLServer.post('/search', async (req: any, res: any) => {
-
         const { term, userId } = req.body;
 
         if (term === '' || userId === '') return '';
@@ -649,11 +756,16 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             const schoolId = findUser.schoolId ? findUser.schoolId : '';
 
             // Channels
-            const channels = await ChannelModel.find({ name: new RegExp(term, 'i'), schoolId });
+            const channels = await ChannelModel.find({
+                name: new RegExp(term, 'i'),
+                schoolId,
+                creatorUnsubscribed: { $ne: true },
+                deletedAt: { $exists: false },
+            });
             toReturn['channels'] = channels;
 
             const subscriptions = await SubscriptionModel.find({
-                $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }]
+                $and: [{ userId }, { keepContent: { $ne: false } }, { unsubscribedAt: { $exists: false } }],
             });
             const channelIds = subscriptions.map((s: any) => {
                 const sub = s.toObject();
@@ -664,19 +776,19 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             const personalCues = await CueModel.find({
                 channelId: { $exists: false },
                 createdBy: userId,
-                cue: new RegExp(term, 'i')
+                cue: new RegExp(term, 'i'),
             });
             toReturn['personalCues'] = personalCues;
 
             const channelCues = await CueModel.find({
                 channelId: { $in: channelIds },
-                cue: new RegExp(term, 'i')
+                cue: new RegExp(term, 'i'),
             });
             toReturn['channelCues'] = channelCues;
 
             // Messages
             const groups = await GroupModel.find({
-                users: userId
+                users: userId,
             });
             const groupIds = groups.map((g: any) => {
                 const group = g.toObject();
@@ -692,19 +804,17 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
             const messages = await MessageModel.find({
                 message: new RegExp(term, 'i'),
-                groupId: { $in: groupIds }
-            })
-            .populate({
-                path: "groupId",
-                model: "groups", 
-                select: ["name", "users", "image"],
-                populate: { 
-                    path:  'users', 
+                groupId: { $in: groupIds },
+            }).populate({
+                path: 'groupId',
+                model: 'groups',
+                select: ['name', 'users', 'image'],
+                populate: {
+                    path: 'users',
                     model: 'users',
-                    select: ["_id", "fullName", "avatar",]
-                }
-              })
-              
+                    select: ['_id', 'fullName', 'avatar'],
+                },
+            });
 
             console.log('Messages', messages);
 
@@ -716,17 +826,17 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 if (users) {
                     return {
                         ...messObj,
-                        users
+                        users,
                     };
                 }
 
                 return {
                     ...messObj,
-                    users: []
+                    users: [],
                 };
             });
 
-            console.log("Message with users", messagesWithUsers)
+            console.log('Message with users', messagesWithUsers);
 
             toReturn['messages'] = messagesWithUsers;
 
@@ -735,7 +845,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             // threads
             const threads = await ThreadModel.find({
                 channelId: { $in: channelIds },
-                message: new RegExp(term, 'i')
+                $or: [{ message: new RegExp(term, 'i') }, { title: new RegExp(term, 'i') }],
             });
             toReturn['threads'] = threads;
 
@@ -760,7 +870,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
 
         const subscriptions = await SubscriptionModel.find({
             userId,
-            unsubscribedAt: { $exists: false }
+            unsubscribedAt: { $exists: false },
         });
 
         // loop over all the channel and fetch users role
@@ -778,7 +888,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     channelId: channel._id,
                     name: channel.name,
                     colorCode: channel.colorCode,
-                    role: 'Owner'
+                    role: 'Owner',
                 });
                 // Channel Moderator
             } else if (channel.owners && channel.owners.length > 0 && channel.owners.includes(userId)) {
@@ -786,7 +896,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     channelId: channel._id,
                     name: channel.name,
                     colorCode: channel.colorCode,
-                    role: 'Editor'
+                    role: 'Editor',
                 });
                 // viewer only
             } else {
@@ -794,7 +904,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     channelId: channel._id,
                     name: channel.name,
                     colorCode: channel.colorCode,
-                    role: 'Viewer'
+                    role: 'Viewer',
                 });
             }
         }
@@ -821,7 +931,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             if (sub.role === 'Viewer') {
                 const mods = await ModificationsModel.find({
                     channelId: sub.channelId,
-                    userId
+                    userId,
                 });
 
                 let score = 0;
@@ -834,7 +944,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 const assignments = await ModificationsModel.find({
                     channelId: sub.channelId,
                     submission: true,
-                    userId
+                    userId,
                 });
 
                 assignments.map((mod: any) => {
@@ -851,7 +961,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                         submitted: mod.submittedAt !== null && mod.submittedAt !== undefined,
                         graded: mod.graded,
                         score: mod.score,
-                        late
+                        late,
                     });
                 });
 
@@ -884,14 +994,14 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 // Get discussion count
                 const threadCount: any[] = await ThreadModel.find({
                     userId,
-                    channelId: sub.channelId
+                    channelId: sub.channelId,
                 });
 
                 // Get Attendance
                 const totalAttendances: any[] = await DateModel.find({
                     isNonMeetingChannelEvent: { $ne: true },
                     scheduledMeetingForChannelId: sub.channelId,
-                    end: { $lte: new Date() }
+                    end: { $lte: new Date() },
                 });
 
                 let attendance = 0;
@@ -900,7 +1010,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     const { dateId } = attendance;
 
                     const present = await AttendanceModel.findOne({
-                        dateId
+                        dateId,
                     });
 
                     if (present) {
@@ -931,36 +1041,54 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 submittedAssessments: submittedAssessmentsMap[key],
                 threadCount: threadCountMap[key],
                 totalAttendance: totalAttendanceMap[key],
-                attendanceCount: attendanceCountMap[key]
+                attendanceCount: attendanceCountMap[key],
             });
         });
 
         return res.send({
             channels,
             overviewData,
-            scores
+            scores,
         });
     });
 
-
     // ONBOARDING
     GQLServer.post('/onboard_course', async (req: any, res: any) => {
-        
         const { name, email, password, organizationName, country, courseName, studentEmails } = req.body;
 
-        console.log("Inputs", { name, email, password, organizationName, country, courseName, studentEmails })
+        console.log('Inputs', { name, email, password, organizationName, country, courseName, studentEmails });
 
-        // Validation 
-        if (!email || email.trim() === '' || !password || password.trim() === '' || !courseName || courseName.trim() === '' || !studentEmails || studentEmails.length === 0) {
+        // Validation
+        if (
+            !email ||
+            email.trim() === '' ||
+            !password ||
+            password.trim() === '' ||
+            !courseName ||
+            courseName.trim() === '' ||
+            !studentEmails ||
+            studentEmails.length === 0
+        ) {
             return res.status(400).send({ error: 'One of the required fields not provided.' });
         }
 
         // Validation for Course name
-        if (courseName.toString().trim() === 'All'
-            || courseName.toString().trim() === 'All-Channels' 
-            || courseName.toString().trim().toLowerCase() === 'home'
-            || courseName.toString().trim().toLowerCase() === 'cues'
-            || courseName.toString().trim().toLowerCase() === 'my notes') {
+        if (
+            courseName.toString().trim() === 'All' ||
+            courseName.toString().trim() === 'All-Channels' ||
+            courseName
+                .toString()
+                .trim()
+                .toLowerCase() === 'home' ||
+            courseName
+                .toString()
+                .trim()
+                .toLowerCase() === 'cues' ||
+            courseName
+                .toString()
+                .trim()
+                .toLowerCase() === 'my notes'
+        ) {
             return res.status(400).send({ error: 'Cannot use this course name. Try using a different one.' });
         }
 
@@ -969,16 +1097,15 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             email,
         });
 
-        let instructor: any = {}
+        let instructor: any = {};
 
         if (existingInstructor && existingInstructor._id) {
-
             // Edge case
             if (existingInstructor.schoolId && existingInstructor.schoolId.toString() !== '') {
                 return res.status(400).send({ error: 'An account with this email already exists.' });
             }
 
-            instructor = existingInstructor
+            instructor = existingInstructor;
         } else {
             // Create new instructor
 
@@ -986,44 +1113,43 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             const hash = await hashPassword(password);
 
             instructor = await UserModel.create({
-				email,
-				fullName: name,
-				displayName: name.toLowerCase(),
-				notificationId: 'NOT_SET',
-				password: hash,
-                role: 'instructor'
-			})
+                email,
+                fullName: name,
+                displayName: name.toLowerCase(),
+                notificationId: 'NOT_SET',
+                password: hash,
+                role: 'instructor',
+            });
         }
-        
+
         if (!instructor || !instructor._id) {
             return res.status(400).send({ error: 'Something went wrong. Try again.' });
         }
 
-        console.log("Instructor", instructor)
+        console.log('Instructor', instructor);
 
         // Step 2: Create the organization
         const hash = await hashPassword(password);
 
-        let org: any = {}
+        let org: any = {};
 
         const existingOrg = await SchoolsModel.findOne({
-            createdByUser: instructor._id
-        })
+            createdByUser: instructor._id,
+        });
 
         if (existingOrg && existingOrg._id) {
-            org = existingOrg
+            org = existingOrg;
         } else {
-
             const encodeOrgName = name
-            .split(' ')
-            .join('_')
-            .toLowerCase();
+                .split(' ')
+                .join('_')
+                .toLowerCase();
 
             org = await SchoolsModel.create({
                 name,
                 password: hash,
                 cuesDomain: encodeOrgName + '.learnwithcues.com',
-                createdByUser: instructor._id
+                createdByUser: instructor._id,
             });
         }
 
@@ -1031,60 +1157,78 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             return res.status(400).send({ error: 'Something went wrong. Try again.' });
         }
 
-        console.log("Org", org)
+        console.log('Org', org);
 
         // Update user
-        await UserModel.updateOne({
-            _id: instructor._id
-        }, {
-            schoolId: org._id
-        })
+        await UserModel.updateOne(
+            {
+                _id: instructor._id,
+            },
+            {
+                schoolId: org._id,
+            }
+        );
 
-        const colorChoices = ["#f44336", "#e91e63", "#9c27b0", "#673ab7", "#3f51b5", "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#4caf50", "#8bc34a", "#cddc39", "#ff5722", "#795548"]
+        const colorChoices = [
+            '#f44336',
+            '#e91e63',
+            '#9c27b0',
+            '#673ab7',
+            '#3f51b5',
+            '#2196f3',
+            '#03a9f4',
+            '#00bcd4',
+            '#009688',
+            '#4caf50',
+            '#8bc34a',
+            '#cddc39',
+            '#ff5722',
+            '#795548',
+        ];
 
         const randomColor = colorChoices[Math.floor(Math.random() * colorChoices.length)];
 
         // Step 3: Create the course
         const createCourse = await ChannelModel.create({
             name: courseName.toString().trim(),
-		    createdBy: instructor._id,
-			temporary: true,
-			accessCode: shortid.generate(),
+            createdBy: instructor._id,
+            temporary: true,
+            accessCode: shortid.generate(),
             colorCode: randomColor,
-			owners: [],
-			schoolId: org._id,
-        })
+            owners: [],
+            schoolId: org._id,
+        });
 
         if (!createCourse || !createCourse._id) {
             return res.status(400).send({ error: 'Something went wrong. Try again.' });
-        } 
+        }
 
         // Subscribe instructor to the course
         const sub = await SubscriptionModel.create({
             userId: instructor._id,
             channelId: createCourse._id,
-        })
+        });
 
-        console.log("Course", createCourse)
+        console.log('Course', createCourse);
 
-        let failed = []
-        let success = []
+        let failed = [];
+        let success = [];
 
-        const addedStudentActivities: any[] = []
-        let addedPasswords: any = {}
+        const addedStudentActivities: any[] = [];
+        let addedPasswords: any = {};
 
-        const emailSet = new Set<string>(studentEmails)
+        const emailSet = new Set<string>(studentEmails);
 
         // Step 4: Create student accounts
         for (const studentEmail of emailSet) {
             // Create account for student
-            let student: any = {}
+            let student: any = {};
 
-            const email = studentEmail.toLowerCase().trim()
+            const email = studentEmail.toLowerCase().trim();
 
             const existingStudent = await UserModel.findOne({
-                email
-            })
+                email,
+            });
 
             if (existingStudent && existingStudent._id) {
                 // Existing user found but part of different org
@@ -1092,23 +1236,27 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     failed.push(email);
                     continue;
                 } else {
-                    student = existingStudent
+                    student = existingStudent;
 
-                    UserModel.updateOne({
-                        _id: student._id
-                    }, {
-                        schoolId: org._id
-                    })
-                } 
-
+                    UserModel.updateOne(
+                        {
+                            _id: student._id,
+                        },
+                        {
+                            schoolId: org._id,
+                        }
+                    );
+                }
             } else {
+                let name = studentEmail
+                    .toLowerCase()
+                    .trim()
+                    .split('@')[0];
 
-                let name = studentEmail.toLowerCase().trim().split('@')[0]
+                // Generate a password and hash it
+                const password = name + '@' + getRandomInt(99999).toString();
 
-                // Generate a password and hash it 
-                const password = name + '@' + getRandomInt(99999).toString() 
-
-                const hash = await hashPassword(password)
+                const hash = await hashPassword(password);
 
                 student = await UserModel.create({
                     email,
@@ -1117,95 +1265,107 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     notificationId: 'NOT_SET',
                     password: hash,
                     schoolId: org._id,
-                    role: 'student'
-                })
+                    role: 'student',
+                });
 
                 if (!student || !student._id) {
-                    failed.push(email)
-                    continue
+                    failed.push(email);
+                    continue;
                 }
-    
-                addedPasswords[email] = password
-            
+
+                addedPasswords[email] = password;
             }
 
-            // Subscribe the student to the course 
+            // Subscribe the student to the course
             const sub = await SubscriptionModel.create({
                 userId: student._id,
                 channelId: createCourse._id,
-            })
+            });
 
-            console.log("New Sub", sub)
-            
+            console.log('New Sub', sub);
+
             if (sub && sub._id) {
                 addedStudentActivities.push({
                     userId: student._id,
-					subtitle: 'You have been added to the course.',
-					title: 'Subscribed',
-					status: 'unread',
-					date: new Date(),
-					channelId: createCourse._id,
-					target: 'CHANNEL_SUBSCRIBED'
-                })
+                    subtitle: 'You have been added to the course.',
+                    title: 'Subscribed',
+                    status: 'unread',
+                    date: new Date(),
+                    channelId: createCourse._id,
+                    target: 'CHANNEL_SUBSCRIBED',
+                });
 
-                success.push(email)
+                success.push(email);
             } else {
-                failed.push(email)
+                failed.push(email);
             }
-
         }
 
-        console.log("Success", success)
+        console.log('Success', success);
 
-        console.log("Failed", failed)
+        console.log('Failed', failed);
 
-        const subscribeActivites = ActivityModel.insertMany(addedStudentActivities)
-    
+        const subscribeActivites = ActivityModel.insertMany(addedStudentActivities);
+
         // Send out email invites to both instructors and students
 
         const emailService = new EmailService();
 
-        console.log("Email Instructor", {
-            name: instructor.fullName, 
-            email: instructor.email, 
+        console.log('Email Instructor', {
+            name: instructor.fullName,
+            email: instructor.email,
             course_name: createCourse.name,
-        })
+        });
 
-        emailService.sendWelcomeEmailInstructor(instructor.fullName, instructor.email, createCourse.name)
+        emailService.sendWelcomeEmailInstructor(instructor.fullName, instructor.email, createCourse.name);
 
         for (const student_email of Object.keys(addedPasswords)) {
-
             const name = student_email.split('@')[0];
-            
-            const student_password = addedPasswords[student_email]
 
-            console.log("Email Student", {
-                name, 
-                student_email, 
+            const student_password = addedPasswords[student_email];
+
+            console.log('Email Student', {
+                name,
+                student_email,
                 course_name: createCourse.name,
-                password: student_password, 
-                instructor_name: instructor.fullName
-            })
+                password: student_password,
+                instructor_name: instructor.fullName,
+            });
 
-            emailService.sendWelcomeEmailStudent(name, student_email, createCourse.name, student_password, instructor.fullName)
-
+            emailService.sendWelcomeEmailStudent(
+                name,
+                student_email,
+                createCourse.name,
+                student_password,
+                instructor.fullName
+            );
         }
 
-        emailService.newOnboardAlert(instructor.fullName, instructor.email, createCourse.name, success.length, organizationName, country)
+        emailService.newOnboardAlert(
+            instructor.fullName,
+            instructor.email,
+            createCourse.name,
+            success.length,
+            organizationName,
+            country
+        );
 
         res.status(200).json({
             success,
             failed,
-            redirectUri: 'https://app.learnwithcues.com/login?' + 'email=' + instructor.email + '&password=' + encodeURIComponent(password) 
+            redirectUri:
+                'https://app.learnwithcues.com/login?' +
+                'email=' +
+                instructor.email +
+                '&password=' +
+                encodeURIComponent(password),
         });
-        
-    })
-
+    });
 }
 
 const getRandomInt = (max: number) => {
     return Math.floor(Math.random() * max);
-}
+};
 
 const uploadFiles = async (file: any, type: any, res: any) => {
     let links: any = [];
@@ -1216,7 +1376,7 @@ const uploadFiles = async (file: any, type: any, res: any) => {
             params = {
                 Bucket: 'cues-files',
                 Body: fileItem.data,
-                Key: 'media/' + type[i] + '/' + Date.now() + '_' + basename(fileItem.name)
+                Key: 'media/' + type[i] + '/' + Date.now() + '_' + basename(fileItem.name),
             };
             var result1 = await afterLoop(params, res);
             if (result1) {
@@ -1225,7 +1385,7 @@ const uploadFiles = async (file: any, type: any, res: any) => {
                 if (count == file.length) {
                     res.json({
                         status: 'success',
-                        url: links
+                        url: links,
                     });
                 }
                 resolve(result1);
@@ -1237,7 +1397,7 @@ const afterLoop = async (params: any, res: any) => {
     return new Promise(function(resolve, reject) {
         AWS.config.update({
             accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',
-            secretAccessKey: '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'
+            secretAccessKey: 'hTpw16ja/ioQ0RyozJoa8YPGhjZzFGsTlm8LSu6N',
         });
         const s3 = new AWS.S3();
         s3.upload(params, async (err: any, data: any) => {
@@ -1246,7 +1406,7 @@ const afterLoop = async (params: any, res: any) => {
                 reject(err);
                 res.json({
                     status: 'error',
-                    url: null
+                    url: null,
                 });
             }
             // success

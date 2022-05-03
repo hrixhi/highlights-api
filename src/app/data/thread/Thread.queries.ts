@@ -107,4 +107,27 @@ export class ThreadQueryResolver {
     }
   }
 
+  @Field(type => [ThreadObject], {
+    description: "Used to get group if users exists"
+  })
+  public async searchThreads(
+      @Arg("term", type => String)
+      term: string,
+      @Arg("channelId", type => String)
+      channelId: string
+  ) {
+      try {
+
+        const threads = await ThreadModel.find({
+          channelId,
+          $or: [{ message: new RegExp(term, 'i') }, { title: new RegExp(term, 'i') }] 
+        });
+          
+        return threads;
+
+      } catch (e) {
+        return "ERROR" 
+      }
+  }
+
 }

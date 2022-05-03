@@ -135,7 +135,7 @@ export class CueObject {
     const localThis: any = this;
     const { cueId, userId } = localThis._doc || localThis;
     if (cueId && userId) {
-      const threads = await ThreadStatusModel.find({ cueId, userId })
+      const threads = await ThreadStatusModel.find({ cueId, userId, read: { $ne: true } })
       return threads.length
     } else {
       return 0

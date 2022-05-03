@@ -23,6 +23,7 @@ export interface IUserModel extends Document {
     authProvider?: string;
     sisId?: string;
     gradYear?: number;
+    createdAt: string;
 }
 
 export const UserModel: Model<IUserModel> = model<IUserModel>('users', UserSchema);

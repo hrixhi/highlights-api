@@ -24,6 +24,7 @@ export class AttendanceObject {
     public async displayName() {
         const localThis: any = this;
         const { userId } = localThis._doc || localThis;
+        console.log("User Id", userId)
         const user = await UserModel.findById(userId);
         return user ? user.displayName : '';
     }
@@ -31,10 +32,11 @@ export class AttendanceObject {
     @Field(type => String, { nullable: true })
     public channelId: String;
 
-    @Field(type => DateObject)
+    @Field(type => DateObject, { nullable: true })
     public async date() {
         const localThis: any = this;
         const { dateId } = localThis._doc || localThis;
+        console.log('Date id for attendances', dateId)
         return await DateModel.findById(dateId);
     }
 }

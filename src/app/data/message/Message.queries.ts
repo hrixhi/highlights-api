@@ -54,4 +54,81 @@ export class MessageQueryResolver {
         }
     }
 
+    @Field(type => String, {
+        description: "Used to get group if users exists"
+    })
+    public async searchMessages(
+        @Arg("term", type => String)
+        term: string,
+        @Arg("userId", type => String)
+        userId: string
+    ) {
+        try {
+            const toReturn: any = {
+                "messages": []
+            };
+
+            // Messages
+            const groups = await GroupModel.find({
+                users: userId
+            });
+            const groupIds = groups.map((g: any) => {
+                const group = g.toObject();
+                return group._id;
+            });
+
+            let groupUsersMap: any = {};
+
+            groups.map((g: any) => {
+                const group = g.toObject();
+                groupUsersMap[group._id.toString()] = group.users;
+            });
+
+            const messages = await MessageModel.find({
+                message: new RegExp(term, 'i'),
+                groupId: { $in: groupIds }
+            })
+            .populate({
+                path: "groupId",
+                model: "groups", 
+                select: ["name", "users", "image"],
+                populate: { 
+                    path:  'users', 
+                    model: 'users',
+                    select: ["_id", "fullName", "avatar",]
+                }
+              })
+              
+
+            console.log('Messages', messages);
+
+            const messagesWithUsers = messages.map((mess: any) => {
+                const messObj = mess.toObject();
+
+                const users = groupUsersMap[messObj.groupId.toString()];
+
+                if (users) {
+                    return {
+                        ...messObj,
+                        users
+                    };
+                }
+
+                return {
+                    ...messObj,
+                    users: []
+                };
+            });
+
+            console.log("Message with users", messagesWithUsers)
+
+            toReturn['messages'] = messagesWithUsers;
+
+            return JSON.stringify(toReturn)
+
+        } catch (e) {
+           return "ERROR" 
+        }
+    }
+
 }

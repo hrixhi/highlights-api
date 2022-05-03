@@ -20,6 +20,7 @@ import { SchoolsModel } from '../school/mongo/School.model';
 import { hashPassword } from '../methods';
 import { AddUsersEmailObject } from './types/AddUsersEmailObject.type';
 import { EmailService } from '../../../emailservice/Postmark';
+import { ZoomRegistrationModel } from '../zoom-registration/mongo/zoom-registration.model';
 
 /**
  * Channel Mutation Endpoints
@@ -1005,6 +1006,113 @@ export class ChannelMutationResolver {
 	) {
 		try {
 
+			// If the zoom account type is a Licensed account then we need to register users to meetings so that attendance can be captured
+            const getZoomAccountType = async (zoomAccessToken: string, zoomEmail: string) => {
+
+                const zoomRes: any = await axios.get(
+                    `https://api.zoom.us/v2/users/me?userId=${zoomEmail}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${zoomAccessToken}`
+                        }
+                    }
+                );
+
+                console.log("Zoom res get user", zoomRes);
+
+                if (zoomRes.status === 200) {
+
+                    console.log("Get User object", zoomRes.data);
+
+                    const zoomData: any = zoomRes.data;
+
+                    if (zoomData.type === 1) {
+                        return 'BASIC'
+                    } else {
+                        return 'LICENSED'
+                    }
+                }
+
+                return 'ERROR'
+
+            }   
+
+            const registerUsersToMeeting = async (zoomAccessToken: string, channelId: string, zoomMeetingId: string) => {
+
+                const subscriptions = await SubscriptionModel.find({
+                    channelId,
+                    unsubscribedAt: { $exists: false }
+                })
+
+                const fetchCourse = await ChannelModel.findById(channelId);
+
+                if (!fetchCourse) return;
+
+                const course = fetchCourse.toObject();
+
+                const owners = course.owners || [];
+
+                const subIds: string[] = []
+                
+                subscriptions.map((subscription: any) => {
+                    const sub = subscription.toObject()
+                    if (!owners.includes(sub.userId.toString())) {
+                        subIds.push(sub.userId.toString())
+                    }
+                })
+
+                console.log("Subscription IDs", subIds)
+
+                const users = await UserModel.find({ _id: { $in: subIds }});
+
+                users.map(async (user: any) => {
+                    const u = user.toObject()
+
+                    console.log("User", u);
+
+                    console.log("Register user url", `https://api.zoom.us/v2/meetings/${Number(zoomMeetingId)}/registrants`)
+
+                    try {
+                        const zoomRes: any = await axios.post(
+                            `https://api.zoom.us/v2/meetings/${Number(zoomMeetingId)}/registrants`,
+                            {
+                                first_name: u.fullName,
+                                last_name: 'Cues',
+                                email: u.email,
+                                auto_approve: true
+                            },
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${zoomAccessToken}`
+                                }
+                            }
+                        );
+
+                        console.log("Zoom res register user", zoomRes);
+
+                        if (zoomRes.status === 201) {
+                            const zoomData: any = zoomRes.data;
+    
+                            console.log("Register user object", zoomRes.data);
+    
+                            const zoomRegistration = await ZoomRegistrationModel.create({
+                                userId: u._id,
+                                channelId,
+                                zoomMeetingId,
+                                zoom_join_url: zoomData.join_url,
+                                registrant_id: zoomData.registrant_id,
+                                zoomRegistrationId: zoomData.id.toString()
+                            })
+    
+                        }
+                    } catch (e) {
+                        console.log("Error with registering", e)
+                    }
+                    
+                })
+
+            }
+
 			const diff = Math.abs(new Date(start).getTime() - new Date(end).getTime());
 
             const duration = Math.round(diff / 60000);
@@ -1092,6 +1200,13 @@ export class ChannelMutationResolver {
 						return 'error'
 					} else {
 
+						// Fetch User First and get account type of the user
+						const accountType = await getZoomAccountType(accessToken, user.zoomInfo.email)
+
+						if (accountType === 'ERROR') {
+							return 'ZOOM_MEETING_CREATE_FAILED';
+						}
+
 						// CREATE MEETING
 						const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
 						.tz('UTC')
@@ -1105,7 +1220,15 @@ export class ChannelMutationResolver {
 								agenda: description,
 								type: 2,
 								start_time: utcTime + 'Z',
-								duration
+								duration,
+								settings: {
+									approval_type: accountType === 'BASIC' ? 2 : 1,
+									email_notification: false,
+									mute_upon_entry: true,
+									registrants_confirmation_email: false,
+									registrants_email_notification: false,
+									participant_video: false,
+								}
 							}, {
 							headers: {
 								Authorization: `Bearer ${accessToken}`,
@@ -1119,6 +1242,11 @@ export class ChannelMutationResolver {
 						const zoomData: any = zoomRes.data
 
 						if (zoomData.id) {
+
+							if (accountType === 'LICENSED') {
+								// Perform batch registration for all the users in the course (not owners)
+								await registerUsersToMeeting(accessToken, channelId, zoomData.id)
+							}
 
 							// Create a new Date 
 							await DateModel.create({

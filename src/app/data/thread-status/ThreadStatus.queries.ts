@@ -20,7 +20,8 @@ export class ThreadStatusQueryResolver {
             const statuses: any[] = await ThreadStatusModel.find({
                 userId,
                 channelId,
-                cueId: undefined
+                cueId: undefined,
+                read: { $ne: true }
             })
             return statuses.length
         } catch (e) {

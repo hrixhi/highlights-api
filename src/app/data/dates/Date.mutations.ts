@@ -3,7 +3,7 @@ import { DateModel } from './mongo/dates.model';
 import { nanoid } from 'nanoid';
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
-import { UserModel } from '../user/mongo/User.model';
+import { IUserModel, UserModel } from '../user/mongo/User.model';
 
 import * as OneSignal from 'onesignal-node';
 import Expo from 'expo-server-sdk';
@@ -14,21 +14,22 @@ import axios from 'axios';
 import { EventObject } from './types/Date.type';
 import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials';
 import { SchoolsModel } from '../school/mongo/School.model';
+import { ZoomRegistrationModel } from '../zoom-registration/mongo/zoom-registration.model';
 
 /**
  * Date Mutation Endpoints
  */
 @ObjectType()
 export class DateMutationResolver {
-    @Field(type => Boolean, {
-        description: 'Used when you want to update unread messages count.'
+    @Field((type) => Boolean, {
+        description: 'Used when you want to update unread messages count.',
     })
     public async create(
-        @Arg('userId', type => String) userId: string,
-        @Arg('title', type => String) title: string,
-        @Arg('start', type => String) start: string,
-        @Arg('end', type => String) end: string,
-        @Arg('channelId', type => String, { nullable: true }) channelId?: string
+        @Arg('userId', (type) => String) userId: string,
+        @Arg('title', (type) => String) title: string,
+        @Arg('start', (type) => String) start: string,
+        @Arg('end', (type) => String) end: string,
+        @Arg('channelId', (type) => String, { nullable: true }) channelId?: string
     ) {
         try {
             await DateModel.create({
@@ -37,7 +38,7 @@ export class DateMutationResolver {
                 start: new Date(start),
                 end: new Date(end),
                 isNonMeetingChannelEvent: channelId && channelId !== '' ? true : false,
-                scheduledMeetingForChannelId: channelId && channelId !== '' ? channelId : undefined
+                scheduledMeetingForChannelId: channelId && channelId !== '' ? channelId : undefined,
             });
             return true;
         } catch (e) {
@@ -45,25 +46,131 @@ export class DateMutationResolver {
         }
     }
 
-    @Field(type => String, {
-        description: 'Used when you want create an event in Agenda'
+    // Create V1
+
+    @Field((type) => String, {
+        description: 'Used when you want create an event in Agenda',
     })
     public async createV1(
-        @Arg('userId', type => String) userId: string,
-        @Arg('title', type => String) title: string,
-        @Arg('start', type => String) start: string,
-        @Arg('end', type => String) end: string,
-        @Arg('channelId', type => String, { nullable: true }) channelId?: string,
-        @Arg('meeting', type => Boolean, { nullable: true }) meeting?: boolean,
-        @Arg('description', type => String, { nullable: true })
+        @Arg('userId', (type) => String) userId: string,
+        @Arg('title', (type) => String) title: string,
+        @Arg('start', (type) => String) start: string,
+        @Arg('end', (type) => String) end: string,
+        @Arg('channelId', (type) => String, { nullable: true }) channelId?: string,
+        @Arg('meeting', (type) => Boolean, { nullable: true }) meeting?: boolean,
+        @Arg('description', (type) => String, { nullable: true })
         description?: string,
-        @Arg('recordMeeting', type => Boolean, { nullable: true })
+        @Arg('recordMeeting', (type) => Boolean, { nullable: true })
         recordMeeting?: boolean,
-        @Arg('frequency', type => String, { nullable: true }) frequency?: string,
-        @Arg('repeatTill', type => String, { nullable: true }) repeatTill?: string,
-        @Arg('repeatDays', type => [String], { nullable: true }) repeatDays?: string[]
+        @Arg('frequency', (type) => String, { nullable: true }) frequency?: string,
+        @Arg('repeatTill', (type) => String, { nullable: true }) repeatTill?: string,
+        @Arg('repeatDays', (type) => [String], { nullable: true }) repeatDays?: string[]
     ) {
         try {
+            // If the zoom account type is a Licensed account then we need to register users to meetings so that attendance can be captured
+            const getZoomAccountType = async (zoomAccessToken: string, zoomEmail: string) => {
+                const zoomRes: any = await axios.get(`https://api.zoom.us/v2/users/me?userId=${zoomEmail}`, {
+                    headers: {
+                        Authorization: `Bearer ${zoomAccessToken}`,
+                    },
+                });
+
+                console.log('Zoom res get user', zoomRes);
+
+                if (zoomRes.status === 200) {
+                    console.log('Get User object', zoomRes.data);
+
+                    const zoomData: any = zoomRes.data;
+
+                    if (zoomData.type === 1) {
+                        return 'BASIC';
+                    } else {
+                        return 'LICENSED';
+                    }
+                }
+
+                return 'ERROR';
+            };
+
+            const registerUsersToMeeting = async (
+                zoomAccessToken: string,
+                channelId: string,
+                zoomMeetingId: string
+            ) => {
+                const subscriptions = await SubscriptionModel.find({
+                    channelId,
+                    unsubscribedAt: { $exists: false },
+                });
+
+                const fetchCourse = await ChannelModel.findById(channelId);
+
+                if (!fetchCourse) return;
+
+                const course = fetchCourse.toObject();
+
+                const owners = course.owners || [];
+
+                const subIds: string[] = [];
+
+                subscriptions.map((subscription: any) => {
+                    const sub = subscription.toObject();
+                    if (!owners.includes(sub.userId.toString())) {
+                        subIds.push(sub.userId.toString());
+                    }
+                });
+
+                console.log('Subscription IDs', subIds);
+
+                const users = await UserModel.find({ _id: { $in: subIds } });
+
+                users.map(async (user: IUserModel) => {
+                    const u = user.toObject();
+
+                    console.log('User', u);
+
+                    console.log(
+                        'Register user url',
+                        `https://api.zoom.us/v2/meetings/${Number(zoomMeetingId)}/registrants`
+                    );
+
+                    try {
+                        const zoomRes: any = await axios.post(
+                            `https://api.zoom.us/v2/meetings/${Number(zoomMeetingId)}/registrants`,
+                            {
+                                first_name: u.fullName,
+                                last_name: 'Cues',
+                                email: u.email,
+                                auto_approve: true,
+                            },
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${zoomAccessToken}`,
+                                },
+                            }
+                        );
+
+                        console.log('Zoom res register user', zoomRes);
+
+                        if (zoomRes.status === 201) {
+                            const zoomData: any = zoomRes.data;
+
+                            console.log('Register user object', zoomRes.data);
+
+                            const zoomRegistration = await ZoomRegistrationModel.create({
+                                userId: u._id,
+                                channelId,
+                                zoomMeetingId,
+                                zoom_join_url: zoomData.join_url,
+                                registrant_id: zoomData.registrant_id,
+                                zoomRegistrationId: zoomData.id.toString(),
+                            });
+                        }
+                    } catch (e) {
+                        console.log('Error with registering', e);
+                    }
+                });
+            };
+
             // isNonMeetingChannelEvent is set to undefined to differentiate meetings from events
 
             const fetchUser = await UserModel.findById(userId);
@@ -122,7 +229,7 @@ export class DateMutationResolver {
                         scheduledMeetingForChannelId: channelId && channelId !== '' ? channelId : undefined,
                         description,
                         recordMeeting,
-                        recurringId
+                        recurringId,
                     });
                 }
             } else if (repeatTill && frequency && frequency === '1-W' && repeatDays) {
@@ -155,7 +262,6 @@ export class DateMutationResolver {
                 }
 
                 for (let i = 0; i < allDates.length; i++) {
-
                     const scheduledDate = allDates[i];
 
                     const startDate = new Date(start);
@@ -175,7 +281,7 @@ export class DateMutationResolver {
                         scheduledMeetingForChannelId: channelId && channelId !== '' ? channelId : undefined,
                         description,
                         recordMeeting,
-                        recurringId
+                        recurringId,
                     });
                 }
             } else {
@@ -187,7 +293,7 @@ export class DateMutationResolver {
                     isNonMeetingChannelEvent: !meeting ? (channelId && channelId !== '' ? true : false) : undefined,
                     scheduledMeetingForChannelId: channelId && channelId !== '' ? channelId : undefined,
                     description,
-                    recordMeeting
+                    recordMeeting,
                 });
             }
 
@@ -223,8 +329,8 @@ export class DateMutationResolver {
                             {
                                 headers: {
                                     Authorization: `Basic ${b.toString('base64')}`,
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                }
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                },
                             }
                         );
 
@@ -249,8 +355,8 @@ export class DateMutationResolver {
                                     ...user.zoomInfo,
                                     accessToken: zoomData.access_token,
                                     refreshToken: zoomData.refresh_token,
-                                    expiresOn: eOn // saved as a date
-                                }
+                                    expiresOn: eOn, // saved as a date
+                                },
                             }
                         );
                     }
@@ -270,8 +376,6 @@ export class DateMutationResolver {
                     if (!owner) {
                         //
                     } else {
-                        // create meeting
-
                         if (repeatTill && frequency && frequency !== '1-W') {
                             // Recurring but no specific days
                             let type;
@@ -298,11 +402,18 @@ export class DateMutationResolver {
                             let recurrence: any = {
                                 type,
                                 repeat_interval,
-                                end_date_time: utcEndTime + 'Z'
+                                end_date_time: utcEndTime + 'Z',
                             };
 
                             if (type === 3) {
                                 recurrence.monthly_day = new Date(start).getDate();
+                            }
+
+                            // Fetch User First and get account type of the user
+                            const accountType = await getZoomAccountType(accessToken, user.zoomInfo.email);
+
+                            if (accountType === 'ERROR') {
+                                return 'ZOOM_MEETING_CREATE_FAILED';
                             }
 
                             // CREATE MEETING
@@ -318,28 +429,41 @@ export class DateMutationResolver {
                                     type: 8,
                                     start_time: utcTime + 'Z',
                                     duration,
-                                    recurrence
+                                    recurrence,
+                                    settings: {
+                                        approval_type: accountType === 'BASIC' ? 2 : 1,
+                                        email_notification: false,
+                                        mute_upon_entry: true,
+                                        registrants_confirmation_email: false,
+                                        registrants_email_notification: false,
+                                        participant_video: false,
+                                    },
                                 },
                                 {
                                     headers: {
-                                        Authorization: `Bearer ${accessToken}`
-                                    }
+                                        Authorization: `Bearer ${accessToken}`,
+                                    },
                                 }
                             );
 
                             if (zoomRes.status === 200 || zoomRes.status === 201) {
                                 const zoomData: any = zoomRes.data;
 
+                                if (accountType === 'LICENSED') {
+                                    // Perform batch registration for all the users in the course (not owners)
+                                    await registerUsersToMeeting(accessToken, channelId, zoomData.id);
+                                }
+
                                 if (zoomData.id && recurringId) {
                                     await DateModel.updateMany(
                                         {
-                                            recurringId
+                                            recurringId,
                                         },
                                         {
                                             zoomMeetingId: zoomData.id,
                                             zoomStartUrl: zoomData.start_url,
                                             zoomJoinUrl: zoomData.join_url,
-                                            zoomMeetingScheduledBy: userId
+                                            zoomMeetingScheduledBy: userId,
                                         }
                                     );
                                 }
@@ -360,8 +484,15 @@ export class DateMutationResolver {
                                 type: 2,
                                 repeat_interval: 1,
                                 end_date_time: utcEndTime + 'Z',
-                                weekly_days: repeatDays.join(',')
+                                weekly_days: repeatDays.join(','),
                             };
+
+                            // Fetch User First and get account type of the user
+                            const accountType = await getZoomAccountType(accessToken, user.zoomInfo.email);
+
+                            if (accountType === 'ERROR') {
+                                return 'ZOOM_MEETING_CREATE_FAILED';
+                            }
 
                             // CREATE MEETING
                             const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
@@ -376,28 +507,41 @@ export class DateMutationResolver {
                                     type: 8,
                                     start_time: utcTime + 'Z',
                                     duration,
-                                    recurrence
+                                    recurrence,
+                                    settings: {
+                                        approval_type: accountType === 'BASIC' ? 2 : 1,
+                                        email_notification: false,
+                                        mute_upon_entry: true,
+                                        registrants_confirmation_email: false,
+                                        registrants_email_notification: false,
+                                        participant_video: false,
+                                    },
                                 },
                                 {
                                     headers: {
-                                        Authorization: `Bearer ${accessToken}`
-                                    }
+                                        Authorization: `Bearer ${accessToken}`,
+                                    },
                                 }
                             );
 
                             if (zoomRes.status === 200 || zoomRes.status === 201) {
                                 const zoomData: any = zoomRes.data;
 
+                                if (accountType === 'LICENSED') {
+                                    // Perform batch registration for all the users in the course (not owners)
+                                    await registerUsersToMeeting(accessToken, channelId, zoomData.id);
+                                }
+
                                 if (zoomData.id && recurringId !== '') {
                                     await DateModel.updateMany(
                                         {
-                                            recurringId
+                                            recurringId,
                                         },
                                         {
                                             zoomMeetingId: zoomData.id,
                                             zoomStartUrl: zoomData.start_url,
                                             zoomJoinUrl: zoomData.join_url,
-                                            zoomMeetingScheduledBy: userId
+                                            zoomMeetingScheduledBy: userId,
                                         }
                                     );
                                 }
@@ -410,6 +554,14 @@ export class DateMutationResolver {
                         } else {
                             // Not recurring
 
+                            // Fetch User First and get account type of the user
+                            const accountType = await getZoomAccountType(accessToken, user.zoomInfo.email);
+
+                            if (accountType === 'ERROR') {
+                                return 'ZOOM_MEETING_CREATE_FAILED';
+                            }
+
+                            // CREATE MEETING
                             const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
                                 .tz('UTC')
                                 .format();
@@ -421,28 +573,41 @@ export class DateMutationResolver {
                                     agenda: description,
                                     type: 2,
                                     start_time: utcTime + 'Z',
-                                    duration
+                                    duration,
+                                    settings: {
+                                        approval_type: accountType === 'BASIC' ? 2 : 1,
+                                        email_notification: false,
+                                        mute_upon_entry: true,
+                                        registrants_confirmation_email: false,
+                                        registrants_email_notification: false,
+                                        participant_video: false,
+                                    },
                                 },
                                 {
                                     headers: {
-                                        Authorization: `Bearer ${accessToken}`
-                                    }
+                                        Authorization: `Bearer ${accessToken}`,
+                                    },
                                 }
                             );
 
                             if (zoomRes.status === 200 || zoomRes.status === 201) {
                                 const zoomData: any = zoomRes.data;
 
+                                if (accountType === 'LICENSED') {
+                                    // Perform batch registration for all the users in the course (not owners)
+                                    await registerUsersToMeeting(accessToken, channelId, zoomData.id);
+                                }
+
                                 if (zoomData.id && newObj) {
                                     await DateModel.updateOne(
                                         {
-                                            _id: newObj._id
+                                            _id: newObj._id,
                                         },
                                         {
                                             zoomMeetingId: zoomData.id,
                                             zoomStartUrl: zoomData.start_url,
                                             zoomJoinUrl: zoomData.join_url,
-                                            zoomMeetingScheduledBy: userId
+                                            zoomMeetingScheduledBy: userId,
                                         }
                                     );
                                 }
@@ -462,9 +627,9 @@ export class DateMutationResolver {
             const userIds: any[] = [];
 
             const subscriptions = await SubscriptionModel.find({
-                $and: [{ channelId }, { unsubscribedAt: { $exists: false } }]
+                $and: [{ channelId }, { unsubscribedAt: { $exists: false } }],
             });
-            subscriptions.map(s => {
+            subscriptions.map((s) => {
                 userIds.push(s.userId);
             });
 
@@ -480,17 +645,16 @@ export class DateMutationResolver {
 
             const notification = {
                 contents: {
-                    en: `${channel.name}` + ' - New event scheduled - ' + title
+                    en: `${channel.name}` + ' - New event scheduled - ' + title,
                 },
-                include_external_user_ids: userIds
+                include_external_user_ids: userIds,
             };
 
             if (userIds.length > 0) {
                 const response = await oneSignalClient.createNotification(notification);
             }
 
-
-            users.map(sub => {
+            users.map((sub) => {
                 const notificationIds = sub.notificationId.split('-BREAK-');
                 notificationIds.map((notifId: any) => {
                     if (!Expo.isExpoPushToken(notifId)) {
@@ -501,7 +665,7 @@ export class DateMutationResolver {
                         sound: 'default',
                         subtitle: 'Your instructor has scheduled a new event.',
                         title: channel.name + ' - ' + title,
-                        data: { userId: sub._id }
+                        data: { userId: sub._id },
                     });
                 });
             });
@@ -522,12 +686,12 @@ export class DateMutationResolver {
         }
     }
 
-    @Field(type => EventObject, {
-        description: 'Creates new zoom Meeting for existing Date id'
+    @Field((type) => EventObject, {
+        description: 'Creates new zoom Meeting for existing Date id',
     })
     public async regenZoomMeeting(
-        @Arg('userId', type => String) userId: string,
-        @Arg('dateId', type => String) dateId: string
+        @Arg('userId', (type) => String) userId: string,
+        @Arg('dateId', (type) => String) dateId: string
     ) {
         try {
             const dateObject = await DateModel.findById(dateId);
@@ -571,8 +735,8 @@ export class DateMutationResolver {
                         {
                             headers: {
                                 Authorization: `Basic ${b.toString('base64')}`,
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            }
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
                         }
                     );
 
@@ -596,8 +760,8 @@ export class DateMutationResolver {
                                 ...user.zoomInfo,
                                 accessToken: zoomData.access_token,
                                 refreshToken: zoomData.refresh_token,
-                                expiresOn: eOn // saved as a date
-                            }
+                                expiresOn: eOn, // saved as a date
+                            },
                         }
                     );
                 }
@@ -613,12 +777,12 @@ export class DateMutationResolver {
                         agenda: dateObject.description,
                         type: 2,
                         start_time: utcTime + 'Z',
-                        duration
+                        duration,
                     },
                     {
                         headers: {
-                            Authorization: `Bearer ${accessToken}`
-                        }
+                            Authorization: `Bearer ${accessToken}`,
+                        },
                     }
                 );
 
@@ -628,13 +792,13 @@ export class DateMutationResolver {
                     if (zoomData.id) {
                         await DateModel.updateOne(
                             {
-                                _id: dateId
+                                _id: dateId,
                             },
                             {
                                 zoomMeetingId: zoomData.id,
                                 zoomStartUrl: zoomData.start_url,
                                 zoomJoinUrl: zoomData.join_url,
-                                zoomMeetingScheduledBy: userId
+                                zoomMeetingScheduledBy: userId,
                             }
                         );
 
@@ -652,7 +816,7 @@ export class DateMutationResolver {
                                 zoomMeetingId: obj.zoomMeetingId,
                                 zoomStartUrl: obj.zoomStartUrl,
                                 zoomJoinUrl: obj.zoomJoinUrl,
-                                zoomMeetingScheduledBy: obj.zoomMeetingScheduledBy
+                                zoomMeetingScheduledBy: obj.zoomMeetingScheduledBy,
                             };
                         }
 
@@ -668,20 +832,25 @@ export class DateMutationResolver {
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Used when you want to update unread messages count.'
+    @Field((type) => Boolean, {
+        description: 'Used when you want to update unread messages count.',
     })
     public async editV1(
-        @Arg('id', type => String) id: string,
-        @Arg('title', type => String) title: string,
-        @Arg('start', type => String) start: string,
-        @Arg('end', type => String) end: string,
-        @Arg('description', type => String, { nullable: true })
+        @Arg('id', (type) => String) id: string,
+        @Arg('title', (type) => String) title: string,
+        @Arg('start', (type) => String) start: string,
+        @Arg('end', (type) => String) end: string,
+        @Arg('description', (type) => String, { nullable: true })
         description?: string,
-        @Arg('recordMeeting', type => Boolean, { nullable: true })
+        @Arg('recordMeeting', (type) => Boolean, { nullable: true })
         recordMeeting?: boolean
     ) {
         try {
+            // Fetch current date
+            const fetch = await DateModel.findById(id);
+
+            if (!fetch) return false;
+
             const update = await DateModel.updateOne(
                 { _id: id },
                 {
@@ -689,7 +858,7 @@ export class DateMutationResolver {
                     start: new Date(start),
                     end: new Date(end),
                     description,
-                    recordMeeting
+                    recordMeeting,
                 }
             );
             //return true;
@@ -701,13 +870,13 @@ export class DateMutationResolver {
         }
     }
 
-    @Field(type => [Date], {
-        description: 'Used when you want to delete a date.'
+    @Field((type) => [Date], {
+        description: 'Used when you want to delete a date.',
     })
     private getAllDates(
-        @Arg('start', type => String) start: string,
-        @Arg('frequency', type => String) frequency: string,
-        @Arg('repeatTill', type => String) repeatTill: string
+        @Arg('start', (type) => String) start: string,
+        @Arg('frequency', (type) => String) frequency: string,
+        @Arg('repeatTill', (type) => String) repeatTill: string
     ) {
         const currentDate = new Date(start);
 
@@ -743,12 +912,12 @@ export class DateMutationResolver {
         return dates;
     }
 
-    @Field(type => String, {
-        description: 'Used when you want to delete a date.'
+    @Field((type) => String, {
+        description: 'Used when you want to delete a date.',
     })
     public async deleteV1(
-        @Arg('id', type => String) id: string,
-        @Arg('deleteAll', type => Boolean) deleteAll: boolean
+        @Arg('id', (type) => String) id: string,
+        @Arg('deleteAll', (type) => Boolean) deleteAll: boolean
     ) {
         try {
             console.log(id);
@@ -803,8 +972,8 @@ export class DateMutationResolver {
                             {
                                 headers: {
                                     Authorization: `Basic ${b.toString('base64')}`,
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                }
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                },
                             }
                         );
 
@@ -829,8 +998,8 @@ export class DateMutationResolver {
                                     ...user.zoomInfo,
                                     accessToken: zoomData.access_token,
                                     refreshToken: zoomData.refresh_token,
-                                    expiresOn: eOn // saved as a date
-                                }
+                                    expiresOn: eOn, // saved as a date
+                                },
                             }
                         );
                     }
@@ -839,8 +1008,8 @@ export class DateMutationResolver {
 
                     const zoomRes: any = await axios.delete(`https://api.zoom.us/v2/meetings/${zoomMeetingId}`, {
                         headers: {
-                            Authorization: `Bearer ${accessToken}`
-                        }
+                            Authorization: `Bearer ${accessToken}`,
+                        },
                     });
 
                     if (zoomRes.status !== 204) {
@@ -857,12 +1026,51 @@ export class DateMutationResolver {
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Used when you want to delete a date.'
+    @Field((type) => Boolean, {
+        description: 'Used when you want to delete a date.',
     })
-    public async delete(@Arg('dateId', type => String) dateId: string) {
+    public async delete(@Arg('dateId', (type) => String) dateId: string) {
         try {
             await DateModel.deleteOne({ _id: dateId });
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    @Field((type) => Boolean, {
+        description: 'Used when you want to edit the meeting title or recording link',
+    })
+    public async editPastMeeting(
+        @Arg('dateId', (type) => String)
+        dateId: string,
+        @Arg('title', (type) => String)
+        title: string,
+        @Arg('recordingLink', (type) => String, { nullable: true })
+        recordingLink?: string
+    ) {
+        try {
+            if (!dateId || !title) {
+                return false;
+            }
+
+            const fetchDate = await DateModel.findById(dateId);
+
+            if (!fetchDate) {
+                return false;
+            }
+
+            // Update
+            const update = await DateModel.updateOne(
+                {
+                    _id: dateId,
+                },
+                {
+                    title,
+                    recordingLink: recordingLink ? recordingLink : undefined,
+                }
+            );
+
             return true;
         } catch (e) {
             return false;

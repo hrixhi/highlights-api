@@ -105,14 +105,20 @@ export class SubscriptionMutationResolver {
 						}
 
 						// Correct password - subscribed!
-						// Clear any old subscriptions with kc = true
-						const pastSubs = await SubscriptionModel.find({
-							userId,
-							channelId: channel._id
-						})
-						if (pastSubs.length === 0) {
-							const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
-							channelCues.map(async (cue: any) => {
+
+						const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
+						
+						channelCues.map(async (cue: any) => {
+
+							// Check if modification already exist
+							const existingMod = await ModificationsModel.findOne({
+								cueId: cue._id,
+								userId
+							})
+
+							// Check if existing mod exist
+
+							if (!existingMod) {
 								const cueObject = cue.toObject()
 								const duplicate = { ...cueObject }
 								delete duplicate._id
@@ -124,23 +130,38 @@ export class SubscriptionMutationResolver {
 								duplicate.score = 0;
 								duplicate.graded = false
 								const u = await ModificationsModel.create(duplicate)
-							})
-						}
+							}
+
+						})
 
 						const threads = await ThreadModel.find({
 							channelId: channel._id,
 							isPrivate: false
 						})
+
 						threads.map(async (t) => {
 							const thread = t.toObject()
-							await ThreadStatusModel.create({
+
+							// check existing thread status model
+							const existingStatus = ThreadStatusModel.findOne({
 								userId,
 								channelId: channel._id,
 								cueId: thread.cueId ? thread.cueId : null,
 								threadId: thread.parentId ? thread.parentId : thread._id
 							})
+
+							if (!existingStatus) {
+								await ThreadStatusModel.create({
+									userId,
+									channelId: channel._id,
+									cueId: thread.cueId ? thread.cueId : null,
+									threadId: thread.parentId ? thread.parentId : thread._id
+								})
+							}
+
 						})
 
+						// Clear any old subscriptions with kc = true
 						await SubscriptionModel.updateMany({
 							userId,
 							channelId: channel._id,
@@ -148,6 +169,7 @@ export class SubscriptionMutationResolver {
 						}, {
 							keepContent: false
 						})
+
 						// subscribe 
 						await SubscriptionModel.create({
 							userId, channelId: channel._id
@@ -172,6 +194,7 @@ export class SubscriptionMutationResolver {
 					}
 
 				} else {
+					
 					// Public
 					const owner = await UserModel.findById(channel.createdBy)
 					if (owner && owner.schoolId && owner.schoolId !== '') {
@@ -182,37 +205,67 @@ export class SubscriptionMutationResolver {
 						}
 					}
 
-					const pastSubs = await SubscriptionModel.find({
-						userId,
-						channelId: channel._id
-					})
-					if (pastSubs.length === 0) {
-						const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
-						channelCues.map(async (cue: any) => {
-							const obj = cue.toObject()
-							const duplicate = { ...obj }
+					const channelCues = await CueModel.find({ channelId: channel._id, limitedShares: { $ne: true } })
+						
+					channelCues.map(async (cue: any) => {
+
+						// Check if modification already exist
+						const existingMod = await ModificationsModel.findOne({
+							cueId: cue._id,
+							userId
+						})
+
+						// Check if existing mod exist
+						if (!existingMod) {
+							const cueObject = cue.toObject()
+							const duplicate = { ...cueObject }
 							delete duplicate._id
 							delete duplicate.deletedAt
 							delete duplicate.__v
-							duplicate.cue = ''
 							duplicate.cueId = cue._id
+							duplicate.cue = ''
 							duplicate.userId = userId
+							duplicate.score = 0;
+							duplicate.graded = false
 							const u = await ModificationsModel.create(duplicate)
-						})
-					}
+						}
+
+					})
 
 					const threads = await ThreadModel.find({
 						channelId: channel._id,
 						isPrivate: false
 					})
+
 					threads.map(async (t) => {
 						const thread = t.toObject()
-						await ThreadStatusModel.create({
+
+						// check existing thread status model
+						const existingStatus = ThreadStatusModel.findOne({
 							userId,
 							channelId: channel._id,
 							cueId: thread.cueId ? thread.cueId : null,
 							threadId: thread.parentId ? thread.parentId : thread._id
 						})
+
+						if (!existingStatus) {
+							await ThreadStatusModel.create({
+								userId,
+								channelId: channel._id,
+								cueId: thread.cueId ? thread.cueId : null,
+								threadId: thread.parentId ? thread.parentId : thread._id
+							})
+						}
+
+					})
+
+					// Clear any old subscriptions with kc = true
+					await SubscriptionModel.updateMany({
+						userId,
+						channelId: channel._id,
+						unsubscribedAt: { $exists: true }
+					}, {
+						keepContent: false
 					})
 
 					await SubscriptionModel.create({

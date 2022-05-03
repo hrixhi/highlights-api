@@ -296,6 +296,62 @@ export class CueMutationResolver {
 		}
 	}
 
+	@Field(type => Boolean)
+	public async saveSubmissionDraft(
+		@Arg('userId', type => String)
+		userId: string,
+		@Arg('cueId', type => String)
+		cueId: string,
+		@Arg('cue', type => String)
+		cue: string
+	) {
+		try {
+			const fetchCue = await CueModel.findById(cueId);
+
+			if (fetchCue && fetchCue.createdBy.toString().trim() !== userId.toString().trim()) {
+				// 
+				const fetchMod = await ModificationsModel.findOne({
+					cueId,
+					userId
+				})
+
+				if (!fetchMod) return false;
+
+				const parseNewDraft = JSON.parse(cue)
+
+				const existingCue = JSON.parse(fetchMod.cue || '{}');
+
+				const existingAttempts = existingCue.attempts ? existingCue.attempts : []
+
+				const updateCue = {
+					...parseNewDraft,
+					attempts: existingAttempts,
+				}
+
+				console.log("Update Submission cue", updateCue)
+
+				// Update Cue
+				await ModificationsModel.updateOne({
+					cueId,
+					userId
+				}, {
+					cue: JSON.stringify(updateCue)
+				})
+
+				return true;
+
+			} else {
+				return false;
+			}
+
+		} catch (e) {
+
+			console.log("Error", e)
+
+			return false;
+		}
+	}
+
 	@Field(type => [IDMapObject])
 	public async saveCuesToCloud(
 		@Arg('cues', type => [CueInputObject])
@@ -361,13 +417,90 @@ export class CueMutationResolver {
 						// Channel cue
 						const mod = await ModificationsModel.findOne({ userId, cueId: cue._id })
 						if (mod) {
-							// update modified
-							await ModificationsModel.updateOne({
-								cueId: cue._id,
-								userId
-							}, {
-								...c
-							})
+
+							// Need to avoid overriding submission and quiz attemps
+
+							if (mod.submission) {
+
+								// If cue is empty then no need to check for updating Annotations
+								try {
+
+									console.log("C.Cue", c.cue)
+
+									const newCue = JSON.parse(c.cue);
+
+									if (newCue.attempts && newCue.attempts.length !== 0 && !newCue.quizResponses && mod.cue) {
+										// If it's a submission then we need to update the Annotations
+
+										const currCueValue = mod.cue;
+
+										const obj = JSON.parse(currCueValue);
+
+										const newAttempt = newCue.attempts[newCue.attempts.length - 1];
+
+										const currAttempt = obj.attempts[obj.attempts.length - 1];
+
+										currAttempt.annotations = newAttempt.annotations;
+
+										const allAttempts = [...obj.attempts];
+
+										allAttempts[allAttempts.length - 1] = currAttempt;
+
+										console.log("Update annotation", newAttempt.annotations);
+
+										const updateCue = {
+											attempts: allAttempts,
+											submissionDraft: obj.submissionDraft
+										};
+										
+										delete c.cue
+
+										await ModificationsModel.updateOne({
+											cueId: cue._id,
+											userId
+										}, {
+											...c,
+											cue: JSON.stringify(updateCue)
+										})
+										
+									} else {
+										// Quiz so no annotations
+										delete c.cue
+
+										await ModificationsModel.updateOne({
+											cueId: cue._id,
+											userId
+										}, {
+											...c
+										})
+									}
+
+
+								} catch (e) {
+
+									delete c.cue
+	
+									await ModificationsModel.updateOne({
+										cueId: cue._id,
+										userId
+									}, {
+										...c,
+									}) 
+	
+									return;
+								}
+								
+							} else {
+								// update modified
+								await ModificationsModel.updateOne({
+									cueId: cue._id,
+									userId
+								}, {
+									...c
+								})
+							}
+
+							
 						} else {
 							// the cue was deleted by owner. do nothing.
 						}
@@ -1141,7 +1274,9 @@ export class CueMutationResolver {
 				let attemptScore = 0;
 
 				problemScores.forEach((score) => {
-					attemptScore += parseFloat(score);
+					if (score && score !== '') {
+						attemptScore += parseFloat(score);
+					}
 				})
 
 				let updatedAttempts = [...currAttempts];
