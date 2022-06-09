@@ -15,6 +15,57 @@ export class ZoomObject {
 }
 
 @ObjectType()
+export class AdminUserInfo {
+    @Field()
+    public role: string;
+
+    @Field({ nullable: true })
+    public jobTitle?: string;
+
+    @Field({ nullable: true })
+    public contactNumber?: string;
+}
+
+@ObjectType()
+export class PersonalInfo {
+    @Field({ nullable: true })
+    public dateOfBirth?: string;
+
+    @Field({ nullable: true })
+    public expectedGradYear?: number;
+
+    @Field({ nullable: true })
+    public phoneNumber?: string;
+
+    @Field((type) => String, { nullable: true })
+    public streetAddress?: string;
+
+    @Field((type) => String, { nullable: true })
+    public city?: string;
+
+    @Field((type) => String, { nullable: true })
+    public state?: string;
+
+    @Field((type) => String, { nullable: true })
+    public country?: string;
+
+    @Field((type) => String, { nullable: true })
+    public zip?: string;
+}
+
+@ObjectType()
+export class ParentInfo {
+    @Field()
+    public _id: string;
+
+    @Field()
+    public name: string;
+
+    @Field()
+    public email: string;
+}
+
+@ObjectType()
 export class UserObject {
     @Field()
     public _id: string;
@@ -35,22 +86,10 @@ export class UserObject {
     public sisId?: string;
 
     @Field({ nullable: true })
-    public preferredName?: string;
-
-    @Field({ nullable: true })
     public gradYear?: number;
 
     @Field({ nullable: true })
-    public sleepFrom?: string;
-
-    @Field({ nullable: true })
-    public sleepTo?: string;
-
-    @Field({ nullable: true })
     public email?: string;
-
-    // @Field({ nullable: true })
-    // public password?: string;
 
     @Field({ nullable: true })
     public currentDraft?: string;
@@ -164,4 +203,16 @@ export class UserObject {
 
     @Field((type) => String)
     public createdAt: string;
+
+    @Field((type) => AdminUserInfo, { nullable: true })
+    public adminInfo?: AdminUserInfo;
+
+    @Field((type) => PersonalInfo, { nullable: true })
+    public personalInfo?: PersonalInfo;
+
+    @Field((type) => ParentInfo, { nullable: true })
+    public parent1?: ParentInfo;
+
+    @Field((type) => ParentInfo, { nullable: true })
+    public parent2?: ParentInfo;
 }

@@ -6,6 +6,9 @@ export interface ISchoolsModel extends Document {
     password: string;
     cuesDomain: string;
     logo?: string;
+    email?: string;
+    phoneNumber?: string;
+    website?: string;
     allowStudentChannelCreation?: boolean;
     recoveryEmail?: string;
     streamId?: string;
@@ -15,6 +18,7 @@ export interface ISchoolsModel extends Document {
     workosConnection?: any;
     meetingProvider?: string;
     createdByUser?: string;
+    stripeAccountId?: string;
 }
 
 export const SchoolsModel: Model<ISchoolsModel> = model<ISchoolsModel>('schools', schoolSchema);

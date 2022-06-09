@@ -23,6 +23,18 @@ export interface IDateModel extends Document {
     // meetingUrl?: string;
     isNonChannelMeeting?: boolean;
     nonChannelGroupId?: string;
+    // SCHOOL EVENTS
+    schoolId?: string;
+    isNonMeetingSchoolEvent?: boolean;
+    selectedSegment?: string;
+    allGradesAndSections?: boolean;
+    allUsersSelected?: boolean;
+    shareWithGradesAndSections?: string[];
+    selectedUsers?: string[];
+    shareWithAllInstructors?: boolean;
+    selectedInstructors?: string[];
+    shareWithAllAdmins?: boolean;
+    selectedAdmins?: string[];
 }
 
 export const DateModel: Model<IDateModel> = model<IDateModel>('dates', dateSchema);

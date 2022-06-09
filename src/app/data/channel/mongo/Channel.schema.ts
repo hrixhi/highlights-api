@@ -3,68 +3,80 @@ import { Schema, Types } from 'mongoose';
 const schema = new Schema({
     createdBy: {
         type: Types.ObjectId,
-        required: true
+        required: true,
     },
     name: {
         type: String,
-        required: true
+        required: true,
     },
     password: {
         type: String,
-        required: false
+        required: false,
     },
     meetingOn: {
         type: Boolean,
-        required: false
+        required: false,
     },
     creatorUnsubscribed: {
         type: Boolean,
-        required: false
+        required: false,
     },
     temporary: {
         type: Boolean,
-        required: false
+        required: false,
     },
     owners: {
         type: [String],
-        required: false
+        required: false,
     },
     colorCode: {
         type: String,
-        required: false
+        required: false,
     },
     isPublic: {
         type: Boolean,
-        required: false
+        required: false,
     },
     description: {
         type: String,
-        required: false
+        required: false,
     },
     tags: {
         type: [String],
-        required: false
+        required: false,
     },
     accessCode: {
         type: String,
-        required: false
+        required: false,
     },
     schoolId: {
         type: Types.ObjectId,
-        required: false
+        required: false,
     },
     sisId: {
         type: String,
-        required: false
+        required: false,
     },
     deletedAt: {
         type: Date,
-        required: false
+        required: false,
     },
     meetingUrl: {
         type: String,
-        required: false
-    }
+        required: false,
+    },
+    term: {
+        type: Types.ObjectId,
+        required: false,
+    },
+    startDate: {
+        type: Date,
+        required: false,
+    },
+    endDate: {
+        type: Date,
+        required: false,
+    },
 });
 
 export const channelSchema = schema;

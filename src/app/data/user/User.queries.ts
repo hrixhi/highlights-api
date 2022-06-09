@@ -5,6 +5,7 @@ import { SchoolsModel } from '../school/mongo/School.model';
 import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { UserObject } from './types/User.type';
 import { AuthResponseObject } from './types/AuthResponse.type';
+import { AdminUsersResponsObject } from './types/AdminUser.type';
 import { CueModel } from '../cue/mongo/Cue.model';
 import { ModificationsModel } from '../modification/mongo/Modification.model';
 import { PerformanceObject } from './types/Performance.type';
@@ -114,6 +115,12 @@ export class UserQueryResolver {
 
                     const token = createJWTToken(user._id);
 
+                    console.log({
+                        user,
+                        error: '',
+                        token,
+                    });
+
                     return {
                         user,
                         error: '',
@@ -186,16 +193,20 @@ export class UserQueryResolver {
         }
     }
 
-    @Field((type) => [UserObject])
+    @Field((type) => [UserObject], { nullable: true })
     public async getSchoolUsers(
         @Arg('schoolId', (type) => String)
         schoolId: string
     ) {
         try {
-            const users = await UserModel.find({ schoolId, deletedAt: undefined });
+            const users = await UserModel.find({
+                schoolId,
+                deletedAt: undefined,
+                role: { $in: ['instructor', 'student'] },
+            });
             return users;
         } catch (e) {
-            return [];
+            return null;
         }
     }
 
@@ -713,6 +724,149 @@ export class UserQueryResolver {
             return null;
         } catch (e) {
             return null;
+        }
+    }
+
+    @Field((type) => String, { nullable: true })
+    public async getUsernamesForAnnotation(
+        @Arg('cueId', (type) => String)
+        cueId: string
+    ) {
+        try {
+            const fetchCue = await CueModel.findById(cueId);
+
+            if (!fetchCue) return null;
+
+            const fetchCourse = await ChannelModel.findById(fetchCue.channelId);
+
+            if (!fetchCourse) return null;
+
+            const ownersSet = new Set();
+
+            ownersSet.add(fetchCourse.createdBy);
+
+            if (fetchCourse.owners && fetchCourse.owners.length !== 0) {
+                fetchCourse.owners.map((id: string) => {
+                    ownersSet.add(id);
+                });
+            }
+
+            const userIds = Array.from(ownersSet);
+
+            const fetchUsers = await UserModel.find({
+                _id: { $in: userIds },
+            });
+
+            const userIdMap: any = {};
+
+            fetchUsers.map((user: any) => {
+                const obj = user.toObject();
+
+                userIdMap[obj._id] = obj.fullName;
+            });
+
+            return JSON.stringify(userIdMap);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    @Field((type) => AdminUsersResponsObject, { nullable: true })
+    public async getAllUsersAdmin(
+        @Arg('schoolId', (type) => String)
+        schoolId: string
+    ) {
+        try {
+            if (!schoolId) {
+                return {
+                    users: [],
+                    gradesAndSections: [],
+                    error: 'School Id must be provided',
+                };
+            }
+
+            // GET USERS WITH SCHOOL ID
+
+            const fetchSchoolUsers = await UserModel.find({
+                schoolId,
+                role: { $in: ['student', 'parent'] },
+                deletedAt: undefined,
+            });
+
+            if (!fetchSchoolUsers) {
+                return {
+                    users: [],
+                    gradesAndSections: [],
+                    error: 'Something went wrong.',
+                };
+            }
+
+            const gradesSections = new Set();
+            const users: any[] = [];
+
+            for (let i = 0; i < fetchSchoolUsers.length; i++) {
+                const user = fetchSchoolUsers[i].toObject();
+
+                if (!user.grade || !user.section) {
+                    return;
+                }
+
+                gradesSections.add(user.grade + '-' + user.section);
+
+                users.push({
+                    _id: user._id,
+                    fullName: user.fullName,
+                    email: user.email,
+                    role: user.role,
+                    grade: user.grade,
+                    section: user.section,
+                });
+            }
+
+            console.log({
+                users,
+                gradesAndSections: Array.from(gradesSections),
+                error: '',
+            });
+
+            return {
+                users,
+                gradesAndSections: Array.from(gradesSections),
+                error: '',
+            };
+        } catch (e) {
+            return {
+                users: [],
+                gradesAndSections: [],
+                error: 'Something went wrong.',
+            };
+        }
+    }
+
+    @Field((type) => [UserObject], { nullable: true })
+    public async getAllInstructorsAdmin(
+        @Arg('schoolId', (type) => String)
+        schoolId: string
+    ) {
+        try {
+            if (!schoolId) {
+                return [];
+            }
+
+            // GET USERS WITH SCHOOL ID
+            const fetchSchoolUsers = await UserModel.find({
+                schoolId,
+                role: 'instructor',
+                deletedAt: undefined,
+            });
+
+            if (!fetchSchoolUsers) {
+                return [];
+            }
+
+            return fetchSchoolUsers;
+        } catch (e) {
+            return [];
         }
     }
 }

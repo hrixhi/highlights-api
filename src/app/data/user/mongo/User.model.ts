@@ -8,10 +8,6 @@ export interface IUserModel extends Document {
     email?: string;
     avatar?: string;
     password?: string;
-    randomShuffleFrequency?: string;
-    sleepFrom?: string;
-    sleepTo?: string;
-    currentDraft?: string;
     schoolId?: string;
     role?: string;
     grade?: string;
@@ -22,8 +18,11 @@ export interface IUserModel extends Document {
     zoomInfo?: any;
     authProvider?: string;
     sisId?: string;
-    gradYear?: number;
     createdAt: string;
+    personalInfo?: any;
+    parent1?: any;
+    parent2?: any;
+    adminInfo?: any;
 }
 
 export const UserModel: Model<IUserModel> = model<IUserModel>('users', UserSchema);

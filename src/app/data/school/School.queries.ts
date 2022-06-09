@@ -5,9 +5,15 @@ import { SchoolObject } from './types/School.type';
 import WorkOS from '@workos-inc/node';
 import { WORKOS_API_KEY } from '../../../helpers/workosCredentials';
 
+// Set your secret key. Remember to switch to your live secret key in production.
+// See your keys here: https://dashboard.stripe.com/apikeys
+const stripe = require('stripe')(
+    'sk_test_51L82d3KAaVnDM2WugfJGaRCApwuFdyaUdDkGroOaUZfYWyJ6Tn0VmEBtLJDrl4BElVFAIASEQ4WKRzwx0hmbQdqb001ZYOCYsu'
+);
+
 enum GeneratePortalLinkIntent {
     SSO = 'sso',
-    DSync = 'dsync'
+    DSync = 'dsync',
 }
 
 /**
@@ -15,12 +21,12 @@ enum GeneratePortalLinkIntent {
  */
 @ObjectType()
 export class SchoolQueryResolver {
-    @Field(type => SchoolObject, {
+    @Field((type) => SchoolObject, {
         description: 'Used to retrieve school',
-        nullable: true
+        nullable: true,
     })
     public async findById(
-        @Arg('schoolId', type => String)
+        @Arg('schoolId', (type) => String)
         schoolId: string
     ) {
         try {
@@ -31,12 +37,12 @@ export class SchoolQueryResolver {
         }
     }
 
-    @Field(type => SchoolObject, {
+    @Field((type) => SchoolObject, {
         description: 'Used to retrieve school by userId',
-        nullable: true
+        nullable: true,
     })
     public async findByUserId(
-        @Arg('userId', type => String)
+        @Arg('userId', (type) => String)
         userId: string
     ) {
         try {
@@ -54,12 +60,28 @@ export class SchoolQueryResolver {
         }
     }
 
-    @Field(type => String, {
+    @Field((type) => SchoolObject, {
+        description: 'Used to retrieve org by schoolId',
+        nullable: true,
+    })
+    public async getOrgInfo(
+        @Arg('schoolId', (type) => String)
+        schoolId: string
+    ) {
+        try {
+            return await SchoolsModel.findById(schoolId);
+        } catch (e) {
+            console.log(e);
+            return null;
+        }
+    }
+
+    @Field((type) => String, {
         description: 'Used to retrieve school by userId',
-        nullable: true
+        nullable: true,
     })
     public async getSsoSetupLink(
-        @Arg('schoolId', type => String)
+        @Arg('schoolId', (type) => String)
         schoolId: string
     ) {
         try {
@@ -77,7 +99,7 @@ export class SchoolQueryResolver {
                     const { link } = await workos.portal.generateLink({
                         organization: workosOrgId,
                         intent: GeneratePortalLinkIntent.SSO,
-                        returnUrl: adminPortalDomain
+                        returnUrl: adminPortalDomain,
                         // returnUrl: 'localhost:3000'
                     });
 
@@ -88,6 +110,45 @@ export class SchoolQueryResolver {
         } catch (e) {
             console.log(e);
             return null;
+        }
+    }
+
+    @Field((type) => String, {
+        description: 'Used to retrieve school by userId',
+        nullable: true,
+    })
+    public async getStripeConnectStatus(
+        @Arg('schoolId', (type) => String)
+        schoolId: string
+    ) {
+        try {
+            // RETURN PENDING, DETAILS_SUBMITTED, ACTIVE
+
+            const fetchSchool = await SchoolsModel.findById(schoolId);
+
+            if (!fetchSchool) return 'INVALID_SCHOOL_ID';
+
+            if (!fetchSchool.stripeAccountId) {
+                return 'PENDING';
+            }
+
+            const account = await stripe.accounts.retrieve(fetchSchool.stripeAccountId);
+
+            console.log('Account', account);
+
+            if (!account) {
+                return 'PENDING';
+            }
+
+            if (account.details_submitted && account.charges_enabled) {
+                return 'ACTIVE';
+            } else if (account.details_submitted) {
+                return 'IN_PROGRESS';
+            }
+
+            return 'ERROR';
+        } catch (e) {
+            return 'ERROR';
         }
     }
 }

@@ -7,10 +7,11 @@ export interface IActivityModel extends Document {
     subtitle: string;
     status: string;
     date: Date;
-    channelId: string;
+    channelId?: string;
     body?: string;
     cueId?: string;
     threadId?: string;
+    announcementId?: string;
     target?: string;
 }
 

@@ -598,10 +598,22 @@ export class ChannelQueryResolver {
                     ? [...fetchChannel.owners, fetchChannel.createdBy.toString()]
                     : [fetchChannel.createdBy.toString()];
 
+                // Fetch all existing Subscibers for that course
+                const activeSubs = await SubscriptionModel.find({
+                    channelId,
+                    unsubscribedAt: { $exists: false },
+                });
+
+                const activeUserIds = activeSubs.map((subscriber: any) => {
+                    const sub = subscriber.toObject();
+
+                    return sub.userId.toString();
+                });
+
                 // Filter channel owners data out
                 const filteredUsers = users.filter((u: any) => {
                     const user = u.toObject();
-                    return !owners.includes(user._id.toString());
+                    return activeUserIds.includes(user._id.toString()) && !owners.includes(user._id.toString());
                 });
 
                 filteredUsers.map((u: any) => {
@@ -615,8 +627,6 @@ export class ChannelQueryResolver {
                         scores: gradesObject[user._id] ? gradesObject[user._id] : [],
                     });
                 });
-
-                console.log('Grades', grades);
 
                 return grades;
             } else {
@@ -959,6 +969,27 @@ export class ChannelQueryResolver {
         } catch (e) {
             console.log(e);
             return false;
+        }
+    }
+
+    @Field((type) => [ChannelObject], {
+        description: 'Returns list of channels belonging to channel.',
+        nullable: true,
+    })
+    public async getSchoolCourses(
+        @Arg('schoolId', (type) => String)
+        schoolId: string
+    ) {
+        try {
+            const channels = await ChannelModel.find({
+                schoolId,
+                deletedAt: undefined,
+            });
+
+            return channels;
+        } catch (e) {
+            console.log(e);
+            return [];
         }
     }
 }

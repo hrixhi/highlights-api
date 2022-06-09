@@ -17,23 +17,29 @@ import { ThreadStatusModel } from '../thread-status/mongo/thread-status.model';
 import { ThreadModel } from '../thread/mongo/Thread.model';
 import { AddEnrollmentsResponseObject } from './types/AddEnrollmentsResponse.type';
 
+// Set your secret key. Remember to switch to your live secret key in production.
+// See your keys here: https://dashboard.stripe.com/apikeys
+const stripe = require('stripe')(
+    'sk_test_51L82d3KAaVnDM2WugfJGaRCApwuFdyaUdDkGroOaUZfYWyJ6Tn0VmEBtLJDrl4BElVFAIASEQ4WKRzwx0hmbQdqb001ZYOCYsu'
+);
+
 /**
  * School Mutation Endpoints
  */
 @ObjectType()
 export class SchoolMutationResolver {
     // Create School
-    @Field(type => Boolean, {
-        description: ''
+    @Field((type) => Boolean, {
+        description: '',
     })
     public async create(
-        @Arg('name', type => String)
+        @Arg('name', (type) => String)
         name: string,
-        @Arg('password', type => String)
+        @Arg('password', (type) => String)
         password: string,
-        @Arg('ssoEnabled', type => Boolean)
+        @Arg('ssoEnabled', (type) => Boolean)
         ssoEnabled: boolean,
-        @Arg('ssoDomain', type => String, { nullable: true })
+        @Arg('ssoDomain', (type) => String, { nullable: true })
         ssoDomain?: string
     ) {
         try {
@@ -47,7 +53,7 @@ export class SchoolMutationResolver {
             const org = await SchoolsModel.create({
                 name,
                 password: hash,
-                cuesDomain: encodeOrgName + '.learnwithcues.com'
+                cuesDomain: encodeOrgName + '.learnwithcues.com',
             });
 
             if (!org) {
@@ -59,20 +65,19 @@ export class SchoolMutationResolver {
 
                 const organization = await workos.organizations.createOrganization({
                     name,
-                    domains: [ssoDomain]
+                    domains: [ssoDomain],
                 });
 
                 if (organization && organization.id) {
                     const updateMongo = await SchoolsModel.updateOne(
                         {
-                            _id: org._id
+                            _id: org._id,
                         },
                         {
                             workosOrgId: organization.id,
-                            ssoDomain
+                            ssoDomain,
                         }
                     );
-
                 }
             }
 
@@ -83,20 +88,20 @@ export class SchoolMutationResolver {
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Used to update school admin details.'
+    @Field((type) => Boolean, {
+        description: 'Used to update school admin details.',
     })
     public async activateSSOForOrg(
-        @Arg('cuesDomain', type => String)
+        @Arg('cuesDomain', (type) => String)
         cuesDomain: string,
-        @Arg('ssoDomain', type => String)
+        @Arg('ssoDomain', (type) => String)
         ssoDomain: string
     ) {
         try {
             if (!cuesDomain || !ssoDomain) return false;
 
             const school = await SchoolsModel.findOne({
-                cuesDomain
+                cuesDomain,
             });
 
             if (!school) return false;
@@ -105,18 +110,18 @@ export class SchoolMutationResolver {
 
             const organization = await workos.organizations.createOrganization({
                 name: school.name,
-                domains: [ssoDomain]
+                domains: [ssoDomain],
             });
 
             if (organization && organization.id) {
                 const updateMongo = await SchoolsModel.updateOne(
                     {
-                        _id: school._id
+                        _id: school._id,
                     },
                     {
                         workosOrgId: organization.id,
                         ssoDomain,
-                        ssoEnabled: true
+                        ssoEnabled: true,
                     }
                 );
 
@@ -129,21 +134,21 @@ export class SchoolMutationResolver {
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Used to update school admin details.'
+    @Field((type) => Boolean, {
+        description: 'Used to update school admin details.',
     })
     public async update(
-        @Arg('schoolId', type => String)
+        @Arg('schoolId', (type) => String)
         schoolId: string,
-        @Arg('recoveryEmail', type => String)
+        @Arg('recoveryEmail', (type) => String)
         recoveryEmail: string,
-        @Arg('allowStudentChannelCreation', type => Boolean)
+        @Arg('allowStudentChannelCreation', (type) => Boolean)
         allowStudentChannelCreation: boolean,
-        @Arg('meetingProvider', type => String)
+        @Arg('meetingProvider', (type) => String)
         meetingProvider: string,
-        @Arg('logo', type => String, { nullable: true })
+        @Arg('logo', (type) => String, { nullable: true })
         logo?: string,
-        @Arg('streamId', type => String, { nullable: true })
+        @Arg('streamId', (type) => String, { nullable: true })
         streamId?: string
     ) {
         try {
@@ -154,7 +159,7 @@ export class SchoolMutationResolver {
                     allowStudentChannelCreation,
                     logo: logo && logo !== '' ? logo : undefined,
                     streamId: streamId === '' ? undefined : streamId,
-                    meetingProvider: meetingProvider === 'zoom' ? undefined : meetingProvider
+                    meetingProvider: meetingProvider === 'zoom' ? undefined : meetingProvider,
                 }
             );
 
@@ -165,15 +170,15 @@ export class SchoolMutationResolver {
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Used to update school admin password.'
+    @Field((type) => Boolean, {
+        description: 'Used to update school admin password.',
     })
     public async updateAdminPassword(
-        @Arg('schoolId', type => String)
+        @Arg('schoolId', (type) => String)
         schoolId: string,
-        @Arg('currentPassword', type => String)
+        @Arg('currentPassword', (type) => String)
         currentPassword: string,
-        @Arg('newPassword', type => String)
+        @Arg('newPassword', (type) => String)
         newPassword: string
     ) {
         try {
@@ -197,13 +202,13 @@ export class SchoolMutationResolver {
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Used to update school admin password.'
+    @Field((type) => Boolean, {
+        description: 'Used to update school admin password.',
     })
     public async newSSORequest(
-        @Arg('schoolId', type => String)
+        @Arg('schoolId', (type) => String)
         schoolId: string,
-        @Arg('ssoDomain', type => String)
+        @Arg('ssoDomain', (type) => String)
         ssoDomain: string
     ) {
         try {
@@ -224,25 +229,25 @@ export class SchoolMutationResolver {
         }
     }
 
-    @Field(type => AddCoursesResponseObject, {
-        description: 'Used to add courses to a school.'
+    @Field((type) => AddCoursesResponseObject, {
+        description: 'Used to add courses to a school.',
     })
     public async addCoursesToOrganisation(
-        @Arg('courses', type => [CourseCreateAdmin])
+        @Arg('courses', (type) => [CourseCreateAdmin])
         courses: CourseCreateAdmin[],
-        @Arg('schoolId', type => String)
+        @Arg('schoolId', (type) => String)
         schoolId: string
     ) {
         try {
             const fetchSchool = await SchoolsModel.findOne({
-                _id: schoolId
+                _id: schoolId,
             });
 
             if (!fetchSchool) {
                 return {
                     successful: [],
                     failed: [],
-                    error: 'No org found with this School Id'
+                    error: 'No org found with this School Id',
                 };
             }
 
@@ -257,11 +262,11 @@ export class SchoolMutationResolver {
 
                 if (course.courseOwnerEmail) {
                     fetchOwner = await UserModel.findOne({
-                        email: course.courseOwnerEmail
+                        email: course.courseOwnerEmail,
                     });
                 } else if (course.courseOwnerSisId) {
                     fetchOwner = await UserModel.findOne({
-                        sisId: course.courseOwnerSisId
+                        sisId: course.courseOwnerSisId,
                     });
                 }
 
@@ -293,13 +298,13 @@ export class SchoolMutationResolver {
                     '#ff9800',
                     '#ff5722',
                     '#795548',
-                    '#607db8'
+                    '#607db8',
                 ];
 
                 if (course.sisId && course.sisId !== '') {
                     const channel = await ChannelModel.findOne({
                         schoolId: fetchOwner.schoolId ? fetchOwner.schoolId : '',
-                        sisId: course.sisId
+                        sisId: course.sisId,
                     });
 
                     if (channel && channel._id) {
@@ -320,14 +325,14 @@ export class SchoolMutationResolver {
                     accessCode: shortid.generate(),
                     createdBy: fetchOwner._id.toString(),
                     owners: [],
-                    schoolId: fetchOwner.schoolId ? fetchOwner.schoolId : ''
+                    schoolId: fetchOwner.schoolId ? fetchOwner.schoolId : '',
                 });
 
                 if (createChannel && createChannel._id) {
                     // Subscribe Owner
                     const subscription = await SubscriptionModel.create({
                         userId: fetchOwner._id,
-                        channelId: createChannel._id
+                        channelId: createChannel._id,
                     });
 
                     addSuccess.push(course.name);
@@ -342,7 +347,7 @@ export class SchoolMutationResolver {
                 noOwnerFound,
                 studentOwner,
                 failedToAdd,
-                error: ''
+                error: '',
             };
         } catch (e) {
             console.log(e);
@@ -352,30 +357,30 @@ export class SchoolMutationResolver {
                 noOwnerFound: [],
                 studentOwner: [],
                 failedToAdd: [],
-                error: 'Something went wrong. Try again.'
+                error: 'Something went wrong. Try again.',
             };
         }
     }
 
-    @Field(type => AddEnrollmentsResponseObject, {
-        description: 'Used to add courses to a school.'
+    @Field((type) => AddEnrollmentsResponseObject, {
+        description: 'Used to add courses to a school.',
     })
     public async addEnrollmentsToOrganisation(
-        @Arg('enrollments', type => [AddEnrollmentAdmin])
+        @Arg('enrollments', (type) => [AddEnrollmentAdmin])
         enrollments: AddEnrollmentAdmin[],
-        @Arg('schoolId', type => String)
+        @Arg('schoolId', (type) => String)
         schoolId: string
     ) {
         try {
             const fetchSchool = await SchoolsModel.findOne({
-                _id: schoolId
+                _id: schoolId,
             });
 
             if (!fetchSchool) {
                 return {
                     successful: [],
                     failed: [],
-                    error: 'No org found with this School Id'
+                    error: 'No org found with this School Id',
                 };
             }
 
@@ -397,19 +402,19 @@ export class SchoolMutationResolver {
                 if (courseSisId !== '') {
                     findCourse = await ChannelModel.findOne({
                         sisId: courseSisId,
-                        schoolId
+                        schoolId,
                     });
                 } else if (courseAccessCode !== '') {
                     findCourse = await ChannelModel.findOne({
                         accessCode: courseAccessCode,
-                        schoolId
+                        schoolId,
                     });
                 }
 
                 if (!findCourse) {
                     failed.push({
                         index: enrollment.index,
-                        errorType: 'INVALID_COURSE'
+                        errorType: 'INVALID_COURSE',
                     });
                     continue;
                 }
@@ -418,18 +423,18 @@ export class SchoolMutationResolver {
 
                 if (userSisId && userSisId.trim() !== '') {
                     findUser = await UserModel.findOne({
-                        sisId: userSisId
+                        sisId: userSisId,
                     });
                 } else if (userEmail !== '') {
                     findUser = await UserModel.findOne({
-                        email: userEmail
+                        email: userEmail,
                     });
                 }
 
                 if (!findUser) {
                     failed.push({
                         index: enrollment.index,
-                        errorType: 'INVALID_USER'
+                        errorType: 'INVALID_USER',
                     });
                     continue;
                 }
@@ -442,18 +447,18 @@ export class SchoolMutationResolver {
                 const sub = await SubscriptionModel.findOne({
                     userId,
                     channelId,
-                    unsubscribedAt: { $exists: false }
+                    unsubscribedAt: { $exists: false },
                 });
 
                 if (sub) {
-                    alreadyExist.push(enrollment.index)
+                    alreadyExist.push(enrollment.index);
                     continue;
                 }
 
                 // CREATE SUBSCRIPTION
                 const pastSubs = await SubscriptionModel.find({
                     userId,
-                    channelId
+                    channelId,
                 });
                 if (pastSubs.length === 0) {
                     const channelCues = await CueModel.find({ channelId, limitedShares: { $ne: true } });
@@ -474,15 +479,15 @@ export class SchoolMutationResolver {
 
                 const threads = await ThreadModel.find({
                     channelId,
-                    isPrivate: false
+                    isPrivate: false,
                 });
-                threads.map(async t => {
+                threads.map(async (t) => {
                     const thread = t.toObject();
                     await ThreadStatusModel.create({
                         userId,
                         channelId,
                         cueId: thread.cueId ? thread.cueId : null,
-                        threadId: thread.parentId ? thread.parentId : thread._id
+                        threadId: thread.parentId ? thread.parentId : thread._id,
                     });
                 });
 
@@ -490,26 +495,26 @@ export class SchoolMutationResolver {
                     {
                         userId,
                         channelId,
-                        unsubscribedAt: { $exists: true }
+                        unsubscribedAt: { $exists: true },
                     },
                     {
-                        keepContent: false
+                        keepContent: false,
                     }
                 );
                 // subscribe
                 const newSubscription = await SubscriptionModel.create({
                     userId,
-                    channelId
+                    channelId,
                 });
 
                 // Check if channel owner, if yes then update creatorUnsubscribed: true
                 if (findCourse.createdBy.toString().trim() === userId.toString().trim()) {
                     await ChannelModel.updateOne(
                         {
-                            _id: channelId
+                            _id: channelId,
                         },
                         {
-                            creatorUnsubscribed: false
+                            creatorUnsubscribed: false,
                         }
                     );
                 } else {
@@ -518,19 +523,19 @@ export class SchoolMutationResolver {
                         if (findCourse.owners) {
                             await ChannelModel.updateOne(
                                 {
-                                    _id: channelId
+                                    _id: channelId,
                                 },
                                 {
-                                    $addToSet: { owners: userId }
+                                    $addToSet: { owners: userId },
                                 }
                             );
                         } else {
                             await ChannelModel.updateOne(
                                 {
-                                    _id: channelId
+                                    _id: channelId,
                                 },
                                 {
-                                    owners: [userId]
+                                    owners: [userId],
                                 }
                             );
                         }
@@ -544,7 +549,7 @@ export class SchoolMutationResolver {
                 successful: addSuccess,
                 alreadyExist,
                 failed,
-                error: ''
+                error: '',
             };
         } catch (e) {
             console.log(e);
@@ -552,27 +557,27 @@ export class SchoolMutationResolver {
                 successful: [],
                 failed: [],
                 alreadyExist: [],
-                error: 'Something went wrong. Try again.'
+                error: 'Something went wrong. Try again.',
             };
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Used to add courses to a school.'
+    @Field((type) => Boolean, {
+        description: 'Used to add courses to a school.',
     })
     public async updateMeetingProvider(
-        @Arg('schoolId', type => String)
+        @Arg('schoolId', (type) => String)
         schoolId: string,
-        @Arg('meetingProvider', type => String)
+        @Arg('meetingProvider', (type) => String)
         meetingProvider: string
     ) {
         try {
             const updateMeeting = await SchoolsModel.updateOne(
                 {
-                    _id: schoolId
+                    _id: schoolId,
                 },
                 {
-                    meetingProvider: meetingProvider === 'zoom' ? undefined : meetingProvider
+                    meetingProvider: meetingProvider === 'zoom' ? undefined : meetingProvider,
                 }
             );
 
@@ -580,6 +585,97 @@ export class SchoolMutationResolver {
         } catch (e) {
             console.log('Error', e);
             return false;
+        }
+    }
+
+    @Field((type) => Boolean, {
+        description: 'Used to add courses to a school.',
+    })
+    public async updateOrgInfo(
+        @Arg('schoolId', (type) => String)
+        schoolId: string,
+        @Arg('name', (type) => String)
+        name: string,
+        @Arg('email', (type) => String)
+        email: string,
+        @Arg('phoneNumber', (type) => String)
+        phoneNumber: string,
+        @Arg('website', (type) => String, { nullable: true })
+        website: string,
+        @Arg('logo', (type) => String, { nullable: true })
+        logo: string
+    ) {
+        try {
+            const updateOrg = await SchoolsModel.updateOne(
+                {
+                    _id: schoolId,
+                },
+                {
+                    name,
+                    email,
+                    phoneNumber,
+                    website,
+                    logo,
+                }
+            );
+
+            return updateOrg.nModified > 0;
+        } catch (e) {
+            console.log('Error', e);
+            return false;
+        }
+    }
+
+    @Field((type) => String, {
+        description: 'Used to add courses to a school.',
+    })
+    public async connectWithStripe(
+        @Arg('schoolId', (type) => String)
+        schoolId: string
+    ) {
+        try {
+            const fetchSchool = await SchoolsModel.findById(schoolId);
+
+            if (!fetchSchool) {
+                return 'INVALID_SCHOOL_ID';
+            }
+
+            let accountId;
+
+            if (fetchSchool.stripeAccountId) {
+                accountId = fetchSchool.stripeAccountId;
+            } else {
+                // CREATE NEW ACCOUNT
+                const account = await stripe.accounts.create({ type: 'standard' });
+
+                if (!account) return 'SOMETHING_WENT_WRONG';
+
+                accountId = account.id;
+
+                // Update account
+                await SchoolsModel.updateOne(
+                    {
+                        _id: schoolId,
+                    },
+                    {
+                        stripeAccountId: account.id,
+                    }
+                );
+            }
+
+            const accountLink = await stripe.accountLinks.create({
+                account: accountId,
+                refresh_url: 'http://localhost:3000',
+                return_url: 'http://localhost:3000',
+                type: 'account_onboarding',
+            });
+
+            if (!accountLink || !accountLink.url) return 'SOMETHING_WENT_WRONG';
+
+            return accountLink.url;
+        } catch (e) {
+            console.log('Error', e);
+            return 'SOMETHING_WENT_WRONG';
         }
     }
 }

@@ -12,6 +12,8 @@ import moment from 'moment-timezone';
 
 import axios from 'axios';
 import { EventObject } from './types/Date.type';
+import { EventInputAdmin } from './input-types/EventInputAdmin.type';
+import { EditEventInputAdmin } from './input-types/EditEventInputAdmin.type';
 import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials';
 import { SchoolsModel } from '../school/mongo/School.model';
 import { ZoomRegistrationModel } from '../zoom-registration/mongo/zoom-registration.model';
@@ -683,6 +685,704 @@ export class DateMutationResolver {
             return 'SUCCESS';
         } catch (e) {
             return 'ERROR';
+        }
+    }
+
+    @Field((type) => String, {
+        description: 'Used when you want create an event in Agenda',
+    })
+    public async createEventAdmin(@Arg('eventInput', (type) => EventInputAdmin) eventInput: EventInputAdmin) {
+        try {
+            const {
+                userId,
+                title,
+                start,
+                end,
+                schoolEvent,
+                meeting,
+                description,
+                frequency,
+                repeatTill,
+                repeatDays,
+                selectedSegment,
+                allGradesAndSections,
+                allUsersSelected,
+                shareWithGradesAndSections,
+                selectedUsers,
+                shareWithAllInstructors,
+                selectedInstructors,
+                shareWithAllAdmins,
+                selectedAdmins,
+            } = eventInput;
+
+            // If the zoom account type is a Licensed account then we need to register users to meetings so that attendance can be captured
+            const getZoomAccountType = async (zoomAccessToken: string, zoomEmail: string) => {
+                const zoomRes: any = await axios.get(`https://api.zoom.us/v2/users/me?userId=${zoomEmail}`, {
+                    headers: {
+                        Authorization: `Bearer ${zoomAccessToken}`,
+                    },
+                });
+
+                console.log('Zoom res get user', zoomRes);
+
+                if (zoomRes.status === 200) {
+                    console.log('Get User object', zoomRes.data);
+
+                    const zoomData: any = zoomRes.data;
+
+                    if (zoomData.type === 1) {
+                        return 'BASIC';
+                    } else {
+                        return 'LICENSED';
+                    }
+                }
+
+                return 'ERROR';
+            };
+
+            const registerUsersToMeeting = async (
+                zoomAccessToken: string,
+                userIds: string[],
+                zoomMeetingId: string,
+                schoolId: string
+            ) => {
+                const users = await UserModel.find({ _id: { $in: userIds } });
+
+                users.map(async (user: IUserModel) => {
+                    const u = user.toObject();
+
+                    console.log('User', u);
+
+                    console.log(
+                        'Register user url',
+                        `https://api.zoom.us/v2/meetings/${Number(zoomMeetingId)}/registrants`
+                    );
+
+                    try {
+                        const zoomRes: any = await axios.post(
+                            `https://api.zoom.us/v2/meetings/${Number(zoomMeetingId)}/registrants`,
+                            {
+                                first_name: u.fullName,
+                                last_name: 'Cues',
+                                email: u.email,
+                                auto_approve: true,
+                            },
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${zoomAccessToken}`,
+                                },
+                            }
+                        );
+
+                        console.log('Zoom res register user', zoomRes);
+
+                        if (zoomRes.status === 201) {
+                            const zoomData: any = zoomRes.data;
+
+                            console.log('Register user object', zoomRes.data);
+
+                            const zoomRegistration = await ZoomRegistrationModel.create({
+                                userId: u._id,
+                                schoolId,
+                                zoomMeetingId,
+                                zoom_join_url: zoomData.join_url,
+                                registrant_id: zoomData.registrant_id,
+                                zoomRegistrationId: zoomData.id.toString(),
+                            });
+                        }
+                    } catch (e) {
+                        console.log('Error with registering', e);
+                    }
+                });
+            };
+
+            // isNonMeetingChannelEvent is set to undefined to differentiate meetings from events
+
+            const fetchUser = await UserModel.findById(userId);
+
+            let useZoom = false;
+
+            if (!fetchUser) {
+                return 'INVALID_USER';
+            }
+
+            // Check the meeting provider if it is a meeting
+            if (fetchUser.schoolId && meeting) {
+                const org = await SchoolsModel.findById(fetchUser.schoolId);
+
+                if (org && org.meetingProvider && org.meetingProvider !== '') {
+                    useZoom = false;
+                } else {
+                    useZoom = true;
+                }
+            }
+
+            let recurringId = nanoid();
+
+            let newObj = null;
+
+            const diff = Math.abs(new Date(start).getTime() - new Date(end).getTime());
+
+            const duration = Math.round(diff / 60000);
+
+            if (repeatTill && frequency && frequency !== '1-W') {
+                // Construct dates for creating and set a recurring Id
+                const dates = this.getAllDates(start, frequency, repeatTill);
+
+                // const recurringId = nanoid();
+
+                for (let i = 0; i < dates.length; i++) {
+                    const scheduledDate = dates[i];
+
+                    const startDate = new Date(start);
+
+                    const endDate = new Date(end);
+
+                    // Update start and end date to Scheduled Date
+                    // startDate.setDate(scheduledDate.getDate());
+                    startDate.setMonth(scheduledDate.getMonth(), scheduledDate.getDate());
+
+                    // endDate.setDate(scheduledDate.getDate());
+                    endDate.setMonth(scheduledDate.getMonth(), scheduledDate.getDate());
+
+                    await DateModel.create({
+                        userId,
+                        title,
+                        start: startDate,
+                        end: endDate,
+                        isNonMeetingSchoolEvent: !meeting,
+                        schoolId: schoolEvent ? fetchUser.schoolId : undefined,
+                        description,
+                        recurringId,
+                        // School events
+                        selectedSegment,
+                        allGradesAndSections,
+                        allUsersSelected,
+                        shareWithGradesAndSections,
+                        selectedUsers,
+                        shareWithAllInstructors,
+                        selectedInstructors,
+                        shareWithAllAdmins,
+                        selectedAdmins,
+                    });
+                }
+            } else if (repeatTill && frequency && frequency === '1-W' && repeatDays) {
+                const startDate = new Date(start);
+
+                const startDay = startDate.getDay() + 1;
+
+                let allDates: any[] = [];
+
+                // Build a map of all start days for RepeatDays
+                for (let i = 0; i < repeatDays.length; i++) {
+                    let key = repeatDays[i];
+                    let beginDate = '';
+
+                    if (startDay.toString() === key) {
+                        beginDate = startDate.toUTCString();
+                    } else if (Number(key) > startDay) {
+                        const newDate = new Date(start);
+                        newDate.setDate(newDate.getDate() + (Number(key) - startDay));
+                        beginDate = newDate.toUTCString();
+                    } else {
+                        const newDate = new Date(start);
+                        const diff = 7 - startDay + Number(key);
+                        newDate.setDate(newDate.getDate() + diff);
+                        beginDate = newDate.toUTCString();
+                    }
+
+                    const dates = this.getAllDates(beginDate, frequency, repeatTill);
+                    allDates = [...allDates, ...dates];
+                }
+
+                for (let i = 0; i < allDates.length; i++) {
+                    const scheduledDate = allDates[i];
+
+                    const startDate = new Date(start);
+
+                    const endDate = new Date(end);
+
+                    // Update start and end date to Scheduled Date
+                    startDate.setMonth(scheduledDate.getMonth(), scheduledDate.getDate());
+                    endDate.setMonth(scheduledDate.getMonth(), scheduledDate.getDate());
+
+                    await DateModel.create({
+                        userId,
+                        title,
+                        start: startDate,
+                        end: endDate,
+                        isNonMeetingSchoolEvent: !meeting,
+                        schoolId: schoolEvent ? fetchUser.schoolId : undefined,
+                        description,
+                        recurringId,
+                        selectedSegment,
+                        allGradesAndSections,
+                        allUsersSelected,
+                        shareWithGradesAndSections,
+                        selectedUsers,
+                        shareWithAllInstructors,
+                        selectedInstructors,
+                        shareWithAllAdmins,
+                        selectedAdmins,
+                    });
+                }
+            } else {
+                newObj = await DateModel.create({
+                    userId,
+                    title,
+                    start: new Date(start),
+                    end: new Date(end),
+                    isNonMeetingSchoolEvent: !meeting,
+                    schoolId: schoolEvent ? fetchUser.schoolId : undefined,
+                    selectedSegment,
+                    allGradesAndSections,
+                    allUsersSelected,
+                    shareWithGradesAndSections,
+                    selectedUsers,
+                    shareWithAllInstructors,
+                    selectedInstructors,
+                    shareWithAllAdmins,
+                    selectedAdmins,
+                });
+            }
+
+            // IF no meeting just return
+
+            if (!meeting) return 'SUCCESS';
+
+            if (meeting && useZoom) {
+                // if (!channelId) return 'SUCCESS';
+
+                let accessToken = '';
+                const u: any = await UserModel.findById(userId);
+
+                if (u) {
+                    const user = u.toObject();
+
+                    if (!user.zoomInfo) {
+                        return 'error';
+                    } else {
+                        accessToken = user.zoomInfo.accessToken;
+                    }
+
+                    const b = Buffer.from(zoomClientId + ':' + zoomClientSecret);
+
+                    const date = new Date();
+                    const expiresOn = new Date(user.zoomInfo.expiresOn);
+
+                    if (expiresOn <= date) {
+                        // refresh access token
+
+                        const zoomRes: any = await axios.post(
+                            `https://zoom.us/oauth/token?grant_type=refresh_token&refresh_token=${user.zoomInfo.refreshToken}`,
+                            undefined,
+                            {
+                                headers: {
+                                    Authorization: `Basic ${b.toString('base64')}`,
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                },
+                            }
+                        );
+
+                        if (zoomRes.status !== 200) {
+                            return 'ZOOM_MEETING_CREATE_FAILED';
+                        }
+
+                        const zoomData: any = zoomRes.data;
+
+                        const eOn = new Date();
+                        eOn.setSeconds(
+                            eOn.getSeconds() +
+                                (Number.isNaN(Number(zoomData.expires_in)) ? 0 : Number(zoomData.expires_in))
+                        );
+
+                        accessToken = zoomData.access_token;
+
+                        await UserModel.updateOne(
+                            { _id: userId },
+                            {
+                                zoomInfo: {
+                                    ...user.zoomInfo,
+                                    accessToken: zoomData.access_token,
+                                    refreshToken: zoomData.refresh_token,
+                                    expiresOn: eOn, // saved as a date
+                                },
+                            }
+                        );
+                    }
+
+                    // let allUsers = [];
+
+                    // if (shareWithUsers && shareWithUsers.length > 0) {
+                    //     allUsers.push(...shareWithUsers);
+                    // }
+
+                    // if (shareWithInstructors && shareWithInstructors.length > 0) {
+                    //     allUsers.push(...shareWithInstructors);
+                    // }
+
+                    // if (shareWithAdmins && shareWithAdmins.length > 0) {
+                    //     allUsers.push(...shareWithAdmins);
+                    // }
+
+                    if (repeatTill && frequency && frequency !== '1-W') {
+                        // Recurring but no specific days
+                        let type;
+                        let repeat_interval;
+
+                        if (frequency === '2-W') {
+                            type = 2;
+                            repeat_interval = 2;
+                        } else if (frequency === '1-M') {
+                            type = 3;
+                            repeat_interval = 1;
+                        } else if (frequency === '2-M') {
+                            type = 3;
+                            repeat_interval = 2;
+                        } else if (frequency === '3-M') {
+                            type = 3;
+                            repeat_interval = 2;
+                        }
+
+                        const utcEndTime = moment(new Date(repeatTill), 'YYYY-MM-DDTHH:mm:ss')
+                            .tz('UTC')
+                            .format();
+
+                        let recurrence: any = {
+                            type,
+                            repeat_interval,
+                            end_date_time: utcEndTime + 'Z',
+                        };
+
+                        if (type === 3) {
+                            recurrence.monthly_day = new Date(start).getDate();
+                        }
+
+                        // Fetch User First and get account type of the user
+                        // const accountType = await getZoomAccountType(accessToken, user.zoomInfo.email);
+
+                        // if (accountType === 'ERROR') {
+                        //     return 'ZOOM_MEETING_CREATE_FAILED';
+                        // }
+
+                        // CREATE MEETING
+                        const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
+                            .tz('UTC')
+                            .format();
+
+                        const zoomRes: any = await axios.post(
+                            `https://api.zoom.us/v2/users/me/meetings`,
+                            {
+                                topic: title,
+                                agenda: description,
+                                type: 8,
+                                start_time: utcTime + 'Z',
+                                duration,
+                                recurrence,
+                                settings: {
+                                    approval_type: 2,
+                                    email_notification: false,
+                                    mute_upon_entry: true,
+                                    registrants_confirmation_email: false,
+                                    registrants_email_notification: false,
+                                    participant_video: false,
+                                },
+                            },
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${accessToken}`,
+                                },
+                            }
+                        );
+
+                        if (zoomRes.status === 200 || zoomRes.status === 201) {
+                            const zoomData: any = zoomRes.data;
+
+                            // if (accountType === 'LICENSED') {
+                            //     // Perform batch registration for all the users in the course (not owners)
+                            //     await registerUsersToMeeting(accessToken, allUsers, zoomData.id, user.schoolId);
+                            // }
+
+                            if (zoomData.id && recurringId) {
+                                await DateModel.updateMany(
+                                    {
+                                        recurringId,
+                                    },
+                                    {
+                                        zoomMeetingId: zoomData.id,
+                                        zoomStartUrl: zoomData.start_url,
+                                        zoomJoinUrl: zoomData.join_url,
+                                        zoomMeetingScheduledBy: userId,
+                                    }
+                                );
+                            }
+
+                            return 'SUCCESS';
+                        } else {
+                            // Could not create zoom meeting!
+                            return 'ZOOM_MEETING_CREATE_FAILED';
+                        }
+                    } else if (repeatTill && frequency && frequency === '1-W' && repeatDays) {
+                        // Recurring weekly only on specific days
+
+                        const utcEndTime = moment(new Date(repeatTill), 'YYYY-MM-DDTHH:mm:ss')
+                            .tz('UTC')
+                            .format();
+
+                        const recurrence = {
+                            type: 2,
+                            repeat_interval: 1,
+                            end_date_time: utcEndTime + 'Z',
+                            weekly_days: repeatDays.join(','),
+                        };
+
+                        // Fetch User First and get account type of the user
+                        // const accountType = await getZoomAccountType(accessToken, user.zoomInfo.email);
+
+                        // if (accountType === 'ERROR') {
+                        //     return 'ZOOM_MEETING_CREATE_FAILED';
+                        // }
+
+                        // CREATE MEETING
+                        const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
+                            .tz('UTC')
+                            .format();
+
+                        const zoomRes: any = await axios.post(
+                            `https://api.zoom.us/v2/users/me/meetings`,
+                            {
+                                topic: title,
+                                agenda: description,
+                                type: 8,
+                                start_time: utcTime + 'Z',
+                                duration,
+                                recurrence,
+                                settings: {
+                                    approval_type: 2,
+                                    email_notification: false,
+                                    mute_upon_entry: true,
+                                    registrants_confirmation_email: false,
+                                    registrants_email_notification: false,
+                                    participant_video: false,
+                                },
+                            },
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${accessToken}`,
+                                },
+                            }
+                        );
+
+                        if (zoomRes.status === 200 || zoomRes.status === 201) {
+                            const zoomData: any = zoomRes.data;
+
+                            // if (accountType === 'LICENSED') {
+                            //     await registerUsersToMeeting(accessToken, allUsers, zoomData.id, user.schoolId);
+                            // }
+
+                            if (zoomData.id && recurringId !== '') {
+                                await DateModel.updateMany(
+                                    {
+                                        recurringId,
+                                    },
+                                    {
+                                        zoomMeetingId: zoomData.id,
+                                        zoomStartUrl: zoomData.start_url,
+                                        zoomJoinUrl: zoomData.join_url,
+                                        zoomMeetingScheduledBy: userId,
+                                    }
+                                );
+                            }
+
+                            return 'SUCCESS';
+                        } else {
+                            // Could not create zoom meeting!
+                            return 'ZOOM_MEETING_CREATE_FAILED';
+                        }
+                    } else {
+                        // Not recurring
+
+                        // Fetch User First and get account type of the user
+                        // const accountType = await getZoomAccountType(accessToken, user.zoomInfo.email);
+
+                        // if (accountType === 'ERROR') {
+                        //     return 'ZOOM_MEETING_CREATE_FAILED';
+                        // }
+
+                        // CREATE MEETING
+                        const utcTime = moment(new Date(start), 'YYYY-MM-DDTHH:mm:ss')
+                            .tz('UTC')
+                            .format();
+
+                        const zoomRes: any = await axios.post(
+                            `https://api.zoom.us/v2/users/me/meetings`,
+                            {
+                                topic: title,
+                                agenda: description,
+                                type: 2,
+                                start_time: utcTime + 'Z',
+                                duration,
+                                settings: {
+                                    approval_type: 2,
+                                    email_notification: false,
+                                    mute_upon_entry: true,
+                                    registrants_confirmation_email: false,
+                                    registrants_email_notification: false,
+                                    participant_video: false,
+                                },
+                            },
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${accessToken}`,
+                                },
+                            }
+                        );
+
+                        if (zoomRes.status === 200 || zoomRes.status === 201) {
+                            const zoomData: any = zoomRes.data;
+
+                            // if (accountType === 'LICENSED') {
+                            //     await registerUsersToMeeting(accessToken, allUsers, zoomData.id, user.schoolId);
+                            // }
+
+                            if (zoomData.id && newObj) {
+                                await DateModel.updateOne(
+                                    {
+                                        _id: newObj._id,
+                                    },
+                                    {
+                                        zoomMeetingId: zoomData.id,
+                                        zoomStartUrl: zoomData.start_url,
+                                        zoomJoinUrl: zoomData.join_url,
+                                        zoomMeetingScheduledBy: userId,
+                                    }
+                                );
+                            }
+
+                            return 'SUCCESS';
+                        } else {
+                            // Could not create zoom meeting!
+                            return 'ZOOM_MEETING_CREATE_FAILED';
+                        }
+                    }
+                }
+            }
+
+            // Notifications
+            // const messages: any[] = [];
+            // const userIds: any[] = [];
+
+            // const subscriptions = await SubscriptionModel.find({
+            //     $and: [{ channelId }, { unsubscribedAt: { $exists: false } }],
+            // });
+            // subscriptions.map((s) => {
+            //     userIds.push(s.userId);
+            // });
+
+            // const channel: any = await ChannelModel.findById(channelId);
+            // const users: any[] = await UserModel.find({ _id: { $in: userIds } });
+
+            // // Web notifications
+
+            // const oneSignalClient = new OneSignal.Client(
+            //     '78cd253e-262d-4517-a710-8719abf3ee55',
+            //     'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+            // );
+
+            // const notification = {
+            //     contents: {
+            //         en: `${channel.name}` + ' - New event scheduled - ' + title,
+            //     },
+            //     include_external_user_ids: userIds,
+            // };
+
+            // if (userIds.length > 0) {
+            //     const response = await oneSignalClient.createNotification(notification);
+            // }
+
+            // users.map((sub) => {
+            //     const notificationIds = sub.notificationId.split('-BREAK-');
+            //     notificationIds.map((notifId: any) => {
+            //         if (!Expo.isExpoPushToken(notifId)) {
+            //             return;
+            //         }
+            //         messages.push({
+            //             to: notifId,
+            //             sound: 'default',
+            //             subtitle: 'Your instructor has scheduled a new event.',
+            //             title: channel.name + ' - ' + title,
+            //             data: { userId: sub._id },
+            //         });
+            //     });
+            // });
+
+            // const notificationService = new Expo();
+            // let chunks = notificationService.chunkPushNotifications(messages);
+            // for (let chunk of chunks) {
+            //     try {
+            //         await notificationService.sendPushNotificationsAsync(chunk);
+            //     } catch (e) {
+            //         console.error(e);
+            //     }
+            // }
+
+            return 'SUCCESS';
+        } catch (e) {
+            return 'ERROR';
+        }
+    }
+
+    @Field((type) => Boolean, {
+        description: 'Used when you want to update unread messages count.',
+    })
+    public async editEventAdmin(@Arg('eventInput', (type) => EditEventInputAdmin) eventInput: EditEventInputAdmin) {
+        try {
+            const {
+                id,
+                title,
+                start,
+                end,
+                description,
+                selectedSegment,
+                allGradesAndSections,
+                allUsersSelected,
+                shareWithGradesAndSections,
+                selectedUsers,
+                shareWithAllInstructors,
+                selectedInstructors,
+                shareWithAllAdmins,
+                selectedAdmins,
+            } = eventInput;
+
+            // Fetch current date
+            const fetch = await DateModel.findById(id);
+
+            if (!fetch) return false;
+
+            const update = await DateModel.updateOne(
+                { _id: id },
+                {
+                    title,
+                    start: new Date(start),
+                    end: new Date(end),
+                    description,
+                    selectedSegment,
+                    allGradesAndSections,
+                    allUsersSelected,
+                    shareWithGradesAndSections,
+                    selectedUsers,
+                    shareWithAllInstructors,
+                    selectedInstructors,
+                    shareWithAllAdmins,
+                    selectedAdmins,
+                }
+            );
+            //return true;
+            //return update.modifiedCount > 0;
+            return update.nModified > 0;
+        } catch (e) {
+            console.log(e);
+            return false;
         }
     }
 

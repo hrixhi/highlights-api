@@ -3,26 +3,26 @@ import { Schema, Types } from 'mongoose';
 const schema = new Schema({
     userId: {
         type: Types.ObjectId,
-        required: true
+        required: true,
     },
     dateId: {
         type: Types.ObjectId,
-        required: true
+        required: true,
     },
     channelId: {
         type: Types.ObjectId,
-        required: true
+        required: true,
     },
     // First timestamp
     joinedAt: {
         type: Date,
-        required: false
+        required: false,
     },
     // Last timestamp
     leftAt: {
         type: Date,
-        required: false
-    }
+        required: false,
+    },
 });
 
 export const attendanceSchema = schema;

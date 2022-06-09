@@ -10,14 +10,14 @@ import { ZoomRegistrationModel } from '@app/data/zoom-registration/mongo/zoom-re
 
 @ObjectType()
 export class EventObject {
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async eventId() {
         const localThis: any = this;
         const { _id, dateId = '' } = localThis._doc || localThis;
         return _id ? _id : dateId;
     }
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async title() {
         const localThis: any = this;
         const { title } = localThis._doc || localThis;
@@ -30,7 +30,7 @@ export class EventObject {
     @Field()
     public end: Date;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async channelName() {
         const localThis: any = this;
         const { scheduledMeetingForChannelId } = localThis._doc || localThis;
@@ -42,7 +42,7 @@ export class EventObject {
         }
     }
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async channelId() {
         const localThis: any = this;
         const { scheduledMeetingForChannelId } = localThis._doc || localThis;
@@ -53,10 +53,11 @@ export class EventObject {
         }
     }
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async createdBy(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
-        const { scheduledMeetingForChannelId, isNonChannelMeeting, zoomMeetingScheduledBy } = localThis._doc || localThis;
+        const { scheduledMeetingForChannelId, isNonChannelMeeting, zoomMeetingScheduledBy } =
+            localThis._doc || localThis;
         if (scheduledMeetingForChannelId) {
             const channel = await ChannelModel.findById(scheduledMeetingForChannelId);
 
@@ -80,30 +81,30 @@ export class EventObject {
         }
     }
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public dateId?: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public scheduledMeetingForChannelId?: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public description?: string;
 
-    @Field(type => Boolean, { nullable: true })
+    @Field((type) => Boolean, { nullable: true })
     public recordMeeting?: boolean;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public recordingLink?: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public recurringId?: string;
 
     // ZOOM
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public zoomMeetingId?: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public zoomStartUrl?: string;
     // public async zoomStartUrl(@Ctx() context: IGraphQLContext) {
     //     const localThis: any = this;
@@ -131,7 +132,7 @@ export class EventObject {
     //     return '';
     // }
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async zoomMeetingCreatorProfile(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
         const { zoomMeetingScheduledBy } = localThis._doc || localThis;
@@ -147,64 +148,93 @@ export class EventObject {
         return null;
     }
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
+    public async creatorProfile(@Ctx() context: IGraphQLContext) {
+        const localThis: any = this;
+        const { createdBy } = localThis._doc || localThis;
+        if (createdBy && createdBy !== '') {
+            const user = await UserModel.findById(createdBy);
+
+            if (user) {
+                return user.fullName + ', ' + user.email;
+            }
+
+            return null;
+        }
+        return null;
+    }
+
+    @Field((type) => String, { nullable: true })
+    public async creatorAvatar(@Ctx() context: IGraphQLContext) {
+        const localThis: any = this;
+        const { createdBy } = localThis._doc || localThis;
+        if (createdBy && createdBy !== '') {
+            const user = await UserModel.findById(createdBy);
+
+            if (user && user.avatar) {
+                return user.avatar;
+            }
+
+            return null;
+        }
+        return null;
+    }
+
+    @Field((type) => String, { nullable: true })
     public zoomJoinUrl?: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async zoomRegistrationJoinUrl(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
-        const { isNonChannelMeeting, scheduledMeetingForChannelId, zoomJoinUrl, zoomMeetingId } = localThis._doc || localThis;
+        const { isNonChannelMeeting, scheduledMeetingForChannelId, zoomJoinUrl, zoomMeetingId } =
+            localThis._doc || localThis;
 
         if (!zoomJoinUrl || zoomJoinUrl === '') return null;
 
         if (isNonChannelMeeting) {
-            return zoomJoinUrl
+            return zoomJoinUrl;
         } else if (scheduledMeetingForChannelId && scheduledMeetingForChannelId !== '') {
-
             if (!context.user || context.user!._id === '') return null;
 
             // Check if registration link exist
             const registration = await ZoomRegistrationModel.findOne({
                 userId: context.user._id,
                 channelId: scheduledMeetingForChannelId,
-                zoomMeetingId
-            })
+                zoomMeetingId,
+            });
 
             if (registration) {
                 return registration.zoom_join_url;
             } else {
                 return zoomJoinUrl;
             }
-    
-            
         }
         return null;
     }
 
-
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public zoomMeetingScheduledBy?: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public cueId?: string;
 
-    @Field(type => Boolean, { nullable: true })
+    @Field((type) => Boolean, { nullable: true })
     public meeting?: boolean;
 
-    @Field(type => Boolean, { nullable: true })
+    @Field((type) => Boolean, { nullable: true })
     public async submitted(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
         const { cueId } = localThis._doc || localThis;
         if (cueId && cueId !== '' && context.user) {
             const cue = await CueModel.findOne({
-                _id: cueId
+                _id: cueId,
             });
 
             if (!cue) return null;
 
             const mod = await ModificationsModel.findOne({
                 cueId,
-                userId: context.user!._id
+                userId: context.user!._id,
             });
 
             if (!mod) return null;
@@ -217,7 +247,7 @@ export class EventObject {
         return null;
     }
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async meetingLink() {
         const localThis: any = this;
         const { userId, scheduledMeetingForChannelId } = localThis._doc || localThis;
@@ -241,13 +271,13 @@ export class EventObject {
         }
     }
 
-    @Field(type => Boolean, { nullable: true })
+    @Field((type) => Boolean, { nullable: true })
     public isNonChannelMeeting?: boolean;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public nonChannelGroupId?: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public async groupUsername() {
         const localThis: any = this;
         const { userId, isNonChannelMeeting, nonChannelGroupId } = localThis._doc || localThis;
@@ -256,7 +286,7 @@ export class EventObject {
             const fetchGroup = await GroupModel.findById(nonChannelGroupId);
 
             if (fetchGroup && fetchGroup.users.length > 2) {
-                return fetchGroup.name
+                return fetchGroup.name;
             } else if (fetchGroup && fetchGroup.users) {
                 let meetingBetween = [];
 
@@ -264,41 +294,120 @@ export class EventObject {
                     const u = await UserModel.findById(fetchGroup.users[i]);
 
                     if (u && u.fullName) {
-                        meetingBetween.push(u.fullName) 
+                        meetingBetween.push(u.fullName);
                     }
                 }
 
                 if (meetingBetween.length > 1) {
                     return meetingBetween.join(' <> ');
                 }
-
             }
 
-            return ''
-
+            return '';
         }
 
         return '';
-
     }
 
+    // School events
+    @Field((type) => String, { nullable: true })
+    public schoolId?: string;
 
+    @Field((type) => Boolean, { nullable: true })
+    public isNonMeetingSchoolEvent?: boolean;
+
+    @Field((type) => String, { nullable: true })
+    public selectedSegment?: string;
+
+    @Field((type) => Boolean, { nullable: true })
+    public allGradesAndSections?: boolean;
+
+    @Field((type) => Boolean, { nullable: true })
+    public allUsersSelected?: boolean;
+
+    @Field((type) => [String], { nullable: true })
+    public shareWithGradesAndSections?: string[];
+
+    @Field((type) => [String], { nullable: true })
+    public selectedUsers?: string[];
+
+    @Field((type) => [UserSelection], { nullable: true })
+    public async allSelections() {
+        const localThis: any = this;
+        const { selectedUsers } = localThis._doc || localThis;
+
+        if (selectedUsers) {
+            const fetchUsers = await UserModel.find({
+                _id: { $in: selectedUsers },
+                deletedAt: undefined,
+            });
+
+            // Customize for parents to return Grade and section of their kid
+            const users = fetchUsers.map((user: any) => {
+                return {
+                    _id: user._id,
+                    fullName: user.fullName,
+                    email: user.email,
+                    role: user.role,
+                    grade: user.grade,
+                    section: user.section,
+                };
+            });
+
+            return users;
+        }
+
+        return null;
+    }
+
+    @Field((type) => Boolean, { nullable: true })
+    public shareWithAllInstructors?: boolean;
+
+    @Field((type) => [String], { nullable: true })
+    public selectedInstructors?: string[];
+
+    @Field((type) => Boolean, { nullable: true })
+    public shareWithAllAdmins?: boolean;
+
+    @Field((type) => [String], { nullable: true })
+    public selectedAdmins?: string[];
 }
 
 @ObjectType()
 export class LectureRecording {
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public recordID: string;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public url?: string;
 
-    @Field(type => Date, { nullable: true })
+    @Field((type) => Date, { nullable: true })
     public startTime?: Date;
 
-    @Field(type => Date, { nullable: true })
+    @Field((type) => Date, { nullable: true })
     public endTime?: Date;
 
-    @Field(type => String, { nullable: true })
+    @Field((type) => String, { nullable: true })
     public thumbnail?: string;
+}
+
+@ObjectType()
+export class UserSelection {
+    @Field((type) => String)
+    public _id: string;
+
+    @Field((type) => String)
+    public fullName: string;
+
+    @Field((type) => String)
+    public email: string;
+
+    @Field((type) => String)
+    public role: string;
+
+    @Field((type) => String)
+    public grade: string;
+
+    @Field((type) => String)
+    public section: string;
 }

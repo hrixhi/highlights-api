@@ -3,77 +3,94 @@ import { Schema, Types } from 'mongoose';
 const workosConnectionSchema = new Schema({
     id: {
         type: String,
-        required: true
+        required: true,
     },
     connection_type: {
         type: String,
-        required: true
+        required: true,
     },
     name: {
         type: String,
-        required: true
+        required: true,
     },
     state: {
         type: String,
-        required: true
-    }
+        required: true,
+    },
 });
 
 const schema = new Schema({
     name: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
     },
     password: {
         type: String,
-        required: true
+        required: true,
+    },
+    email: {
+        type: String,
+        required: false,
+    },
+    phoneNumber: {
+        type: String,
+        required: false,
+    },
+    website: {
+        type: String,
+        required: false,
     },
     cuesDomain: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
     },
     logo: {
         type: String,
-        required: false
+        required: false,
     },
     allowStudentChannelCreation: {
         type: Boolean,
-        required: false
+        required: false,
     },
     recoveryEmail: {
         type: String,
-        required: false
+        required: false,
     },
     streamId: {
         type: String,
-        required: false
+        required: false,
     },
     workosOrgId: {
         type: String,
-        required: false
+        required: false,
     },
     ssoEnabled: {
         type: Boolean,
-        required: false
+        required: false,
     },
     ssoDomain: {
         type: String,
-        required: false
+        required: false,
     },
     workosConnection: {
         type: workosConnectionSchema,
-        required: false
+        required: false,
     },
     meetingProvider: {
         type: String,
-        required: false
+        required: false,
     },
+    // USED IF INSTRUCTOR DIRECTLY CREATES A CUES ACCOUNT AND DOESN'T WANT TO USE ADMIN
     createdByUser: {
         type: Types.ObjectId,
-        required: false
-    }
+        required: false,
+    },
+    stripeAccountId: {
+        type: String,
+        required: false,
+    },
 });
 
 export const schoolSchema = schema;

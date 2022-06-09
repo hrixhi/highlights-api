@@ -9,42 +9,42 @@ import { CueModel } from '../cue/mongo/Cue.model';
  */
 @ObjectType()
 export class QuizMutationResolver {
-    @Field(type => String, {
-        description: 'Create quiz and return its id'
+    @Field((type) => String, {
+        description: 'Create quiz and return its id',
     })
-    public async createQuiz(@Arg('quiz', type => QuizInputObject) quiz: QuizInputObject) {
+    public async createQuiz(@Arg('quiz', (type) => QuizInputObject) quiz: QuizInputObject) {
         try {
             const parsedQuiz: any = {
                 ...quiz,
                 duration: quiz.duration ? Number(quiz.duration) : null,
-                shuffleQuiz: quiz.shuffleQuiz
+                shuffleQuiz: quiz.shuffleQuiz,
             };
             quiz.problems.map((p, i) => {
                 parsedQuiz.problems[i].points = Number(p.points);
             });
             const newQuiz = await QuizModel.create({
-                ...parsedQuiz
+                ...parsedQuiz,
             });
 
             return newQuiz._id;
         } catch (e) {
-            console.log("Error quiz", e)
+            console.log('Error quiz', e);
             return 'error';
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Update quiz and return its id'
+    @Field((type) => Boolean, {
+        description: 'Update quiz and return its id',
     })
     public async modifyQuiz(
-        @Arg('cueId', type => String) cueId: string,
-        @Arg('quiz', type => QuizInputObject) quiz: QuizInputObject,
-        @Arg('modifiedCorrectAnswers', type => [String], { nullable: true }) modifiedCorrectAnswers?: string[],
-        @Arg('regradeChoices', type => [String], { nullable: true }) regradeChoices?: string[]
+        @Arg('cueId', (type) => String) cueId: string,
+        @Arg('quiz', (type) => QuizInputObject) quiz: QuizInputObject,
+        @Arg('modifiedCorrectAnswers', (type) => [String], { nullable: true }) modifiedCorrectAnswers?: string[],
+        @Arg('regradeChoices', (type) => [String], { nullable: true }) regradeChoices?: string[]
     ) {
         try {
             const parsedQuiz: any = {
-                ...quiz
+                ...quiz,
             };
             quiz.problems.map((p, i) => {
                 parsedQuiz.problems[i].points = Number(p.points);
@@ -53,7 +53,7 @@ export class QuizMutationResolver {
             // Fetch Cue and get quizId first
 
             const fetchCue = await CueModel.findById({
-                _id: cueId
+                _id: cueId,
             });
 
             if (!fetchCue) return false;
@@ -109,7 +109,7 @@ export class QuizMutationResolver {
                         const update = {
                             ...prob,
                             updatedAt: new Date(),
-                            regradeChoice: regradeChoices[index]
+                            regradeChoice: regradeChoices[index],
                         };
 
                         update.options = updatedOptions;
@@ -124,7 +124,7 @@ export class QuizMutationResolver {
 
                 const updateQuiz = await QuizModel.updateOne(
                     {
-                        _id: parsed.quizId
+                        _id: parsed.quizId,
                     },
                     {
                         $set: {
@@ -132,8 +132,8 @@ export class QuizMutationResolver {
                             headers: quiz.headers,
                             instructions: quiz.instructions,
                             duration: quiz.duration ? quiz.duration : null,
-                            shuffleQuiz: quiz.shuffleQuiz ? quiz.shuffleQuiz : false
-                        }
+                            shuffleQuiz: quiz.shuffleQuiz ? quiz.shuffleQuiz : false,
+                        },
                     }
                 );
 
@@ -141,7 +141,7 @@ export class QuizMutationResolver {
 
                 const regrades = await ModificationsModel.find({
                     cueId,
-                    submittedAt: { $exists: true }
+                    submittedAt: { $exists: true },
                 });
 
                 //
@@ -316,12 +316,12 @@ export class QuizMutationResolver {
                     // Save the changes in the modifications along with the RegradedAt date
                     await ModificationsModel.updateOne(
                         {
-                            _id: mod._id
+                            _id: mod._id,
                         },
                         {
                             score: Number(((highestScore / totalScore) * 100).toFixed(2)),
                             regradedAt: new Date(),
-                            cue: JSON.stringify(parse)
+                            cue: JSON.stringify(parse),
                         }
                     );
                 });
@@ -340,26 +340,57 @@ export class QuizMutationResolver {
         }
     }
 
-    @Field(type => Boolean, {
-        description: 'Start quiz'
+    @Field((type) => String, {
+        description: 'Start quiz',
     })
-    public async start(
-        @Arg('cueId', type => String) cueId: string,
-        @Arg('userId', type => String) userId: string,
-        @Arg('cue', type => String) cue: string
-    ) {
+    public async start(@Arg('cueId', (type) => String) cueId: string, @Arg('userId', (type) => String) userId: string) {
         try {
             // Check if submission released
             const c = await CueModel.findById(cueId);
 
             if (c && c.releaseSubmission) {
-                return false;
+                return '';
             }
 
-            await ModificationsModel.updateOne({ cueId, userId }, { cue });
-            return true;
+            const fetchModification = await ModificationsModel.findOne({
+                cueId,
+                userId,
+            });
+
+            if (!fetchModification) {
+                return '';
+            }
+
+            const initiatedAt = new Date();
+
+            let updateQuizCue = {};
+
+            // Initiate new quiz cue object if not taken already or else update new quiz responses so that old attempts are never overriden
+
+            if (fetchModification && fetchModification.cue) {
+                updateQuizCue = {
+                    ...JSON.parse(fetchModification.cue),
+                    quizResponses: {
+                        solutions: [],
+                        initiatedAt,
+                        shuffleQuizAttemptOrder: [],
+                    },
+                };
+            } else {
+                updateQuizCue = {
+                    quizResponses: {
+                        solutions: [],
+                        initiatedAt,
+                        shuffleQuizAttemptOrder: [],
+                    },
+                    attempts: [],
+                };
+            }
+
+            await ModificationsModel.updateOne({ cueId, userId }, { cue: JSON.stringify(updateQuizCue) });
+            return initiatedAt.toString();
         } catch (e) {
-            return false;
+            return '';
         }
     }
 }

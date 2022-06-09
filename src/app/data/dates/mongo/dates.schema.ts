@@ -3,76 +3,118 @@ import { Schema, Types } from 'mongoose';
 const schema = new Schema({
     userId: {
         type: Types.ObjectId,
-        required: false
+        required: false,
     },
     title: {
         type: String,
-        required: false
+        required: false,
     },
     start: {
         type: Date,
-        required: true
+        required: true,
     },
     end: {
         type: Date,
-        required: true
+        required: true,
     },
     scheduledMeetingForChannelId: {
         type: Types.ObjectId,
-        required: false
+        required: false,
     },
     isNonMeetingChannelEvent: {
         type: Boolean,
-        required: false
+        required: false,
     },
     // New Features
     description: {
         type: String,
-        required: false
+        required: false,
     },
     recordMeeting: {
         type: Boolean,
-        required: false
+        required: false,
     },
     recordingLink: {
         type: String,
-        required: false
+        required: false,
     },
     recurringId: {
         type: String,
-        required: false
+        required: false,
     },
     // ZOOM
     zoomMeetingId: {
         type: String,
-        required: false
+        required: false,
     },
     zoomStartUrl: {
         type: String,
-        required: false
+        required: false,
     },
     zoomJoinUrl: {
         type: String,
-        required: false
+        required: false,
     },
     zoomMeetingScheduledBy: {
         type: String,
-        required: false
+        required: false,
     },
     // Meetings created from Inbox
     isNonChannelMeeting: {
         type: Boolean,
-        required: false
+        required: false,
     },
     nonChannelGroupId: {
         type: Types.ObjectId,
-        required: false
-    }
-    // NON-ZOOM VIDEO TOOLS
-    // meetingUrl: {
-    //     type: String,
-    //     required: false
-    // }
+        required: false,
+    },
+    // SCHOOL CALENDAR EVENTS IF SCHOOL ID PRESENT
+    schoolId: {
+        type: Types.ObjectId,
+        required: false,
+    },
+    // Distinguish between school events / online meetings
+    isNonMeetingSchoolEvent: {
+        type: Boolean,
+        required: false,
+    },
+    // SCHOOL EVENT USERS
+    selectedSegment: {
+        type: String,
+        required: false,
+    },
+    allGradesAndSections: {
+        type: Boolean,
+        required: false,
+    },
+    allUsersSelected: {
+        type: Boolean,
+        required: false,
+    },
+    shareWithGradesAndSections: {
+        type: [String],
+        required: false,
+    },
+    selectedUsers: {
+        type: [Types.ObjectId],
+        required: false,
+    },
+    shareWithAllInstructors: {
+        type: Boolean,
+        required: false,
+    },
+    selectedInstructors: {
+        type: [Types.ObjectId],
+        required: false,
+    },
+    shareWithAllAdmins: {
+        type: Boolean,
+        required: false,
+    },
+    selectedAdmins: {
+        type: [Types.ObjectId],
+        required: false,
+    },
 });
 
 export const dateSchema = schema;
