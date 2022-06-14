@@ -17,6 +17,8 @@ import { ActivityMutationResolver } from './activity/activity.mutations';
 import { AnnouncementMutationResolver } from './announcement/Announcement.mutations';
 import { AcademicTermMutationResolver } from './academic-term/AcademicTerm.mutations';
 import { FeePlanMutationResolver } from './fee-plan/FeePlan.mutations';
+import { GradingScaleMutationResolver } from './grading-scale/GradingScale.mutation';
+import { GradebookEntryMutationResolver } from './gradebook-entries/GradebookEntry.mutations';
 
 @Resolver()
 export class AppMutationResolver {
@@ -108,5 +110,15 @@ export class AppMutationResolver {
     @Mutation((returns) => FeePlanMutationResolver)
     public feePlans() {
         return new FeePlanMutationResolver();
+    }
+
+    @Mutation((returns) => GradingScaleMutationResolver)
+    public gradingScales() {
+        return new GradingScaleMutationResolver();
+    }
+
+    @Mutation((returns) => GradebookEntryMutationResolver)
+    public gradebook() {
+        return new GradebookEntryMutationResolver();
     }
 }

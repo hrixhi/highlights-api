@@ -992,4 +992,45 @@ export class ChannelQueryResolver {
             return [];
         }
     }
+
+    @Field((type) => [UserObject], {
+        description: 'Returns a list of users.',
+    })
+    public async getCourseStudents(
+        @Arg('channelId', (type) => String)
+        channelId: string
+    ) {
+        try {
+            const fetchChannel = await ChannelModel.findById(channelId);
+
+            let owners: any[] = [];
+
+            if (fetchChannel) {
+                owners = fetchChannel.owners
+                    ? [...fetchChannel.owners, fetchChannel.createdBy.toString()]
+                    : [fetchChannel.createdBy.toString()];
+            }
+
+            const subscribers = await SubscriptionModel.find({
+                channelId,
+                unsubscribedAt: { $exists: false },
+            });
+
+            const userIds: string[] = [];
+
+            subscribers.map((sub: any) => {
+                const subscriber = sub.toObject();
+
+                if (!owners.includes(subscriber.userId.toString())) {
+                    userIds.push(subscriber.userId.toString());
+                }
+            });
+
+            const fetchUsers = await UserModel.find({ _id: { $in: userIds } });
+
+            return fetchUsers;
+        } catch (e) {
+            return [];
+        }
+    }
 }

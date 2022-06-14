@@ -1,91 +1,94 @@
 import { Schema, Types } from 'mongoose';
 
-const schema = new Schema(
-  {
+const schema = new Schema({
     cue: {
-      type: String,
-      required: true
+        type: String,
+        required: true,
     },
     shuffle: {
-      type: Boolean,
-      required: true
+        type: Boolean,
+        required: true,
     },
     frequency: {
-      type: String,
-      required: true
+        type: String,
+        required: true,
     },
     customCategory: {
-      type: String,
-      required: false
+        type: String,
+        required: false,
     },
     folderId: {
-      type: String,
-      required: false
+        type: String,
+        required: false,
     },
     starred: {
-      type: Boolean,
-      required: true
+        type: Boolean,
+        required: true,
     },
     date: {
-      type: Date,
-      required: true
+        type: Date,
+        required: true,
     },
     color: {
-      type: Number,
-      required: true
+        type: Number,
+        required: true,
     },
     createdBy: {
-      type: Types.ObjectId,
-      required: true
+        type: Types.ObjectId,
+        required: true,
     },
     channelId: {
-      type: Types.ObjectId,
-      required: false
+        type: Types.ObjectId,
+        required: false,
     },
     endPlayAt: {
-      type: Date,
-      required: false
+        type: Date,
+        required: false,
     },
     // New - for submission and grades
     submission: {
-      type: Boolean,
-      required: false
+        type: Boolean,
+        required: false,
     },
     deadline: {
-      type: Date,
-      required: false
+        type: Date,
+        required: false,
     },
     initiateAt: {
-      type: Date,
-      required: false
+        type: Date,
+        required: false,
     },
     gradeWeight: {
-      type: Number,
-      required: false
+        type: Number,
+        required: false,
     },
     releaseSubmission: {
-      type: Boolean,
-      required: false
+        type: Boolean,
+        required: false,
     },
     limitedShares: {
-      type: Boolean,
-      required: false
+        type: Boolean,
+        required: false,
     },
     allowedAttempts: {
-      type: Number,
-      required: false
+        type: Number,
+        required: false,
     },
     // Late submissions until this date
     availableUntil: {
-      type: Date,
-      required: false
+        type: Date,
+        required: false,
     },
     // For local cues only
     annotations: {
-      type: String,
-      required: false
+        type: String,
+        required: false,
     },
-  }
-)
+    // POINTS
+    totalPoints: {
+        type: Number,
+        required: false,
+    },
+});
 
 export const cueSchema = schema;

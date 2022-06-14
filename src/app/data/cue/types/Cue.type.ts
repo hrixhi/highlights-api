@@ -8,212 +8,210 @@ import { SubscriptionModel } from '@app/data/subscription/mongo/Subscription.mod
 
 @ObjectType()
 export class CueObject {
-
-  @Field(type => String)
-  public async _id() {
-    const localThis: any = this;
-    const { cueId, _id } = localThis._doc || localThis;
-    if (cueId) {
-      return cueId
-    } else {
-      return _id
-    }
-  }
-
-  @Field({ nullable: true })
-  public cue: string;
-
-  @Field()
-  public frequency: string;
-
-  @Field()
-  public date: Date;
-
-  @Field()
-  public starred: boolean;
-
-  @Field()
-  public shuffle: boolean;
-
-  @Field()
-  public color: number;
-
-  @Field(type => String, { nullable: true })
-  public async createdBy(@Ctx() context: IGraphQLContext) {
-    const localThis: any = this;
-    const { channelId, createdBy } = localThis._doc || localThis;
-    if (channelId) {
-
-      const channel = await ChannelModel.findById(channelId)
-
-      if (channel && channel.owners && context.user && channel.createdBy !== context.user!._id) {
-        const anotherOwner = channel.owners.find((item: any) => {
-          return item === context.user!._id.toString()
-        })
-        if (anotherOwner) {
-          return anotherOwner
+    @Field((type) => String)
+    public async _id() {
+        const localThis: any = this;
+        const { cueId, _id } = localThis._doc || localThis;
+        if (cueId) {
+            return cueId;
+        } else {
+            return _id;
         }
-      }
-
-      return createdBy
-    } else {
-      return createdBy
-    }
-  }
-
-  @Field({ nullable: true })
-  public channelId: string;
-
-  @Field({ nullable: true })
-  public endPlayAt: Date;
-
-  @Field({ nullable: true })
-  public customCategory: string;
-
-  @Field({ nullable: true })
-  public folderId: string;
-
-  @Field(type => String, { nullable: true })
-  public async channelName() {
-    const localThis: any = this;
-    const { channelId } = localThis._doc || localThis;
-    if (channelId) {
-      const channel = await ChannelModel.findById(channelId)
-      return channel ? channel.name : ''
-    } else {
-      return ''
-    }
-  }
-
-  @Field(type => String, { nullable: true })
-  public async status() {
-
-    const localThis: any = this;
-    const { channelId, cueId, userId } = localThis._doc || localThis;
-
-    if (!channelId || !userId) {
-      // local cue
-      return 'read'
     }
 
-    const status = await StatusModel.findOne({
-      cueId: cueId, // because we are loading channel cues from the modifications collection
-      userId
-    })
+    @Field({ nullable: true })
+    public cue: string;
 
-    if (status) {
-      return status.status
-    } else {
-      // statuses created here...
-      await StatusModel.create({
-        cueId,
-        userId,
-        channelId,
-        status: 'not-delivered'
-      })
-      return 'not-delivered'
+    @Field()
+    public frequency: string;
+
+    @Field()
+    public date: Date;
+
+    @Field()
+    public starred: boolean;
+
+    @Field()
+    public shuffle: boolean;
+
+    @Field()
+    public color: number;
+
+    @Field((type) => String, { nullable: true })
+    public async createdBy(@Ctx() context: IGraphQLContext) {
+        const localThis: any = this;
+        const { channelId, createdBy } = localThis._doc || localThis;
+        if (channelId) {
+            const channel = await ChannelModel.findById(channelId);
+
+            if (channel && channel.owners && context.user && channel.createdBy !== context.user!._id) {
+                const anotherOwner = channel.owners.find((item: any) => {
+                    return item === context.user!._id.toString();
+                });
+                if (anotherOwner) {
+                    return anotherOwner;
+                }
+            }
+
+            return createdBy;
+        } else {
+            return createdBy;
+        }
     }
 
-  }
+    @Field({ nullable: true })
+    public channelId: string;
 
-  @Field(type => String, { nullable: true })
-  // returns null for personal notes but original cue
-  public async original() {
-    const localThis: any = this;
-    const { cueId } = localThis._doc || localThis;
-    if (cueId) {
-      const cue = await CueModel.findById(cueId)
-      return cue ? cue.cue : null
-    } else {
-      return null
-    }
-  }
+    @Field({ nullable: true })
+    public endPlayAt: Date;
 
-  @Field(type => Number, { nullable: true })
-  // returns null for personal notes but original cue
-  public async unreadThreads() {
-    const localThis: any = this;
-    const { cueId, userId } = localThis._doc || localThis;
-    if (cueId && userId) {
-      const threads = await ThreadStatusModel.find({ cueId, userId, read: { $ne: true } })
-      return threads.length
-    } else {
-      return 0
-    }
-  }
+    @Field({ nullable: true })
+    public customCategory: string;
 
-  // New - for submission and grades
-  @Field({ nullable: true })
-  public submission: boolean
+    @Field({ nullable: true })
+    public folderId: string;
 
-  @Field({ nullable: true })
-  public deadline: Date;
-
-  @Field({ nullable: true })
-  public initiateAt: Date;
-
-  @Field({ nullable: true })
-  public gradeWeight: number;
-
-  @Field({ nullable: true })
-  public score: number;
-
-  @Field({ nullable: true })
-  public graded: boolean;
-
-  @Field({ nullable: true })
-  public submittedAt: Date;
-
-  @Field({ nullable: true })
-  public comment: string;
-
-  @Field({ nullable: true })
-  public releaseSubmission: boolean
-
-  @Field(type => Boolean, { nullable: true })
-  // returns null for personal notes but original cue
-  public async active() {
-    const localThis: any = this;
-    const { channelId, userId } = localThis._doc || localThis;
-    if (channelId) {
-      const activeSubscription = await SubscriptionModel.findOne({
-        channelId,
-        userId,
-        unsubscribedAt: { $exists: false }
-      })
-      if (activeSubscription) {
-        return true
-      }
-      return false
-    } else {
-      return true
-    }
-  }
-
-  @Field(type => Boolean, { nullable: true })
-  public async limitedShares() {
-    const localThis: any = this;
-    let cue: any;
-    const { cueId, _id } = localThis._doc || localThis;
-    if (cueId) {
-      cue = await CueModel.findById(cueId);
-    } else {
-      cue = await CueModel.findById(_id);
+    @Field((type) => String, { nullable: true })
+    public async channelName() {
+        const localThis: any = this;
+        const { channelId } = localThis._doc || localThis;
+        if (channelId) {
+            const channel = await ChannelModel.findById(channelId);
+            return channel ? channel.name : '';
+        } else {
+            return '';
+        }
     }
 
-    return cue.limitedShares ? cue.limitedShares : false
-  }
+    @Field((type) => String, { nullable: true })
+    public async status() {
+        const localThis: any = this;
+        const { channelId, cueId, userId } = localThis._doc || localThis;
 
-  @Field(type => Number, { nullable: true }) 
-  public allowedAttempts?: number
+        if (!channelId || !userId) {
+            // local cue
+            return 'read';
+        }
 
-  @Field(type => String, { nullable: true }) 
-  public annotations?: string
+        const status = await StatusModel.findOne({
+            cueId: cueId, // because we are loading channel cues from the modifications collection
+            userId,
+        });
 
-  @Field({ nullable: true })
-  public availableUntil: Date;
+        if (status) {
+            return status.status;
+        } else {
+            // statuses created here...
+            await StatusModel.create({
+                cueId,
+                userId,
+                channelId,
+                status: 'not-delivered',
+            });
+            return 'not-delivered';
+        }
+    }
 
-  @Field({ nullable: true })
-  public restrictAccess: boolean;
+    @Field((type) => String, { nullable: true })
+    // returns null for personal notes but original cue
+    public async original() {
+        const localThis: any = this;
+        const { cueId } = localThis._doc || localThis;
+        if (cueId) {
+            const cue = await CueModel.findById(cueId);
+            return cue ? cue.cue : null;
+        } else {
+            return null;
+        }
+    }
 
+    @Field((type) => Number, { nullable: true })
+    // returns null for personal notes but original cue
+    public async unreadThreads() {
+        const localThis: any = this;
+        const { cueId, userId } = localThis._doc || localThis;
+        if (cueId && userId) {
+            const threads = await ThreadStatusModel.find({ cueId, userId, read: { $ne: true } });
+            return threads.length;
+        } else {
+            return 0;
+        }
+    }
+
+    // New - for submission and grades
+    @Field({ nullable: true })
+    public submission: boolean;
+
+    @Field({ nullable: true })
+    public deadline: Date;
+
+    @Field({ nullable: true })
+    public initiateAt: Date;
+
+    @Field({ nullable: true })
+    public gradeWeight: number;
+
+    @Field({ nullable: true })
+    public score: number;
+
+    @Field({ nullable: true })
+    public graded: boolean;
+
+    @Field({ nullable: true })
+    public submittedAt: Date;
+
+    @Field({ nullable: true })
+    public comment: string;
+
+    @Field({ nullable: true })
+    public releaseSubmission: boolean;
+
+    @Field((type) => Boolean, { nullable: true })
+    // returns null for personal notes but original cue
+    public async active() {
+        const localThis: any = this;
+        const { channelId, userId } = localThis._doc || localThis;
+        if (channelId) {
+            const activeSubscription = await SubscriptionModel.findOne({
+                channelId,
+                userId,
+                unsubscribedAt: { $exists: false },
+            });
+            if (activeSubscription) {
+                return true;
+            }
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    @Field((type) => Boolean, { nullable: true })
+    public async limitedShares() {
+        const localThis: any = this;
+        let cue: any;
+        const { cueId, _id } = localThis._doc || localThis;
+        if (cueId) {
+            cue = await CueModel.findById(cueId);
+        } else {
+            cue = await CueModel.findById(_id);
+        }
+
+        return cue.limitedShares ? cue.limitedShares : false;
+    }
+
+    @Field((type) => Number, { nullable: true })
+    public allowedAttempts?: number;
+
+    @Field((type) => String, { nullable: true })
+    public annotations?: string;
+
+    @Field({ nullable: true })
+    public availableUntil: Date;
+
+    @Field({ nullable: true })
+    public restrictAccess: boolean;
+
+    @Field((type) => Number, { nullable: true })
+    public totalPoints?: number;
 }

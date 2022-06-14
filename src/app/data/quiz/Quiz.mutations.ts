@@ -168,9 +168,13 @@ export class QuizMutationResolver {
 
                     let currentActiveAttemptIndex = 0;
 
+                    let currentActiveAttemptPoints = 0;
+
                     let gradedAttemptsHighestScore = 0;
 
                     let gradedAttemptsHighestIndex = 0;
+
+                    let gradedAttemptsHighestPoints = 0;
 
                     attempts.map((attempt: any, attemptIndex: number) => {
                         const solutions = attempt.solutions;
@@ -282,12 +286,27 @@ export class QuizMutationResolver {
                         updatedAttempts[attemptIndex].problemScores = updatedScores;
                         updatedAttempts[attemptIndex].score = score;
 
+                        let calculateTotal = 0;
+
+                        updatedScores.map((points: string) => {
+                            if (points !== '') {
+                                calculateTotal += Number(points);
+                            }
+                        });
+
+                        console.log('Updated scores', updatedScores);
+
+                        console.log('Attempt ' + (attemptIndex + 1));
+
+                        console.log('Calculated points scored ', calculateTotal);
+
                         // console.log("Updated attempt", updatedAttempts[attemptIndex])
                         // If this attempt is the active attempt then we need to update the
 
                         if (attempt.isActive) {
                             currentActiveAttemptScore = score;
                             currentActiveAttemptIndex = attemptIndex;
+                            currentActiveAttemptPoints = calculateTotal;
                             totalScore = total;
                         }
 
@@ -296,15 +315,20 @@ export class QuizMutationResolver {
                             if (score > currentActiveAttemptScore) {
                                 gradedAttemptsHighestIndex = attemptIndex;
                                 gradedAttemptsHighestScore = score;
+                                gradedAttemptsHighestPoints = calculateTotal;
                             }
                         }
                     });
 
                     let highestScore = currentActiveAttemptScore;
 
+                    let highestPoints = currentActiveAttemptPoints;
+
                     if (gradedAttemptsHighestIndex !== currentActiveAttemptIndex) {
                         // Set current attempt as inactive
                         highestScore = gradedAttemptsHighestScore;
+
+                        highestPoints = gradedAttemptsHighestPoints;
 
                         updatedAttempts[gradedAttemptsHighestIndex].isActive = true;
 
@@ -320,6 +344,7 @@ export class QuizMutationResolver {
                         },
                         {
                             score: Number(((highestScore / totalScore) * 100).toFixed(2)),
+                            pointsScored: highestPoints,
                             regradedAt: new Date(),
                             cue: JSON.stringify(parse),
                         }

@@ -84,6 +84,8 @@ export class StatusQueryResolver {
                                 mod.releaseSubmission !== null && mod.releaseSubmission !== undefined
                                     ? mod.releaseSubmission
                                     : false,
+                            totalPoints: mod.totalPoints ? mod.totalPoints : 100,
+                            pointsScored: mod.pointsScored ? mod.pointsScored : undefined,
                         });
                     } else if (mod) {
                         statusArray.push(status);

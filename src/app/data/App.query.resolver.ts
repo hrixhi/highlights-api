@@ -18,6 +18,8 @@ import { FolderQueryResolver } from './folder/Folder.queries';
 import { AnnouncementQueryResolver } from './announcement/Announcement.queries';
 import { AcademicTermQueryResolver } from './academic-term/AcademicTerm.queries';
 import { FeePlanQueryResolver } from './fee-plan/FeePlan.queries';
+import { GradingScaleQueryResolver } from './grading-scale/GradingScale.queries';
+import { GradebookQueryResolver } from './gradebook-entries/GradebookEntry.queries';
 
 @Resolver()
 export class AppQueryResolver {
@@ -114,5 +116,15 @@ export class AppQueryResolver {
     @Query((returns) => FeePlanQueryResolver)
     public feePlans() {
         return new FeePlanQueryResolver();
+    }
+
+    @Query((returns) => GradingScaleQueryResolver)
+    public gradingScales() {
+        return new GradingScaleQueryResolver();
+    }
+
+    @Query((returns) => GradebookQueryResolver)
+    public gradebook() {
+        return new GradebookQueryResolver();
     }
 }

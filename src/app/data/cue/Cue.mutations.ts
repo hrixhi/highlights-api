@@ -44,7 +44,8 @@ export class CueMutationResolver {
         @Arg('shareWithUserIds', (type) => [String], { nullable: true }) shareWithUserIds?: string[],
         @Arg('limitedShares', (type) => Boolean, { nullable: true }) limitedShares?: Boolean,
         @Arg('allowedAttempts', (type) => String, { nullable: true }) allowedAttempts?: string,
-        @Arg('availableUntil', { nullable: true }) availableUntil?: string
+        @Arg('availableUntil', { nullable: true }) availableUntil?: string,
+        @Arg('totalPoints', (type) => String, { nullable: true }) totalPoints?: string
     ) {
         try {
             // This code flips the createdBy if a moderator and not the main channel owner is making the cue
@@ -84,6 +85,7 @@ export class CueMutationResolver {
                 availableUntil: availableUntil && availableUntil !== '' ? new Date(availableUntil) : null,
                 submission,
                 allowedAttempts: allowedAttempts === '' ? null : Number(allowedAttempts),
+                totalPoints: totalPoints && totalPoints !== '' ? Number(totalPoints) : null,
             };
 
             console.log('New Cue', c);
@@ -402,6 +404,7 @@ export class CueMutationResolver {
                         delete c.submission;
                         delete c.allowedAttempts;
                         delete c.availableUntil;
+                        delete c.totalPoints;
 
                         delete c.score;
                         delete c.submittedAt;
@@ -537,6 +540,7 @@ export class CueMutationResolver {
                                     ...c,
                                     gradeWeight: c.submission && c.gradeWeight ? Number(c.gradeWeight) : undefined,
                                     allowedAttempts: c.allowedAttempts ? Number(c.allowedAttempts) : null,
+                                    totalPoints: c.submission && c.totalPoints ? Number(c.totalPoints) : undefined,
                                 }
                             );
                         } else {
@@ -549,6 +553,7 @@ export class CueMutationResolver {
                                     cue: tempOriginal,
                                     gradeWeight: c.submission && c.gradeWeight ? Number(c.gradeWeight) : undefined,
                                     allowedAttempts: c.allowedAttempts ? Number(c.allowedAttempts) : null,
+                                    totalPoints: c.submission && c.totalPoints ? Number(c.totalPoints) : undefined,
                                 }
                             );
                         }
@@ -561,6 +566,7 @@ export class CueMutationResolver {
                                 ...c,
                                 gradeWeight: c.submission && c.gradeWeight ? Number(c.gradeWeight) : undefined,
                                 allowedAttempts: c.allowedAttempts ? Number(c.allowedAttempts) : null,
+                                totalPoints: c.submission && c.totalPoints ? Number(c.totalPoints) : undefined,
                             }
                         );
                         // get the cue back to the main owner
@@ -1027,10 +1033,24 @@ export class CueMutationResolver {
                 let highestScore = 0;
                 let bestAttempt = 0;
                 let currActiveAttempt = 0;
+                let highestPointsScored = 0;
 
                 saveCue.attempts.map((attempt: any, index: number) => {
                     if (attempt.score >= highestScore) {
                         highestScore = attempt.score;
+
+                        let calculateTotal = 0;
+
+                        attempt.problemScores.map((points: string) => {
+                            if (points !== '') {
+                                calculateTotal += Number(points);
+                            }
+                        });
+
+                        calculateTotal = Math.round((calculateTotal + Number.EPSILON) * 100) / 100;
+
+                        highestPointsScored = calculateTotal;
+
                         bestAttempt = index;
                     }
 
@@ -1062,6 +1082,7 @@ export class CueMutationResolver {
                         cue: JSON.stringify(saveCue),
                         graded: isQuizFullyGraded,
                         score: Number(((highestScore / total) * 100).toFixed(2)),
+                        pointsScored: highestPointsScored,
                     }
                 );
                 console.log('Quiz Update', quizUpdate);
@@ -1326,6 +1347,16 @@ export class CueMutationResolver {
 
                 updatedAttempts[quizAttempt] = { ...attemptToGrade };
 
+                let calculateTotal = 0;
+
+                problemScores.map((points: string) => {
+                    if (points !== '') {
+                        calculateTotal += Number(points);
+                    }
+                });
+
+                calculateTotal = Math.round((calculateTotal + Number.EPSILON) * 100) / 100;
+
                 updatedAttempts[quizAttempt].problemScores = problemScores;
                 updatedAttempts[quizAttempt].problemComments = problemComments;
                 updatedAttempts[quizAttempt].isFullyGraded = true;
@@ -1353,6 +1384,7 @@ export class CueMutationResolver {
                     },
                     {
                         score: activeAttempt === quizAttempt ? Number(score) : mod.score,
+                        pointsScored: activeAttempt === quizAttempt ? calculateTotal : mod.pointsScored,
                         comment: comment && comment !== '' ? comment : '',
                         graded: isActiveAttemptFullyGraded,
                         cue: JSON.stringify(updatedCue),
@@ -1480,18 +1512,26 @@ export class CueMutationResolver {
         userId: string,
         @Arg('cueId', (type) => String)
         cueId: string,
-        @Arg('score', (type) => String)
-        score: string,
+        @Arg('pointsScored', (type) => String)
+        pointsScored: string,
         @Arg('comment', (type) => String, { nullable: true })
         comment?: string
     ) {
         try {
             const cue: any = await CueModel.findById(cueId);
             const channel: any = await ChannelModel.findById(cue.channelId);
+            const totalPossible = cue.totalPoints ? Number(cue.totalPoints) : 100;
+            const updatePoints = Number(pointsScored);
+
+            const calculateScore = (updatePoints / totalPossible) * 100;
+
+            const roundScore = Math.round((calculateScore + Number.EPSILON) * 100) / 100;
+
             await ModificationsModel.updateOne(
                 { cueId, userId },
                 {
-                    score: Number(score),
+                    pointsScored: updatePoints,
+                    score: roundScore,
                     comment: comment && comment !== '' ? comment : '',
                     graded: true,
                 }
