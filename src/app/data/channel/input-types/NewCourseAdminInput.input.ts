@@ -34,4 +34,13 @@ export class NewCourseAdmin {
 
     @Field((type) => Date, { nullable: true })
     public endDate?: Date;
+
+    @Field((type) => Number, { nullable: true })
+    public creditHours?: number;
+
+    @Field((type) => String, { nullable: true })
+    public gradingScale?: string;
+
+    @Field((type) => String, { nullable: true })
+    public standardsBasedGradingScale?: string;
 }

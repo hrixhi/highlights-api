@@ -11,11 +11,11 @@ export class NewUserAdmin {
     @Field()
     public fullName: string;
 
-    @Field()
-    public grade: string;
+    @Field((type) => String, { nullable: true })
+    public grade?: string;
 
-    @Field()
-    public section: string;
+    @Field((type) => String, { nullable: true })
+    public section?: string;
 
     @Field((type) => String, { nullable: true })
     public avatar: string;

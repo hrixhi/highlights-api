@@ -12,6 +12,7 @@ import { GradebookObject } from './types/GradebookObject.type';
 import * as ss from 'simple-statistics';
 import { GradebookAssignmentStatsObject } from './types/GradebookAssignmentStats.type';
 import { GradebookUserStatsObject } from './types/GradebookUserStats.type';
+import { GradebookStudentObject } from './types/GradebookStudentObject.type';
 
 /**
  * Channel Query Endpoints
@@ -74,6 +75,13 @@ export class GradebookQueryResolver {
             const fetchChannel = await ChannelModel.findById(channelId);
 
             if (!fetchChannel) return null;
+
+            let gradingScale;
+
+            // Check if grading scale exists for channel
+            if (fetchChannel.gradingScale) {
+                gradingScale = await GradingScaleModel.findById(fetchChannel.gradingScale);
+            }
 
             let owners: any[] = [];
 
@@ -165,7 +173,7 @@ export class GradebookQueryResolver {
                     totalPoints: entry.totalPoints,
                     cueId: undefined,
                     gradebookEntryId: entry._id,
-                    releaseSubmission: false,
+                    releaseSubmission: entry.releaseSubmission,
                 });
             }
 
@@ -274,6 +282,8 @@ export class GradebookQueryResolver {
                 }
             }
 
+            console.log('studentTotalsMap', studentTotalsMap);
+
             // Calculate totals for each user
             let totals: any[] = [];
 
@@ -308,11 +318,43 @@ export class GradebookQueryResolver {
                     score = (score * 100) / weightGradeTotal;
                 }
 
+                // Use score to calculate the grade outcome if a gradingScale exists
+                let gradingScaleOutcome;
+                let highestGrade;
+                let lowestGrade;
+
+                // Account for grade less than
+
+                if (gradingScale) {
+                    gradingScale.range.map((level: any) => {
+                        if (level.start === 0) {
+                            lowestGrade = level.name;
+                        }
+
+                        if (level.end === 100) {
+                            highestGrade = level.name;
+                        }
+
+                        if (score >= level.start && score < level.end) {
+                            gradingScaleOutcome = level.name;
+                        }
+                    });
+
+                    if (score >= 100) {
+                        gradingScaleOutcome = highestGrade;
+                    }
+
+                    if (score <= 0) {
+                        gradingScaleOutcome = lowestGrade;
+                    }
+                }
+
                 totals.push({
                     userId,
                     pointsScored,
                     totalPointsPossible,
                     score: Math.round((score + Number.EPSILON) * 100) / 100,
+                    gradingScaleOutcome,
                 });
             }
 
@@ -344,6 +386,383 @@ export class GradebookQueryResolver {
             };
         } catch (e) {
             console.log('error', e);
+            return null;
+        }
+    }
+
+    @Field((type) => GradebookStudentObject, {
+        description: 'Returns list of channels created by a user.',
+        nullable: true,
+    })
+    public async getGradebookStudent(
+        @Arg('channelId', (type) => String)
+        channelId: string,
+        @Arg('userId', (type) => String)
+        userId: string
+    ) {
+        try {
+            function isJsonString(str: string) {
+                try {
+                    JSON.parse(str);
+                } catch (e) {
+                    return false;
+                }
+                return true;
+            }
+
+            const htmlStringParser = (htmlString: string) => {
+                if (htmlString === null || !htmlString) {
+                    return {
+                        title: 'NO_CONTENT',
+                        subtitle: '',
+                    };
+                }
+
+                const parsedString = htmlString
+                    .replace(/<[^>]+>/g, '\n')
+                    .split('&nbsp;')
+                    .join(' ')
+                    .replace('&amp;', '&');
+                const lines = parsedString.split('\n');
+                const filteredLines = lines.filter((i) => {
+                    return i.toString().trim() !== '';
+                });
+                let title = '';
+                if (filteredLines.length > 0) {
+                    if (filteredLines[0][0] === '{' && filteredLines[0][filteredLines[0].length - 1] === '}') {
+                        const obj = JSON.parse(filteredLines[0]);
+                        title = obj.title ? obj.title : 'file';
+                    } else {
+                        title = filteredLines.length > 0 ? filteredLines[0] : 'NO_CONTENT';
+                    }
+                } else {
+                    title = 'NO_CONTENT';
+                }
+                return {
+                    title,
+                    subtitle: filteredLines.length > 1 ? filteredLines[1] : '',
+                };
+            };
+
+            const fetchChannel = await ChannelModel.findById(channelId);
+
+            if (!fetchChannel) return null;
+
+            let gradingScale;
+
+            // Check if grading scale exists for channel
+            if (fetchChannel.gradingScale) {
+                gradingScale = await GradingScaleModel.findById(fetchChannel.gradingScale);
+            }
+
+            // Store title, deadline, weightage, cueId or gradeEntryId
+            const gradedAssignments: any[] = [];
+
+            // Compile a list of Cues + Entries in the Gradebook
+            const channelCues = await CueModel.find({
+                channelId,
+                submission: true,
+            });
+
+            if (!channelCues) {
+                return null;
+            }
+
+            // Calculate Totals
+            let totalAssessments = 0;
+            let notSubmitted = 0;
+            let submitted = 0;
+            let graded = 0;
+            let lateSubmissions = 0;
+            let courseProgress = 0;
+            let nextAssignmentDue;
+
+            for (let i = 0; i < channelCues.length; i++) {
+                const cue = channelCues[i].toObject();
+
+                if (isJsonString(cue.cue)) {
+                    const parseObj = JSON.parse(cue.cue);
+
+                    if (parseObj.quizId && parseObj.quizId) {
+                        // Quiz so need to calculate the total points for the assignments
+                        const fetchQuiz = await QuizModel.findById(parseObj.quizId);
+
+                        if (fetchQuiz) {
+                            let totalPoints = 0;
+
+                            fetchQuiz.problems.map((problem: any) => {
+                                totalPoints += problem.points;
+                            });
+
+                            gradedAssignments.push({
+                                title: htmlStringParser(cue.cue).title,
+                                deadline: cue.deadline,
+                                availableUntil: cue.availableUntil,
+                                initiateAt: cue.initiateAt,
+                                gradeWeight: cue.gradeWeight ? cue.gradeWeight : 0,
+                                totalPoints,
+                                cueId: cue._id,
+                                gradebookEntryId: undefined,
+                                releaseSubmission: cue.releaseSubmission,
+                            });
+                        }
+                    } else {
+                        // Regular submission so push values into gradedAssignments
+
+                        gradedAssignments.push({
+                            title: htmlStringParser(cue.cue).title,
+                            deadline: cue.deadline,
+                            availableUntil: cue.availableUntil,
+                            initiateAt: cue.initiateAt,
+                            gradeWeight: cue.gradeWeight ? cue.gradeWeight : 0,
+                            totalPoints: cue.totalPoints ? cue.totalPoints : 100,
+                            cueId: cue._id,
+                            gradebookEntryId: undefined,
+                            releaseSubmission: cue.releaseSubmission,
+                        });
+                    }
+                }
+            }
+
+            // Get entries from the Gradebook
+            const gradebookEntries = await GradebookEntryModel.find({
+                channelId,
+            });
+
+            for (let i = 0; i < gradebookEntries.length; i++) {
+                const entry = gradebookEntries[i].toObject();
+
+                gradedAssignments.push({
+                    title: entry.title,
+                    deadline: entry.deadline,
+                    availableUntil: undefined,
+                    initiateAt: undefined,
+                    gradeWeight: entry.gradeWeight,
+                    totalPoints: entry.totalPoints,
+                    cueId: undefined,
+                    gradebookEntryId: entry._id,
+                    releaseSubmission: entry.releaseSubmission,
+                });
+            }
+
+            const assignmentsWithScores: any[] = [];
+
+            const studentTotalsMap: any[] = [];
+
+            // Construct scores
+            for (let i = 0; i < gradedAssignments.length; i++) {
+                const assignment = gradedAssignments[i];
+
+                if (assignment.cueId) {
+                    // Fetch all modifications
+                    const fetchModification = await ModificationsModel.findOne({
+                        cueId: assignment.cueId,
+                        userId,
+                    });
+
+                    if (!fetchModification) return;
+
+                    const mod = fetchModification.toObject();
+
+                    // Add the scores to the scores one
+                    const score = {
+                        pointsScored: assignment.releaseSubmission && mod.pointsScored ? mod.pointsScored : undefined,
+                        score: assignment.releaseSubmission && mod.score ? mod.score : undefined,
+                        lateSubmission: mod.submittedAt ? mod.submittedAt > assignment.deadline : undefined,
+                        submittedAt: mod.submittedAt,
+                        submitted: mod.submittedAt ? true : false,
+                    };
+
+                    // Add the current score for student to student
+                    if (assignment.releaseSubmission) {
+                        studentTotalsMap.push({
+                            gradeWeight: assignment.gradeWeight,
+                            pointsScored: mod.pointsScored ? mod.pointsScored : undefined,
+                            totalPoints: assignment.totalPoints,
+                            score: mod.score ? mod.score : 0,
+                        });
+                    }
+
+                    // INCREMENT TOTALS
+                    totalAssessments += 1;
+
+                    if (mod.submittedAt) {
+                        submitted += 1;
+
+                        if (new Date(mod.submittedAt) > new Date()) {
+                            lateSubmissions += 1;
+                        }
+                    } else {
+                        notSubmitted += 1;
+                    }
+
+                    if (mod.graded && mod.releaseSubmission) {
+                        graded += 1;
+
+                        courseProgress += mod.gradeWeight ? mod.gradeWeight : 0;
+                    }
+
+                    if (mod.deadline && mod.deadline > new Date()) {
+                        if (nextAssignmentDue && nextAssignmentDue > mod.deadline) {
+                            nextAssignmentDue = mod.deadline;
+                        }
+                    }
+
+                    assignmentsWithScores.push({
+                        ...assignment,
+                        ...score,
+                    });
+                } else {
+                    const fetchGradebookScore = await GradebookScoreModel.findOne({
+                        gradebookEntryId: assignment.gradebookEntryId,
+                        userId,
+                    });
+
+                    if (!fetchGradebookScore) return;
+
+                    const mod = fetchGradebookScore.toObject();
+
+                    const score = {
+                        pointsScored: assignment.releaseSubmission && mod.points ? mod.points : undefined,
+                        score: assignment.releaseSubmission && mod.score ? mod.score : undefined,
+                        lateSubmission: mod.lateSubmission
+                            ? mod.lateSubmission
+                            : mod.submittedAt
+                            ? mod.submittedAt > assignment.deadline
+                            : undefined,
+                        submittedAt: mod.submittedAt,
+                        submitted: mod.submitted,
+                    };
+
+                    // Add the current score for student to student
+
+                    if (assignment.releaseSubmission) {
+                        studentTotalsMap.push({
+                            gradeWeight: assignment.gradeWeight,
+                            pointsScored: mod.points ? mod.points : undefined,
+                            totalPoints: assignment.totalPoints,
+                            score: mod.score ? mod.score : 0,
+                        });
+                    }
+
+                    // INCREMENT PERFORMANCE OVERVIEW
+
+                    totalAssessments += 1;
+
+                    if (mod.submitted) {
+                        submitted += 1;
+
+                        if (mod.lateSubmission || (mod.submittedAt && mod.submittedAt > assignment.deadline)) {
+                            lateSubmissions += 1;
+                        }
+                    } else {
+                        notSubmitted += 1;
+                    }
+
+                    if (assignment.releaseSubmission) {
+                        graded += 1;
+
+                        courseProgress += assignment.gradeWeight ? assignment.gradeWeight : 0;
+                    }
+
+                    if (assignment.deadline && assignment.deadline > new Date()) {
+                        if (nextAssignmentDue && nextAssignmentDue > assignment.deadline) {
+                            nextAssignmentDue = assignment.deadline;
+                        }
+                    }
+
+                    assignmentsWithScores.push({
+                        ...assignment,
+                        ...score,
+                    });
+                }
+            }
+
+            let individualScores = studentTotalsMap;
+
+            let weightGradeTotal = 0;
+
+            // Map
+
+            let totalPointsPossible = 0;
+
+            let pointsScored = 0;
+
+            let score = 0;
+
+            for (let j = 0; j < individualScores.length; j++) {
+                const x = individualScores[j];
+                totalPointsPossible += x.totalPoints;
+                if (x.pointsScored) {
+                    pointsScored += x.pointsScored;
+                }
+                if (x.score) {
+                    weightGradeTotal += x.gradeWeight;
+                    score += x.score * (x.gradeWeight / 100);
+                }
+            }
+
+            // Scale total score if weightage is less than 100
+
+            if (weightGradeTotal > 0 && weightGradeTotal < 100) {
+                score = (score * 100) / weightGradeTotal;
+            }
+
+            // Use score to calculate the grade outcome if a gradingScale exists
+            let gradingScaleOutcome;
+            let highestGrade;
+            let lowestGrade;
+
+            // Account for grade less than
+
+            if (gradingScale) {
+                gradingScale.range.map((level: any) => {
+                    if (level.start === 0) {
+                        lowestGrade = level.name;
+                    }
+
+                    if (level.end === 100) {
+                        highestGrade = level.name;
+                    }
+
+                    if (score >= level.start && score < level.end) {
+                        gradingScaleOutcome = level.name;
+                    }
+                });
+
+                if (score >= 100) {
+                    gradingScaleOutcome = highestGrade;
+                }
+
+                if (score <= 0) {
+                    gradingScaleOutcome = lowestGrade;
+                }
+            }
+
+            const total = {
+                pointsScored,
+                totalPointsPossible,
+                score: Math.round((score + Number.EPSILON) * 100) / 100,
+                gradingScaleOutcome: weightGradeTotal > 0 ? gradingScaleOutcome : undefined,
+                //
+                totalAssessments,
+                submitted,
+                notSubmitted,
+                lateSubmissions,
+                graded,
+                courseProgress,
+            };
+
+            console.log('TO Return', {
+                entries: assignmentsWithScores,
+                total,
+            });
+
+            return {
+                entries: assignmentsWithScores,
+                total,
+            };
+        } catch (e) {
             return null;
         }
     }
@@ -459,6 +878,8 @@ export class GradebookQueryResolver {
                                 cueId: cue._id,
                                 gradebookEntryId: undefined,
                                 deadline: cue.deadline,
+                                gradeWeight: cue.gradeWeight ? cue.gradeWeight : 0,
+                                releaseSubmission: cue.releaseSubmission ? true : false,
                             });
                         }
                     } else {
@@ -470,6 +891,8 @@ export class GradebookQueryResolver {
                             cueId: cue._id,
                             gradebookEntryId: undefined,
                             deadline: cue.deadline,
+                            gradeWeight: cue.gradeWeight ? cue.gradeWeight : 0,
+                            releaseSubmission: cue.releaseSubmission ? true : false,
                         });
                     }
                 }
@@ -489,6 +912,8 @@ export class GradebookQueryResolver {
                     cueId: undefined,
                     gradebookEntryId: entry._id,
                     deadline: entry.deadline,
+                    gradeWeight: entry.gradeWeight ? entry.gradeWeight : 0,
+                    releaseSubmission: entry.releaseSubmission ? true : false,
                 });
             }
 
@@ -640,7 +1065,7 @@ export class GradebookQueryResolver {
                     }
 
                     userScores.sort((a: any, b: any) => {
-                        return a.score > b.score ? 1 : -1;
+                        return a.score > b.score ? -1 : 1;
                     });
 
                     let topN = 5;
@@ -735,13 +1160,13 @@ export class GradebookQueryResolver {
                         ...assignment,
                         max,
                         min,
-                        mean,
-                        median,
+                        mean: Math.round((mean + Number.EPSILON) * 100) / 100,
+                        median: Math.round((median + Number.EPSILON) * 100) / 100,
                         std: Math.round((std + Number.EPSILON) * 100) / 100,
                         maxPts,
                         minPts,
-                        meanPts,
-                        medianPts,
+                        meanPts: Math.round((meanPts + Number.EPSILON) * 100) / 100,
+                        medianPts: Math.round((medianPts + Number.EPSILON) * 100) / 100,
                         stdPts: Math.round((stdPts + Number.EPSILON) * 100) / 100,
                         sharedWith,
                         submitted,
@@ -990,14 +1415,15 @@ export class GradebookQueryResolver {
             progress = Math.round((progress + Number.EPSILON) * 100) / 100;
 
             return {
-                score,
-                progress,
+                score: Number.isNaN(score) ? 0 : score,
+                progress: Number.isNaN(progress) ? 0 : progress,
                 sharedWith,
                 graded,
                 submitted,
                 scores: userScoresList,
             };
         } catch (e) {
+            console.log('Error', e);
             return null;
         }
     }

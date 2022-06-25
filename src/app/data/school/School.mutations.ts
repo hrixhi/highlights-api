@@ -678,4 +678,31 @@ export class SchoolMutationResolver {
             return 'SOMETHING_WENT_WRONG';
         }
     }
+
+    @Field((type) => Boolean, {
+        description: 'Used to add courses to a school.',
+    })
+    public async changeStandardsBasedGradingEnabled(
+        @Arg('schoolId', (type) => String)
+        schoolId: string,
+        @Arg('enabled', (type) => Boolean)
+        enabled: boolean
+    ) {
+        try {
+            //
+            const updateSchool = await SchoolsModel.updateOne(
+                {
+                    _id: schoolId,
+                },
+                {
+                    enableStandardsBasedGrading: enabled,
+                }
+            );
+
+            return updateSchool.nModified > 0;
+        } catch (e) {
+            console.log('Error', e);
+            return false;
+        }
+    }
 }

@@ -7,11 +7,19 @@ const scaleRangeSchema = new Schema({
     },
     start: {
         type: Number,
-        required: true,
+        required: false,
     },
     end: {
         type: Number,
-        required: true,
+        required: false,
+    },
+    points: {
+        type: Number,
+        required: false,
+    },
+    description: {
+        type: String,
+        required: false,
     },
 });
 
@@ -35,6 +43,16 @@ const schema = new Schema({
     schoolId: {
         type: Types.ObjectId,
         required: false,
+    },
+    // Standards based grading
+    standardsBasedScale: {
+        type: Boolean,
+        required: false,
+    },
+    standardsGradeMode: {
+        type: String,
+        required: false,
+        enum: ['mean', 'mode', 'highest', 'mostRecent', 'decayingAverage'],
     },
 });
 

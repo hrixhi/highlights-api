@@ -215,4 +215,12 @@ export class UserObject {
 
     @Field((type) => ParentInfo, { nullable: true })
     public parent2?: ParentInfo;
+
+    // DELETE
+
+    @Field({ nullable: true })
+    public sleepFrom?: string;
+
+    @Field({ nullable: true })
+    public sleepTo?: string;
 }

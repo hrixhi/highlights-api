@@ -30,6 +30,7 @@ import { hashPassword } from '@app/data/methods';
 import shortid from 'shortid';
 import { EmailModel } from '@app/data/emails/mongo/email.model';
 import { ZoomRegistrationModel } from '@app/data/zoom-registration/mongo/zoom-registration.model';
+const crypto = require('crypto');
 
 const PSPDFKIT_API_KEY = 'pdf_live_pixgIxf3rrhpCL1z6QqEhWzU2q2fSPmrwA7bHv6hp5r';
 
@@ -1050,6 +1051,149 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             overviewData,
             scores,
         });
+    });
+
+    GQLServer.post('/onboard_typeform', async (req: any, res: any) => {
+        const verifySignature = function(receivedSignature: string, payload: string) {
+            const hash = crypto
+                .createHmac('sha256', 'CUES_IS_THE_BEST')
+                .update(payload)
+                .digest('base64');
+            return receivedSignature === `sha256=${hash}`;
+        };
+
+        try {
+            console.log('Req', req.body);
+
+            const signature = req.headers['typeform-signature'];
+            const isValid = verifySignature(signature, req.body.toString());
+
+            console.log('Is Valid Signature', isValid);
+
+            // if (!isValid) {
+            //     return res.status(400).send({ error: 'Invalid signature for request.' });
+            // }
+
+            const { form_response } = req.body;
+
+            const { form_id, submitted_at, answers } = form_response;
+
+            console.log('Answers', answers);
+
+            // Build out variables from form answers
+            const email = answers[0].email;
+            const name = answers[1].text;
+            const personalContact = answers[2].phone_number;
+            const jobTitle = answers[3].choice.other ? answers[3].choice.other : answers[3].choice.label;
+            const organizationName = answers[4].text;
+            const contactEmail = answers[5].email;
+            const contactNumber = answers[6].phone_number;
+            const website = answers[7].url;
+            const country = answers[8].choice.label;
+
+            console.log('Input object', {
+                email,
+                name,
+                personalContact,
+                jobTitle,
+                organizationName,
+                contactEmail,
+                contactNumber,
+                website,
+                country,
+            });
+
+            const emailService = new EmailService();
+
+            if (
+                !email ||
+                email.trim() === '' ||
+                !name ||
+                name.trim() === '' ||
+                !organizationName ||
+                organizationName.trim() === '' ||
+                !website ||
+                website.trim() === '' ||
+                !contactNumber ||
+                contactNumber === '' ||
+                !contactEmail ||
+                contactEmail === '' ||
+                !jobTitle ||
+                jobTitle === ''
+            ) {
+                // Send Error email to user
+                return res.status(400).send({ error: 'One of the required fields not provided.' });
+            }
+
+            // Check if email already in use
+            const findUser = await UserModel.findOne({
+                email,
+            });
+
+            if (findUser) {
+                // Send Error email to user
+                return res.status(400).send({ error: 'User email already exists.' });
+            }
+
+            const encodeOrgName = organizationName
+                .split(' ')
+                .join('_')
+                .toLowerCase();
+
+            // Initialize new school name with given info
+            const createSchool = await SchoolsModel.create({
+                name: organizationName,
+                cuesDomain: encodeOrgName + '.learnwithcues.com',
+                email: contactEmail,
+                phoneNumber: contactNumber,
+                website,
+                country,
+            });
+
+            if (!createSchool) {
+                // Send Error email to user
+                return res.status(400).send({ error: 'Failed to create org.' });
+            }
+
+            const dummyPassword = email.split('@')[0] + '@' + getRandomInt(99999).toString();
+
+            // Hash the password
+            const hash = await hashPassword(dummyPassword);
+
+            console.log('Dummy Password', dummyPassword);
+
+            // Initialize admin user with given info
+            const createAdminUser = await UserModel.create({
+                email,
+                fullName: name,
+                role: 'admin',
+                password: hash,
+                notificationId: 'NOT_SET',
+                adminInfo: {
+                    role: 'owner',
+                    jobTitle,
+                    contactNumber: personalContact,
+                },
+            });
+
+            if (!createAdminUser) {
+                // Send Error email to user
+                return res.status(400).send({ error: 'Failed to create user.' });
+            }
+
+            // SEND SUCCESS EMAIL TO USER AND US
+            emailService.organizationOnboardSuccessful(name, email, dummyPassword, organizationName);
+
+            emailService.organizationOnboardAlert(name, email, organizationName, country);
+
+            return res.status(200).send({
+                success: true,
+            });
+        } catch (e) {
+            console.log('Error', e);
+            // Send Error email to user
+            return res.status(400).send({ error: 'Failed to create org.' });
+        }
     });
 
     // ONBOARDING

@@ -7,6 +7,7 @@ export interface IGradebookEntryModel extends Document {
     gradeWeight: number;
     deadline: Date;
     channelId: string;
+    releaseSubmission?: boolean;
 }
 
 export const GradebookEntryModel: Model<IGradebookEntryModel> = model<IGradebookEntryModel>(

@@ -7,6 +7,8 @@ export interface IGradingScaleModel extends Document {
     passFailMinumum: number;
     default: boolean;
     schoolId: string;
+    standardsBasedScale?: boolean;
+    standardsGradeMode?: string;
 }
 
 export const GradingScaleModel: Model<IGradingScaleModel> = model<IGradingScaleModel>(

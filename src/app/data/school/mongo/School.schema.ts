@@ -23,42 +23,31 @@ const schema = new Schema({
     name: {
         type: String,
         required: true,
-        unique: true,
     },
-    password: {
-        type: String,
-        required: true,
-    },
-    email: {
-        type: String,
-        required: false,
-    },
-    phoneNumber: {
-        type: String,
-        required: false,
-    },
-    website: {
-        type: String,
-        required: false,
-    },
+    // In case we want to deploy admin on custom domains
     cuesDomain: {
         type: String,
         required: true,
-        unique: true,
     },
+    // School Contact info
+    email: {
+        type: String,
+        required: true,
+    },
+    phoneNumber: {
+        type: String,
+        required: true,
+    },
+    website: {
+        type: String,
+        required: true,
+    },
+    country: {
+        type: String,
+        required: false,
+    },
+    // OPTIONAL
     logo: {
-        type: String,
-        required: false,
-    },
-    allowStudentChannelCreation: {
-        type: Boolean,
-        required: false,
-    },
-    recoveryEmail: {
-        type: String,
-        required: false,
-    },
-    streamId: {
         type: String,
         required: false,
     },
@@ -91,6 +80,28 @@ const schema = new Schema({
         type: String,
         required: false,
     },
+    enableStandardsBasedGrading: {
+        type: Boolean,
+        required: false,
+    },
+    // NOT REQUIRED
+    password: {
+        type: String,
+        required: false,
+    },
+    allowStudentChannelCreation: {
+        type: Boolean,
+        required: false,
+    },
+    recoveryEmail: {
+        type: String,
+        required: false,
+    },
+    streamId: {
+        type: String,
+        required: false,
+    },
+    // END OF NOT REQUIRED
 });
 
 export const schoolSchema = schema;

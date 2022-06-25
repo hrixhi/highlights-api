@@ -77,6 +77,18 @@ const schema = new Schema({
         type: Date,
         required: false,
     },
+    creditHours: {
+        type: Number,
+        required: false,
+    },
+    gradingScale: {
+        type: Types.ObjectId,
+        required: false,
+    },
+    standardsBasedGradingScale: {
+        type: Types.ObjectId,
+        required: false,
+    },
 });
 
 export const channelSchema = schema;

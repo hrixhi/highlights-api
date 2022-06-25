@@ -28,40 +28,43 @@ const zoomSchema = new Schema({
     },
 });
 
-const personalInformationSchema = new Schema({
-    dateOfBirth: {
-        type: Date,
-        required: false,
+const personalInformationSchema = new Schema(
+    {
+        dateOfBirth: {
+            type: Date,
+            required: false,
+        },
+        expectedGradYear: {
+            type: Number,
+            required: false,
+        },
+        phoneNumber: {
+            type: String,
+            required: false,
+        },
+        streetAddress: {
+            type: String,
+            required: false,
+        },
+        city: {
+            type: String,
+            required: false,
+        },
+        state: {
+            type: String,
+            required: false,
+        },
+        country: {
+            type: String,
+            required: false,
+        },
+        zip: {
+            type: String,
+            required: false,
+        },
     },
-    expectedGradYear: {
-        type: Number,
-        required: false,
-    },
-    phoneNumber: {
-        type: String,
-        required: false,
-    },
-    streetAddress: {
-        type: String,
-        required: false,
-    },
-    city: {
-        type: String,
-        required: false,
-    },
-    state: {
-        type: String,
-        required: false,
-    },
-    country: {
-        type: String,
-        required: false,
-    },
-    zip: {
-        type: String,
-        required: false,
-    },
-});
+    { _id: false }
+);
 
 const parentSchema = new Schema({
     _id: {
@@ -78,21 +81,24 @@ const parentSchema = new Schema({
     },
 });
 
-const adminUserSchema = new Schema({
-    role: {
-        type: String,
-        required: true,
-        enum: ['owner', 'moderator', 'viewer'],
+const adminUserSchema = new Schema(
+    {
+        role: {
+            type: String,
+            required: true,
+            enum: ['owner', 'moderator', 'viewer'],
+        },
+        jobTitle: {
+            type: String,
+            required: false,
+        },
+        contactNumber: {
+            type: String,
+            required: false,
+        },
     },
-    jobTitle: {
-        type: String,
-        required: false,
-    },
-    contactNumber: {
-        type: String,
-        required: false,
-    },
-});
+    { _id: false }
+);
 
 const schema = new Schema(
     {
@@ -180,6 +186,23 @@ const schema = new Schema(
         // Store ADMIN DATA along with other Users so that Messages + Announcements architecture is simpler, also an admin can be an instructor so need to have a single login for both
         adminInfo: {
             type: adminUserSchema,
+            required: false,
+        },
+        // DELETE
+        randomShuffleFrequency: {
+            type: String,
+            required: false,
+        },
+        sleepFrom: {
+            type: String,
+            required: false,
+        },
+        sleepTo: {
+            type: String,
+            required: false,
+        },
+        currentDraft: {
+            type: String,
             required: false,
         },
     },

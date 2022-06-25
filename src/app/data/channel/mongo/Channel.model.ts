@@ -29,6 +29,9 @@ export interface IChannelModel extends Document {
     term?: string;
     startDate?: string;
     endDate?: string;
+    creditHours?: number;
+    gradingScale?: string;
+    standardsBasedGradingScale?: string;
 }
 
 export const ChannelModel: Model<IChannelModel> = model<IChannelModel>('channels', channelSchema);

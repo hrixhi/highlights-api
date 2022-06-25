@@ -37,6 +37,12 @@ export class GradebookAssignmentStatsObject {
     public gradebookEntryId?: string;
 
     @Field((type) => Number)
+    public gradeWeight: number;
+
+    @Field((type) => Boolean)
+    public releaseSubmission: boolean;
+
+    @Field((type) => Number)
     public max: number;
 
     @Field((type) => Number)

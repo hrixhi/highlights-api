@@ -301,4 +301,54 @@ export class EmailService {
                 console.log('error handling', e);
             });
     }
+
+    public organizationOnboardSuccessful(name: string, email_id: string, password: string, school_name: string) {
+        client
+            .sendEmailWithTemplate({
+                From: 'support@learnwithcues.com',
+                To: email_id,
+                TemplateAlias: 'org_setup_successful',
+                TemplateModel: {
+                    name,
+                    email_id,
+                    school_name,
+                    password,
+                },
+            })
+            .then((res: any) => {
+                return;
+            })
+            .catch((e: any) => {
+                console.log('error handling', e);
+            });
+    }
+
+    public organizationOnboardAlert(name: string, email: string, organizationName: string, country: string) {
+        client
+            .sendEmail({
+                From: 'support@learnwithcues.com',
+                // To: 'hrishi@learnwithcues.com',
+                To: 'prabir@learnwithcues.com',
+                Subject: 'New Organization signup by ' + name,
+                TextBody:
+                    'New Organization signup ' +
+                    '(' +
+                    organizationName +
+                    ')' +
+                    ' by ' +
+                    name +
+                    ', ' +
+                    email +
+                    '. ' +
+                    'Organization is from country ' +
+                    country +
+                    '.',
+            })
+            .then((res: any) => {
+                return;
+            })
+            .catch((e: any) => {
+                console.log('error handling', e);
+            });
+    }
 }

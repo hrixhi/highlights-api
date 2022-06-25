@@ -21,6 +21,10 @@ const schema = new Schema({
         type: Types.ObjectId,
         requried: true,
     },
+    releaseSubmission: {
+        type: Boolean,
+        required: false,
+    },
 });
 
 export const GradebookEntrySchema = schema;

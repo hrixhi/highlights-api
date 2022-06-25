@@ -7,11 +7,17 @@ export class RangeObject {
     @Field((type) => String)
     public name: string;
 
-    @Field((type) => Number)
-    public start: number;
+    @Field((type) => Number, { nullable: true })
+    public start?: number;
 
-    @Field((type) => Number)
-    public end: number;
+    @Field((type) => Number, { nullable: true })
+    public end?: number;
+
+    @Field((type) => Number, { nullable: true })
+    public points?: number;
+
+    @Field((type) => String, { nullable: true })
+    public description?: string;
 }
 
 @ObjectType()
@@ -33,6 +39,12 @@ export class GradingScaleObject {
 
     @Field((type) => String)
     public schoolId: string;
+
+    @Field((type) => Boolean, { nullable: true })
+    public standardsBasedScale?: boolean;
+
+    @Field((type) => String, { nullable: true })
+    public standardsGradeMode?: string;
 
     // @Field((type) => Number, { nullable: true })
     // public async courses() {

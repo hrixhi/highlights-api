@@ -23,6 +23,11 @@ export interface IUserModel extends Document {
     parent1?: any;
     parent2?: any;
     adminInfo?: any;
+    // DELETE LATER
+    randomShuffleFrequency?: string;
+    sleepFrom?: string;
+    sleepTo?: string;
+    currentDraft?: string;
 }
 
 export const UserModel: Model<IUserModel> = model<IUserModel>('users', UserSchema);

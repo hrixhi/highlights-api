@@ -15,14 +15,17 @@ export class SchoolObject {
     @Field()
     public name: string;
 
-    @Field((type) => String, { nullable: true })
-    public email?: string;
+    @Field((type) => String)
+    public email: string;
 
-    @Field((type) => String, { nullable: true })
-    public phoneNumber?: string;
+    @Field((type) => String)
+    public phoneNumber: string;
 
-    @Field((type) => String, { nullable: true })
-    public website?: string;
+    @Field((type) => String)
+    public website: string;
+
+    @Field((type) => String)
+    public country: string;
 
     @Field((type) => String, { nullable: true })
     public logo?: string;

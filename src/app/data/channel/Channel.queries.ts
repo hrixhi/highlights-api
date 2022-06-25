@@ -19,6 +19,8 @@ import { MeetingStatusObject } from './types/MeetingStatus.type';
 import { zoomClientId, zoomClientSecret } from '../../../helpers/zoomCredentials';
 import { SchoolsModel } from '../school/mongo/School.model';
 import { ZoomRegistrationModel } from '../zoom-registration/mongo/zoom-registration.model';
+import { GradingScaleObject } from '../grading-scale/types/GradingScaleObject.types';
+import { GradingScaleModel } from '../grading-scale/mongo/gradingScale.model';
 
 /**
  * Channel Query Endpoints
@@ -50,36 +52,6 @@ export class ChannelQueryResolver {
             return [];
         }
     }
-
-    // @Field(type => [UserObject], {
-    //     description: "Returns list of subscribers for by a user.",
-    //     nullable: true
-    // })
-    // public async getChannelSubscribers(
-    //     @Arg("channelId", type => String)
-    //     channelId: string
-    // ) {
-    //     try {
-    //         const activeSubscriptions = await SubscriptionModel.find({
-    //             $and: [
-    //               { channelId },
-    //               { keepContent: { $ne: false } },
-    //               { unsubscribedAt: { $exists: false } }
-    //             ]
-    //           })
-
-    //         const subscribers: any[] = []
-
-    //         activeSubscriptions.map((sub: any) => subscribers.push(sub.userId))
-
-    //         return await UserModel.find({
-    //             _id: { $in: subscribers }
-    //         })
-    //     } catch (e) {
-    //         return [];
-    //     }
-
-    // }
 
     @Field((type) => [UserObject], {
         description: 'Returns list of subscribers for by a user.',
@@ -125,22 +97,6 @@ export class ChannelQueryResolver {
                 creatorUnsubscribed: { $ne: true },
                 deletedAt: { $exists: false },
             });
-        } catch (e) {
-            console.log(e);
-            return [];
-        }
-    }
-
-    @Field((type) => ChannelObject, {
-        description: 'Returns channel by name.',
-        nullable: true,
-    })
-    public async findByName(
-        @Arg('name', (type) => String)
-        name: string
-    ) {
-        try {
-            return await ChannelModel.findOne({ name });
         } catch (e) {
             console.log(e);
             return [];
@@ -263,160 +219,6 @@ export class ChannelQueryResolver {
         }
     }
 
-    @Field((type) => String, {
-        description: 'Returns meeting link.',
-    })
-    public async getMeetingLink(
-        @Arg('channelId', (type) => String)
-        channelId: string,
-        @Arg('userId', (type) => String)
-        userId: string
-    ) {
-        try {
-            const u: any = await UserModel.findById(userId);
-            const c: any = await ChannelModel.findById(channelId);
-            if (u && c) {
-                const user = u.toObject();
-                const channel = c.toObject();
-                const sha1 = require('sha1');
-                const vdoURL = 'https://my2.vdo.click/bigbluebutton/api/';
-                const vdoKey = 'KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU';
-                const atendeePass = channelId;
-                const modPass = channel.createdBy;
-                const fullName = encodeURIComponent(
-                    encodeURI(
-                        user.displayName
-                            .replace(/[^a-z0-9]/gi, '')
-                            .split(' ')
-                            .join('')
-                            .trim()
-                    )
-                );
-                const params =
-                    'fullName=' +
-                    (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
-                    '&meetingID=' +
-                    channelId +
-                    '&password=' +
-                    (channel.createdBy.toString().trim() === user._id.toString().trim() ? modPass : atendeePass);
-                const toHash = 'join' + params + vdoKey;
-                const checksum = sha1(toHash);
-                return vdoURL + 'join?' + params + '&checksum=' + checksum;
-            } else {
-                return 'error';
-            }
-        } catch (e) {
-            return 'error';
-        }
-    }
-
-    @Field((type) => String, {
-        description: 'Returns meeting link that can be shared.',
-    })
-    public async getSharableLink(
-        @Arg('channelId', (type) => String)
-        channelId: string,
-        @Arg('moderator', (type) => Boolean)
-        moderator: boolean
-    ) {
-        try {
-            const c: any = await ChannelModel.findById(channelId);
-            if (c) {
-                const channel = c.toObject();
-                const sha1 = require('sha1');
-                const vdoURL = 'https://my2.vdo.click/bigbluebutton/api/';
-                const vdoKey = 'KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU';
-                const atendeePass = channelId;
-                const modPass = channel.createdBy;
-                const fullName = moderator ? 'instructor' : 'guest';
-                const params =
-                    'fullName=' +
-                    fullName +
-                    '&meetingID=' +
-                    channelId +
-                    '&password=' +
-                    (moderator ? modPass : atendeePass);
-                const toHash = 'join' + params + vdoKey;
-                const checksum = sha1(toHash);
-                return vdoURL + 'join?' + params + '&checksum=' + checksum;
-            } else {
-                return 'error';
-            }
-        } catch (e) {
-            return 'error';
-        }
-    }
-
-    @Field((type) => String, {
-        description: 'Returns meeting link.',
-    })
-    public async getPersonalMeetingLink(
-        @Arg('users', (type) => [String])
-        users: string[],
-        @Arg('userId', (type) => String)
-        userId: string
-    ) {
-        try {
-            const u: any = await UserModel.findById(userId);
-            const groupDoc: any = await GroupModel.findOne({
-                users: { $all: users },
-            });
-            const groupId = groupDoc._id;
-            if (u) {
-                const user = u.toObject();
-                const sha1 = require('sha1');
-                const vdoURL = 'https://my2.vdo.click/bigbluebutton/api/';
-                const vdoKey = 'KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU';
-                const fullName = encodeURIComponent(
-                    encodeURI(
-                        user.displayName
-                            .replace(/[^a-z0-9]/gi, '')
-                            .split(' ')
-                            .join('')
-                            .trim()
-                    )
-                );
-                const params =
-                    'fullName=' +
-                    (fullName.length > 0 ? fullName : Math.floor(Math.random() * (999 - 100 + 1) + 100).toString()) +
-                    '&meetingID=' +
-                    groupId +
-                    '&password=' +
-                    groupId;
-                const toHash = 'join' + params + vdoKey;
-                const checksum = sha1(toHash);
-                return vdoURL + 'join?' + params + '&checksum=' + checksum;
-            } else {
-                return 'error';
-            }
-        } catch (e) {
-            return 'error';
-        }
-    }
-
-    @Field((type) => Boolean, {
-        description: 'Returns meeting link status.',
-    })
-    public async getPersonalMeetingLinkStatus(
-        @Arg('users', (type) => [String])
-        users: string[]
-    ) {
-        try {
-            const groupDoc: any = await GroupModel.findOne({
-                users: { $all: users },
-            });
-            if (groupDoc) {
-                const group = groupDoc.toObject();
-                if (group && group.meetingOn) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (e) {
-            return false;
-        }
-    }
-
     @Field((type) => [CueObject], {
         description: 'Returns a list of submission cues.',
     })
@@ -447,80 +249,6 @@ export class ChannelQueryResolver {
             }
         } catch (e) {
             return '';
-        }
-    }
-
-    @Field((type) => [SubmissionStatisticObject], {
-        description: 'Returns a list of submission cues.',
-    })
-    public async getSubmissionCuesStatistics(
-        @Arg('channelId', (type) => String)
-        channelId: string
-    ) {
-        try {
-            // const submissionCues = await CueModel.find({ channelId, submission: true });
-
-            const gradedData: any = await ModificationsModel.find({
-                channelId,
-                submission: true,
-            });
-
-            // Construct the total statistics - Minimum, Median, Maximum, Mean, STD Deviation
-
-            // Need an array of scores for all the submission Cues
-
-            // test with channel id 60ab11233e057c171516eea4
-
-            let cueScores: any = {};
-
-            gradedData.forEach((mod: any) => {
-                const modification = mod.toObject();
-
-                if (modification.score !== undefined) {
-                    if (cueScores[modification.cueId]) {
-                        cueScores[modification.cueId].push(modification.score);
-                    } else {
-                        cueScores[modification.cueId] = [modification.score];
-                    }
-                }
-            });
-
-            let statistics: any[] = [];
-
-            const cues = Object.keys(cueScores);
-
-            for (let i = 0; i < cues.length; i++) {
-                let cueId = cues[i];
-
-                const scores = cueScores[cueId];
-
-                const max = ss.max(scores);
-
-                const min = ss.min(scores);
-
-                const mean = ss.mean(scores);
-
-                const median = ss.median(scores);
-
-                const std = ss.standardDeviation(scores);
-
-                const submissionCount = scores.length;
-
-                statistics.push({
-                    cueId,
-                    max,
-                    min,
-                    mean: mean.toFixed(1),
-                    median: median.toFixed(1),
-                    std: std.toFixed(2),
-                    submissionCount,
-                });
-            }
-
-            return statistics;
-        } catch (e) {
-            console.log(e);
-            return [];
         }
     }
 
@@ -688,76 +416,6 @@ export class ChannelQueryResolver {
             return false;
         }
     }
-
-    // @Field(type => Boolean, {
-    //     description: "Returns true if channel name exists."
-    // })
-    // public async doesChannelNameExist(
-    //     @Arg("name", type => String)
-    //     name: string
-    // ) {
-    //     try {
-    //         const channel = await ChannelModel.findOne({ name });
-    //         if (channel) {
-    //             return true;
-    //         } else {
-    //             return false;
-    //         }
-    //     } catch (e) {
-    //         return false;
-    //     }
-    // }
-
-    // @Field(type => [LectureRecording], {
-    //     description: "Returns true if channel name exists."
-    // })
-    // public async getRecordings(
-    //     @Arg("channelId", type => String)
-    //     channelId: string
-    // ) {
-    //     try {
-
-    //         const axios = require('axios')
-    //         const sha1 = require('sha1');
-    //         const vdoURL = 'https://my2.vdo.click/bigbluebutton/api/'
-    //         const vdoKey = 'KgX9F6EE0agJzRSU9DVDh5wc2U4OvtGJ0mtJHfh97YU'
-    //         let params =
-    //             'meetingID=' + channelId
-    //         const toHash = (
-    //             'getRecordings' + params + vdoKey
-    //         )
-    //         const checkSum = sha1(toHash)
-    //         const url = vdoURL + 'getRecordings?' + params + '&checksum=' + checkSum
-    //         const data = await axios.get(url)
-
-    //         const xml2js = require('xml2js');
-    //         const parser = new xml2js.Parser();
-    //         const json = await parser.parseStringPromise(data.data);
-    //         const unparsedRecordings = json.response.recordings[0].recording
-    //         if (!unparsedRecordings) {
-    //             return []
-    //         }
-    //         const parsedRecordings: any = []
-    //         unparsedRecordings.map((item: any) => {
-    //             const startTime = new Date(0)
-    //             startTime.setUTCMilliseconds(item.startTime[0])
-    //             const endTime = new Date(0)
-    //             endTime.setUTCMilliseconds(item.endTime[0])
-    //             parsedRecordings.push({
-    //                 recordID: item.recordID[0],
-    //                 startTime,
-    //                 endTime,
-    //                 url: item.playback[0].format[0].url[0],
-    //                 thumbnail: item.playback[0].format[0].preview[0].images[0].image[0]._
-    //             })
-    //         })
-    //         return parsedRecordings;
-
-    //     } catch (e) {
-    //         console.log(e)
-    //         return [];
-    //     }
-    // }
 
     @Field((type) => Boolean, {
         description: 'Returns true if channel can be deleted/is temporary.',
@@ -1031,6 +689,67 @@ export class ChannelQueryResolver {
             return fetchUsers;
         } catch (e) {
             return [];
+        }
+    }
+
+    @Field((type) => GradingScaleObject, {
+        description: 'Returns scale if allotted else null if standards based grading is not enabled.',
+        nullable: true,
+    })
+    public async getStandardsBasedGradingScale(
+        @Arg('channelId', (type) => String)
+        channelId: string
+    ) {
+        try {
+            const fetchChannel = await ChannelModel.findById(channelId);
+
+            if (!fetchChannel || !fetchChannel.standardsBasedGradingScale) return null;
+
+            // First check if standards based grading enabled with ORG
+            const fetchSchool = await SchoolsModel.findById(fetchChannel?.schoolId);
+
+            if (!fetchSchool || !fetchSchool.enableStandardsBasedGrading) return null;
+
+            // Get grading scale
+
+            const gradingScale = await GradingScaleModel.findById(fetchChannel.standardsBasedGradingScale);
+
+            if (!gradingScale) {
+                return null;
+            } else {
+                return gradingScale;
+            }
+        } catch (e) {
+            console.log('Error', e);
+            return null;
+        }
+    }
+
+    @Field((type) => GradingScaleObject, {
+        description: 'Returns scale if allotted else null if standards based grading is not enabled.',
+        nullable: true,
+    })
+    public async getCourseGradingScale(
+        @Arg('channelId', (type) => String)
+        channelId: string
+    ) {
+        try {
+            const fetchChannel = await ChannelModel.findById(channelId);
+
+            if (!fetchChannel || !fetchChannel.gradingScale) return null;
+
+            // Get grading scale
+
+            const gradingScale = await GradingScaleModel.findById(fetchChannel.gradingScale);
+
+            if (!gradingScale) {
+                return null;
+            } else {
+                return gradingScale;
+            }
+        } catch (e) {
+            console.log('Error', e);
+            return null;
         }
     }
 }

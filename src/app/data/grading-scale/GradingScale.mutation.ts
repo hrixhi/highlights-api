@@ -24,6 +24,7 @@ export class GradingScaleMutationResolver {
                 await GradingScaleModel.updateMany(
                     {
                         schoolId: gradingScaleInput.schoolId,
+                        standardsBasedScale: gradingScaleInput.standardsBasedScale ? true : undefined,
                     },
                     {
                         default: false,

@@ -4,98 +4,90 @@ import { IGraphQLContext } from '@app/server/interfaces/Context.interface';
 
 @ObjectType()
 export class ActivityObject {
+    @Field()
+    public _id: string;
 
-  @Field()
-  public _id: string;
+    @Field()
+    public userId: string;
 
-  @Field()
-  public userId: string;
+    @Field()
+    public title: string;
 
-  @Field()
-  public title: string;
+    @Field()
+    public subtitle: string;
 
-  @Field()
-  public subtitle: string;
+    @Field({ nullable: true })
+    public body?: string;
 
-  @Field({ nullable: true })
-  public body?: string;
+    @Field()
+    public status: string;
 
-  @Field()
-  public status: string;
+    @Field({ nullable: true })
+    public channelId?: string;
 
-  @Field()
-  public channelId: string;
+    @Field({ nullable: true })
+    public cueId?: string;
 
-  @Field({ nullable: true })
-  public cueId?: string;
+    @Field({ nullable: true })
+    public threadId?: string;
 
-  @Field({ nullable: true })
-  public threadId?: string;
+    @Field((type) => Date)
+    public date: Date;
 
-  @Field(type => Date)
-  public date: Date;
-
-  @Field(type => String, { nullable: true })
-  public async channelName() {
-    const localThis: any = this;
-    const { channelId } = localThis._doc || localThis;
-    if (channelId) {
-      const channel = await ChannelModel.findById(channelId)
-      return channel ? channel.name : ''
-    } else {
-      return ''
+    @Field((type) => String, { nullable: true })
+    public async channelName() {
+        const localThis: any = this;
+        const { channelId } = localThis._doc || localThis;
+        if (channelId) {
+            const channel = await ChannelModel.findById(channelId);
+            return channel ? channel.name : '';
+        } else {
+            return '';
+        }
     }
-  }
 
-  @Field(type => String, { nullable: true })
-  public async colorCode() {
-    const localThis: any = this;
-    const { channelId } = localThis._doc || localThis;
-    if (channelId) {
-      const channel = await ChannelModel.findById(channelId)
-      return channel ? channel.colorCode : ''
-    } else {
-      return ''
+    @Field((type) => String, { nullable: true })
+    public async colorCode() {
+        const localThis: any = this;
+        const { channelId } = localThis._doc || localThis;
+        if (channelId) {
+            const channel = await ChannelModel.findById(channelId);
+            return channel ? channel.colorCode : '';
+        } else {
+            return '';
+        }
     }
-  }
 
-
-  @Field(type => String)
+    @Field((type) => String)
     public async createdBy(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
         const { channelId } = localThis._doc || localThis;
 
         if (channelId) {
-          const channel = await ChannelModel.findById(channelId)
+            const channel = await ChannelModel.findById(channelId);
 
-          if (channel && context.user) {
+            if (channel && context.user) {
+                if (channel.owners) {
+                    const anotherOwner = channel.owners.find((item: any) => {
+                        return item.toString().trim() === context.user!._id.toString().trim();
+                    });
 
-            if (channel.owners) {
-              const anotherOwner = channel.owners.find((item: any) => {
-                return item.toString().trim() === context.user!._id.toString().trim()
-              })
+                    if (anotherOwner) {
+                        return anotherOwner;
+                    } else {
+                        return channel.createdBy;
+                    }
+                }
 
-              if (anotherOwner) {
-                return anotherOwner
-              } else {
-                return channel.createdBy
-              }
+                return channel.createdBy;
+            }
 
-            } 
-              
-            return channel.createdBy
-
-          } 
-
-          return '';
+            return '';
         } else {
-          return ''
+            return '';
         }
     }
 
-  @Field(type => String, { nullable: true})
-  public target?: String;
-
-
-
+    @Field((type) => String, { nullable: true })
+    public target?: String;
 }

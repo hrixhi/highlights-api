@@ -20,6 +20,7 @@ import { AcademicTermQueryResolver } from './academic-term/AcademicTerm.queries'
 import { FeePlanQueryResolver } from './fee-plan/FeePlan.queries';
 import { GradingScaleQueryResolver } from './grading-scale/GradingScale.queries';
 import { GradebookQueryResolver } from './gradebook-entries/GradebookEntry.queries';
+import { StandardsQueryResolver } from './standards/Standards.queries';
 
 @Resolver()
 export class AppQueryResolver {
@@ -126,5 +127,10 @@ export class AppQueryResolver {
     @Query((returns) => GradebookQueryResolver)
     public gradebook() {
         return new GradebookQueryResolver();
+    }
+
+    @Query((returns) => StandardsQueryResolver)
+    public standards() {
+        return new StandardsQueryResolver();
     }
 }

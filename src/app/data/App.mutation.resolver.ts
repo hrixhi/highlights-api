@@ -19,6 +19,7 @@ import { AcademicTermMutationResolver } from './academic-term/AcademicTerm.mutat
 import { FeePlanMutationResolver } from './fee-plan/FeePlan.mutations';
 import { GradingScaleMutationResolver } from './grading-scale/GradingScale.mutation';
 import { GradebookEntryMutationResolver } from './gradebook-entries/GradebookEntry.mutations';
+import { StandardsMutationResolver } from './standards/Standards.mutation';
 
 @Resolver()
 export class AppMutationResolver {
@@ -120,5 +121,10 @@ export class AppMutationResolver {
     @Mutation((returns) => GradebookEntryMutationResolver)
     public gradebook() {
         return new GradebookEntryMutationResolver();
+    }
+
+    @Mutation((returns) => StandardsMutationResolver)
+    public standards() {
+        return new StandardsMutationResolver();
     }
 }
