@@ -162,6 +162,11 @@ const schema = new Schema(
             type: parentSchema,
             required: false,
         },
+        // PARENT SCHOOL IDS FOR CHILDREN
+        parentSchoolIds: {
+            type: [Types.ObjectId],
+            required: false,
+        },
         // OTHER
         deletedAt: {
             type: Date,
@@ -186,6 +191,11 @@ const schema = new Schema(
         // Store ADMIN DATA along with other Users so that Messages + Announcements architecture is simpler, also an admin can be an instructor so need to have a single login for both
         adminInfo: {
             type: adminUserSchema,
+            required: false,
+        },
+        // STREAM TOKEN
+        streamToken: {
+            type: String,
             required: false,
         },
         // DELETE

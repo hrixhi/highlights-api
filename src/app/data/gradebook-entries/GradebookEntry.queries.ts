@@ -155,6 +155,16 @@ export class GradebookQueryResolver {
                             releaseSubmission: cue.releaseSubmission,
                         });
                     }
+                } else {
+                    gradedAssignments.push({
+                        title: htmlStringParser(cue.cue).title,
+                        deadline: cue.deadline,
+                        gradeWeight: cue.gradeWeight ? cue.gradeWeight : 0,
+                        totalPoints: cue.totalPoints ? cue.totalPoints : 100,
+                        cueId: cue._id,
+                        gradebookEntryId: undefined,
+                        releaseSubmission: cue.releaseSubmission,
+                    });
                 }
             }
 
@@ -190,6 +200,7 @@ export class GradebookQueryResolver {
                     const fetchModifications = await ModificationsModel.find({
                         cueId: assignment.cueId,
                         userId: { $in: studentIds },
+                        restrictAccess: { $ne: true },
                     });
 
                     let scores: any = [];
@@ -464,9 +475,7 @@ export class GradebookQueryResolver {
                 submission: true,
             });
 
-            if (!channelCues) {
-                return null;
-            }
+            console.log('Channel Cues', channelCues);
 
             // Calculate Totals
             let totalAssessments = 0;
@@ -521,8 +530,22 @@ export class GradebookQueryResolver {
                             releaseSubmission: cue.releaseSubmission,
                         });
                     }
+                } else {
+                    gradedAssignments.push({
+                        title: htmlStringParser(cue.cue).title,
+                        deadline: cue.deadline,
+                        availableUntil: cue.availableUntil,
+                        initiateAt: cue.initiateAt,
+                        gradeWeight: cue.gradeWeight ? cue.gradeWeight : 0,
+                        totalPoints: cue.totalPoints ? cue.totalPoints : 100,
+                        cueId: cue._id,
+                        gradebookEntryId: undefined,
+                        releaseSubmission: cue.releaseSubmission,
+                    });
                 }
             }
+
+            console.log('gradedAssignments', gradedAssignments);
 
             // Get entries from the Gradebook
             const gradebookEntries = await GradebookEntryModel.find({
@@ -549,6 +572,8 @@ export class GradebookQueryResolver {
 
             const studentTotalsMap: any[] = [];
 
+            console.log('Graded Assignments', gradedAssignments);
+
             // Construct scores
             for (let i = 0; i < gradedAssignments.length; i++) {
                 const assignment = gradedAssignments[i];
@@ -558,6 +583,7 @@ export class GradebookQueryResolver {
                     const fetchModification = await ModificationsModel.findOne({
                         cueId: assignment.cueId,
                         userId,
+                        restrictAccess: { $ne: true },
                     });
 
                     if (!fetchModification) return;
@@ -604,6 +630,8 @@ export class GradebookQueryResolver {
 
                     if (mod.deadline && mod.deadline > new Date()) {
                         if (nextAssignmentDue && nextAssignmentDue > mod.deadline) {
+                            nextAssignmentDue = mod.deadline;
+                        } else if (!nextAssignmentDue) {
                             nextAssignmentDue = mod.deadline;
                         }
                     }
@@ -667,6 +695,8 @@ export class GradebookQueryResolver {
 
                     if (assignment.deadline && assignment.deadline > new Date()) {
                         if (nextAssignmentDue && nextAssignmentDue > assignment.deadline) {
+                            nextAssignmentDue = assignment.deadline;
+                        } else if (!nextAssignmentDue) {
                             nextAssignmentDue = assignment.deadline;
                         }
                     }
@@ -751,6 +781,7 @@ export class GradebookQueryResolver {
                 lateSubmissions,
                 graded,
                 courseProgress,
+                nextAssignmentDue,
             };
 
             console.log('TO Return', {
@@ -895,6 +926,16 @@ export class GradebookQueryResolver {
                             releaseSubmission: cue.releaseSubmission ? true : false,
                         });
                     }
+                } else {
+                    gradedAssignments.push({
+                        title: htmlStringParser(cue.cue).title,
+                        totalPoints: cue.totalPoints ? cue.totalPoints : 100,
+                        cueId: cue._id,
+                        gradebookEntryId: undefined,
+                        deadline: cue.deadline,
+                        gradeWeight: cue.gradeWeight ? cue.gradeWeight : 0,
+                        releaseSubmission: cue.releaseSubmission ? true : false,
+                    });
                 }
             }
 
@@ -932,6 +973,7 @@ export class GradebookQueryResolver {
                     const fetchModifications = await ModificationsModel.find({
                         cueId: assignment.cueId,
                         userId: { $in: studentIds },
+                        restrictAccess: { $ne: true },
                     });
 
                     let sharedWith = fetchModifications.length;
@@ -1334,6 +1376,7 @@ export class GradebookQueryResolver {
                     const fetchModification = await ModificationsModel.findOne({
                         cueId: assignment.cueId,
                         userId,
+                        restrictAccess: { $ne: true },
                     });
 
                     if (fetchModification) {

@@ -20,6 +20,7 @@ import { FeePlanMutationResolver } from './fee-plan/FeePlan.mutations';
 import { GradingScaleMutationResolver } from './grading-scale/GradingScale.mutation';
 import { GradebookEntryMutationResolver } from './gradebook-entries/GradebookEntry.mutations';
 import { StandardsMutationResolver } from './standards/Standards.mutation';
+import { StreamChatMutationResolver } from './stream-chat/StreamChat.mutations';
 
 @Resolver()
 export class AppMutationResolver {
@@ -126,5 +127,10 @@ export class AppMutationResolver {
     @Mutation((returns) => StandardsMutationResolver)
     public standards() {
         return new StandardsMutationResolver();
+    }
+
+    @Mutation((returns) => StreamChatMutationResolver)
+    public streamChat() {
+        return new StreamChatMutationResolver();
     }
 }

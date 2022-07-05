@@ -223,15 +223,39 @@ export class GradebookEntryMutationResolver {
 
                 calculateScore = Math.round((calculateScore + Number.EPSILON) * 100) / 100;
 
-                const updateUserScore = await GradebookScoreModel.updateOne({
+                // Check if existing score model
+                const existingUserScore = await GradebookScoreModel.findOne({
                     gradebookEntryId: entryId,
                     userId,
-                    points: score,
-                    score: calculateScore,
-                    submitted: true,
                 });
 
-                if (updateUserScore.nModified > 0) return true;
+                // Update current score
+                if (existingUserScore) {
+                    const updateUserScore = await GradebookScoreModel.updateOne(
+                        {
+                            gradebookEntryId: entryId,
+                            userId,
+                        },
+                        {
+                            points: score,
+                            score: calculateScore,
+                            submitted: true,
+                        }
+                    );
+
+                    if (updateUserScore.nModified > 0) return true;
+                } else {
+                    // Create a new score
+                    const createNewScore = await GradebookScoreModel.create({
+                        gradebookEntryId: entryId,
+                        userId,
+                        points: score,
+                        score: calculateScore,
+                        submitted: true,
+                    });
+
+                    if (createNewScore) return true;
+                }
             } else {
                 const fetchCue = await CueModel.findOne({
                     _id: entryId,

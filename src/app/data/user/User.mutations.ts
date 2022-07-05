@@ -18,6 +18,7 @@ import { AddUsersResponseObject } from './types/AddUsersResponse.type';
 import { zoomClientId, zoomClientSecret, zoomRedirectUri } from '../../../helpers/zoomCredentials';
 import { NewUserAdmin } from './input-types/NewUserAdmin.input';
 import { EditUserAdmin } from './input-types/EditUserAdmin.input';
+import { AddImportedUsersResponse } from './types/AddImportedUsersResponse.type';
 
 const customId = require('custom-id');
 
@@ -1387,15 +1388,34 @@ export class UserMutationResolver {
 
             // PARENT ACCESS VALIDATION
             if (giveParentsAccess) {
+                // FIRST CHECK IF PARENT EMAILS ARE VALID
+                let fetchParent1;
+                let fetchParent2;
+
                 if (parent1Email && parent1Name) {
                     // check if parent1Email is valid
-                    const fetchParent1 = await UserModel.findOne({
+                    fetchParent1 = await UserModel.findOne({
                         email: parent1Email,
                     });
 
                     if (fetchParent1 && fetchParent1.role && fetchParent1.role !== 'parent') {
                         return 'PARENT_1_EMAIL_INVALID';
-                    } else if (fetchParent1) {
+                    }
+                }
+
+                if (parent2Email && parent2Name) {
+                    // check if parent2Email is valid
+                    fetchParent2 = await UserModel.findOne({
+                        email: parent2Email,
+                    });
+
+                    if (fetchParent2 && fetchParent2.role && fetchParent2.role !== 'parent') {
+                        return 'PARENT_2_EMAIL_INVALID';
+                    }
+                }
+
+                if (parent1Email && parent1Name) {
+                    if (fetchParent1) {
                         parent1 = {
                             _id: fetchParent1._id,
                             name: fetchParent1.fullName,
@@ -1430,14 +1450,7 @@ export class UserMutationResolver {
                 }
 
                 if (parent2Email && parent2Name) {
-                    // check if parent2Email is valid
-                    const fetchParent2 = await UserModel.findOne({
-                        email: parent2Email,
-                    });
-
-                    if (fetchParent2 && fetchParent2.role && fetchParent2.role !== 'parent') {
-                        return 'PARENT_2_EMAIL_INVALID';
-                    } else if (fetchParent2) {
+                    if (fetchParent2) {
                         parent2 = {
                             _id: fetchParent2._id,
                             name: fetchParent2.fullName,
@@ -1497,7 +1510,7 @@ export class UserMutationResolver {
                 return 'SOMETHING_WENT_WRONG';
             }
 
-            let isSSOSchool = true;
+            let isSSOSchool = false;
 
             const fetchSchool = await SchoolsModel.findOne({
                 _id: schoolId,
@@ -1508,8 +1521,8 @@ export class UserMutationResolver {
             const school = fetchSchool.toObject();
             const user = createNewUser.toObject();
 
-            if (!fetchSchool.ssoEnabled || !fetchSchool.workosConnection) {
-                isSSOSchool = false;
+            if (fetchSchool.ssoEnabled && fetchSchool.workosConnection) {
+                isSSOSchool = true;
             }
 
             emailAccessToStudent(user, school, isSSOSchool, !isSSOSchool ? password : undefined);
@@ -1526,6 +1539,280 @@ export class UserMutationResolver {
         } catch (e) {
             console.log('error', e);
             return 'SOMETHING_WENT_WRONG';
+        }
+    }
+
+    // ENROLL IMPORTED USERS
+    @Field((type) => AddImportedUsersResponse, {
+        description: 'Add imported Users Admin',
+    })
+    public async createImportedUsers(
+        @Arg('importedUsers', (type) => [NewUserAdmin])
+        importedUsers: NewUserAdmin[]
+    ) {
+        try {
+            function emailAccessToParent(parent: any, user: any, parentPassword: string, school: any) {}
+
+            function emailAccessToStudent(user: any, school: any, isSSOEnabled: boolean, password?: string) {
+                const emailService = new EmailService();
+
+                if (!isSSOEnabled && password) {
+                    emailService.newUserAddedPassword(user.fullName, user.email, password, school.name);
+                } else if (isSSOEnabled) {
+                    emailService.newUserAddedSSO(user.fullName, user.email, school.name);
+                }
+            }
+
+            let success: string[] = [];
+            let failedToAdd: string[] = [];
+            let errors: string[] = [];
+            let fetchSchool: any;
+
+            for (let i = 0; i < importedUsers.length; i++) {
+                const newUserInput = importedUsers[i];
+
+                const {
+                    role,
+                    email,
+                    fullName,
+                    grade,
+                    section,
+                    avatar,
+                    sisId,
+                    schoolId,
+                    storePersonalInfo,
+                    dateOfBirth,
+                    expectedGradYear,
+                    phoneNumber,
+                    streetAddress,
+                    city,
+                    state,
+                    country,
+                    zip,
+                    giveParentsAccess,
+                    parent1Name,
+                    parent1Email,
+                    parent2Name,
+                    parent2Email,
+                } = newUserInput;
+
+                // BASIC VALIDATION
+                const checkExistingUser = await UserModel.findOne({
+                    email,
+                });
+
+                if (checkExistingUser) {
+                    failedToAdd.push(i.toString());
+                    errors.push('EMAIL_ALREADY_EXISTS');
+                    continue;
+                }
+
+                if (sisId) {
+                    const checkExistingSISId = await UserModel.findOne({
+                        sisId,
+                    });
+
+                    if (checkExistingSISId) {
+                        failedToAdd.push(i.toString());
+                        errors.push('DUPLICATE_SIS_ID');
+                        continue;
+                    }
+                }
+
+                let storeSisId = sisId;
+
+                // GENERATE NEW SIS ID IF NOT AVAILABLE
+                if (!sisId) {
+                    storeSisId = customId({
+                        name: fullName,
+                        email,
+                    });
+                }
+
+                let personalInfo = {
+                    dateOfBirth,
+                    expectedGradYear,
+                    phoneNumber,
+                    streetAddress,
+                    city,
+                    state,
+                    country,
+                    zip,
+                };
+
+                let parent1;
+                let parent2;
+                let parent1Password;
+                let parent2Password;
+
+                // PARENT ACCESS VALIDATION
+                if (giveParentsAccess) {
+                    // FIRST CHECK IF PARENT EMAILS ARE VALID
+                    let fetchParent1;
+                    let fetchParent2;
+
+                    if (parent1Email && parent1Name) {
+                        // check if parent1Email is valid
+                        fetchParent1 = await UserModel.findOne({
+                            email: parent1Email,
+                        });
+
+                        if (fetchParent1 && fetchParent1.role && fetchParent1.role !== 'parent') {
+                            failedToAdd.push(i.toString());
+                            errors.push('PARENT_1_EMAIL_INVALID');
+                            continue;
+                        }
+                    }
+
+                    if (parent2Email && parent2Name) {
+                        // check if parent2Email is valid
+                        fetchParent2 = await UserModel.findOne({
+                            email: parent2Email,
+                        });
+
+                        if (fetchParent2 && fetchParent2.role && fetchParent2.role !== 'parent') {
+                            failedToAdd.push(i.toString());
+                            errors.push('PARENT_2_EMAIL_INVALID');
+                            continue;
+                        }
+                    }
+
+                    if (parent1Email && parent1Name) {
+                        if (fetchParent1) {
+                            parent1 = {
+                                _id: fetchParent1._id,
+                                name: fetchParent1.fullName,
+                                email: fetchParent1.email,
+                            };
+                        } else {
+                            // GENERATE PASSWORD FOR PARENT1
+                            const username =
+                                parent1Email.split('@')[0] +
+                                Math.floor(Math.random() * (999 - 100 + 1) + 100).toString();
+                            const password = username + '@123';
+                            const hash = await hashPassword(password);
+                            parent1Password = password;
+
+                            // create new parent
+                            const newParent = await UserModel.create({
+                                notificationId: 'NOT_SET',
+                                fullName: parent1Name,
+                                email: parent1Email.toLowerCase(),
+                                role: 'parent',
+                                displayName: parent1Name.toLowerCase(),
+                                password: hash,
+                            });
+
+                            if (newParent) {
+                                parent1 = {
+                                    _id: newParent._id,
+                                    name: parent1Name,
+                                    email: parent1Email,
+                                };
+                            }
+                        }
+                    }
+
+                    if (parent2Email && parent2Name) {
+                        if (fetchParent2) {
+                            parent2 = {
+                                _id: fetchParent2._id,
+                                name: fetchParent2.fullName,
+                                email: fetchParent2.email,
+                            };
+                        } else {
+                            // GENERATE PASSWORD FOR PARENT1
+                            const username =
+                                parent2Email.split('@')[0] +
+                                Math.floor(Math.random() * (999 - 100 + 1) + 100).toString();
+                            const password = username + '@123';
+                            const hash = await hashPassword(password);
+                            parent2Password = password;
+
+                            // create new parent
+                            const newParent = await UserModel.create({
+                                notificationId: 'NOT_SET',
+                                fullName: parent2Name,
+                                email: parent2Email.toLowerCase(),
+                                role: 'parent',
+                                displayName: parent2Name.toLowerCase(),
+                                password: hash,
+                            });
+
+                            if (newParent) {
+                                parent2 = {
+                                    _id: newParent._id,
+                                    name: parent2Name,
+                                    email: parent2Email,
+                                };
+                            }
+                        }
+                    }
+                }
+
+                const username = email.split('@')[0] + Math.floor(Math.random() * (999 - 100 + 1) + 100).toString();
+                const password = username + '@123';
+                const hash = await hashPassword(password);
+
+                const createNewUser = await UserModel.create({
+                    notificationId: 'NOT_SET',
+                    email: email.toLowerCase(),
+                    fullName,
+                    displayName: fullName.toLowerCase(),
+                    role,
+                    grade,
+                    section,
+                    avatar,
+                    schoolId,
+                    sisId: storeSisId,
+                    personalInfo: storePersonalInfo ? personalInfo : undefined,
+                    parent1: role === 'student' && parent1 ? parent1 : undefined,
+                    parent2: role === 'student' && parent2 ? parent2 : undefined,
+                    password: hash,
+                });
+
+                if (!createNewUser) {
+                    failedToAdd.push(i.toString());
+                    errors.push('SOMETHING_WENT_WRONG');
+                    continue;
+                }
+
+                let isSSOSchool = false;
+
+                if (!fetchSchool) {
+                    fetchSchool = await SchoolsModel.findOne({
+                        _id: schoolId,
+                    });
+                }
+
+                const school = fetchSchool.toObject();
+                const user = createNewUser.toObject();
+
+                if (fetchSchool.ssoEnabled && fetchSchool.workosConnection) {
+                    isSSOSchool = true;
+                }
+
+                emailAccessToStudent(user, school, isSSOSchool, !isSSOSchool ? password : undefined);
+
+                // if (giveParentsAccess && parent1 && parent1Password) {
+                //     emailAccessToParent(parent1, user, parent1Password, school);
+                // }
+
+                // if (giveParentsAccess && parent2 && parent2Password) {
+                //     emailAccessToParent(parent2, user, parent2Password, school);
+                // }
+
+                success.push(i.toString());
+            }
+
+            return {
+                success,
+                failedToAdd,
+                errors,
+            };
+        } catch (e) {
+            console.log('Error', e);
+            return null;
         }
     }
 

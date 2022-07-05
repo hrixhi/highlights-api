@@ -22,4 +22,7 @@ export class DirectoryUserObject {
 
     @Field((type) => String)
     public roleDescription: String;
+
+    @Field((type) => [String], { nullable: true })
+    public courses?: [String];
 }

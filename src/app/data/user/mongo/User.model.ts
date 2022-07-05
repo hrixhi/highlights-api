@@ -22,7 +22,9 @@ export interface IUserModel extends Document {
     personalInfo?: any;
     parent1?: any;
     parent2?: any;
+    parentSchoolIds?: string[];
     adminInfo?: any;
+    streamToken?: string;
     // DELETE LATER
     randomShuffleFrequency?: string;
     sleepFrom?: string;

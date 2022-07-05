@@ -145,6 +145,8 @@ export class SchoolQueryResolver {
                 return 'ACTIVE';
             } else if (account.details_submitted) {
                 return 'IN_PROGRESS';
+            } else {
+                return 'PENDING';
             }
 
             return 'ERROR';

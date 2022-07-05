@@ -30,9 +30,15 @@ import { hashPassword } from '@app/data/methods';
 import shortid from 'shortid';
 import { EmailModel } from '@app/data/emails/mongo/email.model';
 import { ZoomRegistrationModel } from '@app/data/zoom-registration/mongo/zoom-registration.model';
+import { StreamChat } from 'stream-chat';
+import Expo from 'expo-server-sdk';
 const crypto = require('crypto');
+import * as OneSignal from 'onesignal-node';
 
 const PSPDFKIT_API_KEY = 'pdf_live_pixgIxf3rrhpCL1z6QqEhWzU2q2fSPmrwA7bHv6hp5r';
+
+const STREAM_CHAT_API_KEY = 'fa2jhu3kqpah';
+const STREAM_CHAT_API_SECRET = 'vt9u5pp227pqb29jjnc669a743h7df9k9gu9xwbtnccxgy6a58xx389dt2zj6ptd';
 
 /**
  * This is the function used to initializeroutes that is going to let uses upload to the s3 bucket.
@@ -1504,6 +1510,127 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 '&password=' +
                 encodeURIComponent(password),
         });
+    });
+
+    // STREAM CHAT
+    GQLServer.post('/getstream', async (req: any, res: any) => {
+        const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
+        console.log('Incoming body', req.body);
+
+        const body = req.body;
+
+        try {
+            if (body.type === 'message.new') {
+                const message = body.message;
+                const user = body.user;
+                const members = body.members;
+                const channelId = body.channel_id;
+                const messageId = body.message_id;
+
+                let messageText = '';
+                let isGroup = false;
+                let groupName = '';
+                let messageFrom = user.name;
+
+                if (message.text && message.text !== '') {
+                    messageText = message.text;
+                } else if (message.attachments && message.attachments.length > 0) {
+                    if (message.attachments.length > 1) {
+                        messageText = 'Attachments sent';
+                    } else {
+                        const attachment = message.attachments[0];
+
+                        if (attachment.type === 'meeting') {
+                            messageText = 'New meeting';
+                        } else if (attachment.type === 'file') {
+                            messageText = 'File sent';
+                        } else if (attachment.type === 'image') {
+                            messageText = 'Image sent';
+                        } else if (attachment.type === 'video') {
+                            messageText = 'Video sent';
+                        } else {
+                            messageText = 'Attachment sent';
+                        }
+                    }
+                }
+
+                const fetchChannel = await serverClient.channel('messaging', channelId);
+
+                if (fetchChannel.data && fetchChannel.data.name) {
+                    isGroup = true;
+                    groupName = fetchChannel.data.name;
+                }
+
+                //
+                const membersToNotify: string[] = [];
+
+                members.map((member: any) => {
+                    if (member.user_id !== user.id) {
+                        membersToNotify.push(member.user_id);
+                    }
+                });
+
+                const fetchMembers = await UserModel.find({
+                    _id: { $in: membersToNotify },
+                });
+
+                let notifications: any[] = [];
+
+                for (let i = 0; i < fetchMembers.length; i++) {
+                    const member = fetchMembers[i];
+
+                    const notifIds = member.notificationId.split('-BREAK-');
+
+                    notifIds.map((notifId: any) => {
+                        if (!Expo.isExpoPushToken(notifId)) {
+                            return;
+                        }
+
+                        notifications.push({
+                            to: notifId,
+                            sound: 'default',
+                            title: isGroup ? groupName : 'New message',
+                            subtitle: messageFrom + ': ' + messageText,
+                            data: { userId: member._id, messageId },
+                        });
+                    });
+                }
+
+                const oneSignalClient = new OneSignal.Client(
+                    '78cd253e-262d-4517-a710-8719abf3ee55',
+                    'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+                );
+
+                const notification = {
+                    contents: {
+                        en: (isGroup ? groupName + ': ' : '') + 'New message from ' + messageFrom,
+                    },
+                    include_external_user_ids: membersToNotify,
+                };
+
+                const notificationService = new Expo();
+
+                const response = await oneSignalClient.createNotification(notification);
+
+                let chunks = notificationService.chunkPushNotifications(notifications);
+                for (let chunk of chunks) {
+                    try {
+                        await notificationService.sendPushNotificationsAsync(chunk);
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+            }
+
+            return res.status(200).json({
+                success: true,
+            });
+        } catch (e) {
+            return res.status(500).json({
+                success: false,
+            });
+        }
     });
 }
 

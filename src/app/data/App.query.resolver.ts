@@ -21,6 +21,7 @@ import { FeePlanQueryResolver } from './fee-plan/FeePlan.queries';
 import { GradingScaleQueryResolver } from './grading-scale/GradingScale.queries';
 import { GradebookQueryResolver } from './gradebook-entries/GradebookEntry.queries';
 import { StandardsQueryResolver } from './standards/Standards.queries';
+import { StreamChatQueryResolver } from './stream-chat/StreamChat.queries';
 
 @Resolver()
 export class AppQueryResolver {
@@ -132,5 +133,10 @@ export class AppQueryResolver {
     @Query((returns) => StandardsQueryResolver)
     public standards() {
         return new StandardsQueryResolver();
+    }
+
+    @Query((returns) => StreamChatQueryResolver)
+    public streamChat() {
+        return new StreamChatQueryResolver();
     }
 }

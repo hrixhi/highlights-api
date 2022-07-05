@@ -65,7 +65,7 @@ const schema = new Schema({
         required: false,
     },
     nonChannelGroupId: {
-        type: Types.ObjectId,
+        type: String,
         required: false,
     },
     // SCHOOL CALENDAR EVENTS IF SCHOOL ID PRESENT

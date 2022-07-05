@@ -24,7 +24,7 @@ import { ZoomRegistrationModel } from '../zoom-registration/mongo/zoom-registrat
 import { NewCourseAdmin } from './input-types/NewCourseAdminInput.input';
 import { ImportedCourseAdmin } from './input-types/ImportedCourseAdmin.input';
 import { AcademicTermModel } from '../academic-term/mongo/academicTerm.model';
-import { AddImportedCoursesResponse } from './types/AddImportedUsersResponse.type';
+import { AddImportedCoursesResponse } from './types/AddImportedCoursesResponse.type';
 const customId = require('custom-id');
 
 /**

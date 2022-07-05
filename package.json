@@ -79,6 +79,7 @@
 		"simple-statistics": "^7.7.0",
 		"sqs": "^2.0.2",
 		"stream": "^0.0.2",
+		"stream-chat": "^6.7.2",
 		"stripe": "^7.63.1",
 		"tsconfig-paths": "^3.9.0",
 		"twilio": "^3.55.1",
