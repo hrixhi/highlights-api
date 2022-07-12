@@ -7,6 +7,8 @@ import { SubscriptionModel } from '../subscription/mongo/Subscription.model';
 import { ChannelModel } from '../channel/mongo/Channel.model';
 import { GroupModel } from '../group/mongo/Group.model';
 import { UserModel } from '../user/mongo/User.model';
+import { STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET } from '@config/StreamKeys';
+import { StreamChat } from 'stream-chat';
 
 /**
  * Date Query Endpoints
@@ -130,19 +132,32 @@ export class DateQueryResolver {
                 });
             });
 
-            const allGroups = await GroupModel.find({
-                users: userId,
-            });
+            const fetchUser = await UserModel.findById(userId);
 
-            const groupIdInputs: any[] = [];
-            allGroups.map((g) => {
-                const grp = g.toObject();
-                groupIdInputs.push(grp._id);
-            });
+            // INBOX MEETINGS
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
+            const filter = { type: 'messaging', members: { $in: [userId] }, team: fetchUser?.schoolId };
+
+            const channels = await serverClient.queryChannels(filter);
+
+            const channelIds = channels.map((channel) => channel.id);
+
+            console.log('Channels', channelIds);
+
+            // const allGroups = await GroupModel.find({
+            //     users: userId,
+            // });
+
+            // const groupIdInputs: any[] = [];
+            // allGroups.map((g) => {
+            //     const grp = g.toObject();
+            //     groupIdInputs.push(grp._id);
+            // });
 
             const nonChannelMeetings: any[] = await DateModel.find({
                 isNonChannelMeeting: true,
-                nonChannelGroupId: { $in: groupIdInputs },
+                nonChannelGroupId: { $in: channelIds },
                 end: { $gte: new Date() },
                 scheduledMeetingForChannelId: { $eq: undefined },
             });

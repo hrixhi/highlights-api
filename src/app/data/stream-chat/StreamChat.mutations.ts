@@ -7,9 +7,7 @@ import axios from 'axios';
 import moment from 'moment';
 import { DateModel } from '../dates/mongo/dates.model';
 import { StreamChatMeetingObject } from './types/StreamChatMeeting.type';
-
-const API_KEY = 'fa2jhu3kqpah';
-const API_SECRET = 'vt9u5pp227pqb29jjnc669a743h7df9k9gu9xwbtnccxgy6a58xx389dt2zj6ptd';
+import { STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET } from '@config/StreamKeys';
 
 @ObjectType()
 export class StreamChatMutationResolver {
@@ -19,7 +17,7 @@ export class StreamChatMutationResolver {
     })
     public async getUserToken(@Arg('userId', (type) => String) userId: string) {
         try {
-            const serverClient = StreamChat.getInstance(API_KEY, API_SECRET);
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
 
             const fetchUser = await UserModel.findById(userId);
 
@@ -65,13 +63,34 @@ export class StreamChatMutationResolver {
         }
     }
 
+    @Field((type) => Boolean, {
+        description: 'Delete the key for stream',
+    })
+    public async deleteStreamToken(@Arg('userId', (type) => String) userId: string) {
+        try {
+            const updateUser = await UserModel.updateOne(
+                {
+                    _id: userId,
+                },
+                {
+                    streamToken: undefined,
+                }
+            );
+
+            return true;
+        } catch (e) {
+            console.log('Error', e);
+            return false;
+        }
+    }
+
     @Field((type) => String, {
         description:
             'Subscribes to a channel & returns "error" or "subscribed" or "incorrect-password" or "your-channel" or "already-subbed".',
     })
     public async regenUserToken(@Arg('userId', (type) => String) userId: string) {
         try {
-            const serverClient = StreamChat.getInstance(API_KEY, API_SECRET);
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
 
             const fetchUser = await UserModel.findById(userId);
 
@@ -119,7 +138,7 @@ export class StreamChatMutationResolver {
     })
     public async registerSchoolUsers(@Arg('schoolId', (type) => String) schoolId: string) {
         try {
-            const serverClient = StreamChat.getInstance(API_KEY, API_SECRET);
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
 
             // MAKE IT MULTI_TENANT
             await serverClient.updateAppSettings({
@@ -160,7 +179,7 @@ export class StreamChatMutationResolver {
     })
     public async registerSchoolParents(@Arg('schoolId', (type) => String) schoolId: string) {
         try {
-            const serverClient = StreamChat.getInstance(API_KEY, API_SECRET);
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
 
             const fetchSchoolStudents = await UserModel.find({
                 role: 'student',
@@ -269,7 +288,7 @@ export class StreamChatMutationResolver {
     })
     public async deleteUsers(@Arg('schoolId', (type) => String) schoolId: string) {
         try {
-            const serverClient = StreamChat.getInstance(API_KEY, API_SECRET);
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
 
             const fetchSchoolUsers = await UserModel.find({
                 schoolId,
@@ -298,7 +317,7 @@ export class StreamChatMutationResolver {
         @Arg('alreadyAdmin', (type) => Boolean) alreadyAdmin: boolean
     ) {
         try {
-            const serverClient = StreamChat.getInstance(API_KEY, API_SECRET);
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
 
             const channel = await serverClient.channel('messaging', groupId);
 
@@ -323,7 +342,7 @@ export class StreamChatMutationResolver {
     })
     public async deleteChannelPermanently(@Arg('groupId', (type) => String) groupId: string) {
         try {
-            const serverClient = StreamChat.getInstance(API_KEY, API_SECRET);
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
 
             const channel = await serverClient.channel('messaging', groupId);
 
@@ -346,7 +365,7 @@ export class StreamChatMutationResolver {
         @Arg('moderators', (type) => [String]) moderators: string[]
     ) {
         try {
-            const serverClient = StreamChat.getInstance(API_KEY, API_SECRET);
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
 
             const channel = await serverClient.channel('messaging', groupId);
 
@@ -373,7 +392,7 @@ export class StreamChatMutationResolver {
         groupId: string
     ) {
         try {
-            const serverClient = StreamChat.getInstance(API_KEY, API_SECRET);
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
 
             const diff = Math.abs(new Date(start).getTime() - new Date(end).getTime());
 

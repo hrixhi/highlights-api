@@ -7,6 +7,8 @@ import { UserModel } from '@app/data/user/mongo/User.model';
 import { SchoolsModel } from '@app/data/school/mongo/School.model';
 import { GroupModel } from '@app/data/group/mongo/Group.model';
 import { ZoomRegistrationModel } from '@app/data/zoom-registration/mongo/zoom-registration.model';
+import { StreamChat } from 'stream-chat';
+import { STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET } from '@config/StreamKeys';
 
 @ObjectType()
 export class EventObject {
@@ -282,28 +284,22 @@ export class EventObject {
         const localThis: any = this;
         const { userId, isNonChannelMeeting, nonChannelGroupId } = localThis._doc || localThis;
 
-        if (isNonChannelMeeting) {
-            const fetchGroup = await GroupModel.findById(nonChannelGroupId);
+        const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
 
-            if (fetchGroup && fetchGroup.users.length > 2) {
-                return fetchGroup.name;
-            } else if (fetchGroup && fetchGroup.users) {
-                let meetingBetween = [];
+        const channel = await serverClient.channel('messaging', nonChannelGroupId);
 
-                for (let i = 0; i < fetchGroup.users.length; i++) {
-                    const u = await UserModel.findById(fetchGroup.users[i]);
+        if (channel) {
+            const members = Object.values(channel.state.members).filter(({ user }) => user?.id !== userId);
 
-                    if (u && u.fullName) {
-                        meetingBetween.push(u.fullName);
-                    }
-                }
+            console.log('Members group username', members);
 
-                if (meetingBetween.length > 1) {
-                    return meetingBetween.join(' <> ');
-                }
-            }
+            const memberNames = members.map((member: any) => {
+                return member.user?.name;
+            });
 
-            return '';
+            console.log('group Username', channel.data?.name ? channel.data?.name : memberNames.join(' <> '));
+
+            return channel.data?.name ? channel.data?.name : memberNames.join(' <> ');
         }
 
         return '';

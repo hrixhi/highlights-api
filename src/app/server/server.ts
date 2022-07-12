@@ -257,7 +257,7 @@ export class Server {
                     ),
                 };
             },
-            // middlewares: [this.requiresAuthentication],
+            middlewares: [this.requiresAuthentication],
         });
 
         // init routes

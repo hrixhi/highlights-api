@@ -34,11 +34,10 @@ import { StreamChat } from 'stream-chat';
 import Expo from 'expo-server-sdk';
 const crypto = require('crypto');
 import * as OneSignal from 'onesignal-node';
+import { STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET } from '@config/StreamKeys';
+import { ServerClient } from 'postmark';
 
 const PSPDFKIT_API_KEY = 'pdf_live_pixgIxf3rrhpCL1z6QqEhWzU2q2fSPmrwA7bHv6hp5r';
-
-const STREAM_CHAT_API_KEY = 'fa2jhu3kqpah';
-const STREAM_CHAT_API_SECRET = 'vt9u5pp227pqb29jjnc669a743h7df9k9gu9xwbtnccxgy6a58xx389dt2zj6ptd';
 
 /**
  * This is the function used to initializeroutes that is going to let uses upload to the s3 bucket.
@@ -794,60 +793,74 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             toReturn['channelCues'] = channelCues;
 
             // Messages
-            const groups = await GroupModel.find({
-                users: userId,
-            });
-            const groupIds = groups.map((g: any) => {
-                const group = g.toObject();
-                return group._id;
-            });
+            // const groups = await GroupModel.find({
+            //     users: userId,
+            // });
+            // const groupIds = groups.map((g: any) => {
+            //     const group = g.toObject();
+            //     return group._id;
+            // });
 
-            let groupUsersMap: any = {};
+            // let groupUsersMap: any = {};
 
-            groups.map((g: any) => {
-                const group = g.toObject();
-                groupUsersMap[group._id.toString()] = group.users;
-            });
+            // groups.map((g: any) => {
+            //     const group = g.toObject();
+            //     groupUsersMap[group._id.toString()] = group.users;
+            // });
 
-            const messages = await MessageModel.find({
-                message: new RegExp(term, 'i'),
-                groupId: { $in: groupIds },
-            }).populate({
-                path: 'groupId',
-                model: 'groups',
-                select: ['name', 'users', 'image'],
-                populate: {
-                    path: 'users',
-                    model: 'users',
-                    select: ['_id', 'fullName', 'avatar'],
+            // const messages = await MessageModel.find({
+            //     message: new RegExp(term, 'i'),
+            //     groupId: { $in: groupIds },
+            // }).populate({
+            //     path: 'groupId',
+            //     model: 'groups',
+            //     select: ['name', 'users', 'image'],
+            //     populate: {
+            //         path: 'users',
+            //         model: 'users',
+            //         select: ['_id', 'fullName', 'avatar'],
+            //     },
+            // });
+
+            // console.log('Messages', messages);
+
+            // const messagesWithUsers = messages.map((mess: any) => {
+            //     const messObj = mess.toObject();
+
+            //     const users = groupUsersMap[messObj.groupId.toString()];
+
+            //     if (users) {
+            //         return {
+            //             ...messObj,
+            //             users,
+            //         };
+            //     }
+
+            //     return {
+            //         ...messObj,
+            //         users: [],
+            //     };
+            // });
+
+            // console.log('Message with users', messagesWithUsers);
+
+            // toReturn['messages'] = messagesWithUsers;
+
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
+            const messages = await serverClient.search(
+                {
+                    members: {
+                        $in: [userId],
+                    },
                 },
-            });
-
-            console.log('Messages', messages);
-
-            const messagesWithUsers = messages.map((mess: any) => {
-                const messObj = mess.toObject();
-
-                const users = groupUsersMap[messObj.groupId.toString()];
-
-                if (users) {
-                    return {
-                        ...messObj,
-                        users,
-                    };
+                term,
+                {
+                    limit: 50,
                 }
+            );
 
-                return {
-                    ...messObj,
-                    users: [],
-                };
-            });
-
-            console.log('Message with users', messagesWithUsers);
-
-            toReturn['messages'] = messagesWithUsers;
-
-            // Need to add the users to each message
+            toReturn['messages'] = Object.values(messages.results);
 
             // threads
             const threads = await ThreadModel.find({

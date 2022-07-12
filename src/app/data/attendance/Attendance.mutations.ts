@@ -443,7 +443,7 @@ export class AttendanceMutationResolver {
                         }
                     );
 
-                    return updateAttendance.nModified > 0;
+                    return true;
                 } else {
                     const createAttendanceEntry = await AttendanceModel.create({
                         attendanceEntryId: entryId,
@@ -475,7 +475,7 @@ export class AttendanceMutationResolver {
                         }
                     );
 
-                    return updateAttendance.nModified > 0;
+                    return true;
                 } else {
                     const createAttendanceEntry = await AttendanceModel.create({
                         dateId: entryId,
