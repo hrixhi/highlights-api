@@ -152,6 +152,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     dateId: dateObject._id,
                     joinedAt: new Date(),
                     channelId: dateObject.scheduledMeetingForChannelId,
+                    attendanceType: 'present',
                 });
 
                 console.log('Attendance marked?', res);
@@ -488,6 +489,80 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                 s3FileName = basename(file.name);
                 s3TypeOfUpload = typeOfUpload;
             }
+
+            AWS.config.update({
+                accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',
+                secretAccessKey: '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',
+            });
+
+            const s3 = new AWS.S3();
+            // configuring parameters
+
+            let params: any;
+            try {
+                params = {
+                    Bucket: 'cues-files',
+                    Body: body,
+                    Key: filePath + s3TypeOfUpload + '/' + Date.now() + '_' + s3FileName,
+                };
+
+                s3.upload(params, (err: any, data: any) => {
+                    // handle error
+                    if (err) {
+                        res.json({
+                            status: 'error',
+                            url: null,
+                        });
+                    }
+                    // success
+                    if (data) {
+                        res.json({
+                            status: 'success',
+                            url: data.Location,
+                        });
+                    }
+                });
+            } catch (e) {
+                //
+                console.log('error', e);
+            }
+        });
+        req.pipe(busboy);
+    });
+
+    /**
+     * This is used for uploading images
+     */
+    GQLServer.post('/api/uploadInbox', (req: any, res: any) => {
+        // this body field is used for recognizition if attachment is EventImage, Asset or simillar.
+
+        const { userId = '' } = req.body;
+
+        let filePath = userId !== '' ? 'media/' + userId + '/' : 'media/all/';
+
+        const typeOfUpload = req.body.typeOfUpload;
+        const busboy = new Busboy({ headers: req.headers });
+
+        // The file upload has completed
+        busboy.on('finish', async () => {
+            let file;
+            let body;
+            let s3FileName;
+            let s3TypeOfUpload;
+
+            try {
+                // Grabs your file object from the request.`
+                file = req.files.attachment;
+            } catch (e) {
+                res.json({
+                    status: 'error',
+                    url: null,
+                });
+            }
+
+            body = file.data;
+            s3FileName = basename(file.name);
+            s3TypeOfUpload = typeOfUpload;
 
             AWS.config.update({
                 accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',

@@ -11,7 +11,7 @@ export class CueInputObject {
     public frequency?: string;
 
     @Field({ nullable: true })
-    public date?: string;
+    public date: string;
 
     @Field({ nullable: true })
     public starred?: boolean;
@@ -22,8 +22,8 @@ export class CueInputObject {
     @Field({ nullable: true })
     public color?: string;
 
-    @Field({ nullable: true })
-    public createdBy?: string;
+    @Field()
+    public createdBy: string;
 
     @Field({ nullable: true })
     public channelId?: string;

@@ -17,6 +17,7 @@ import pdf from 'html-pdf';
 import * as AWS from 'aws-sdk';
 import { FolderModel } from '../folder/mongo/folder.model';
 import Axios from 'axios';
+import { CueObject } from './types/Cue.type';
 const Promise = require('bluebird');
 
 /**
@@ -24,8 +25,9 @@ const Promise = require('bluebird');
  */
 @ObjectType()
 export class CueMutationResolver {
-    @Field((type) => Boolean, {
+    @Field((type) => CueObject, {
         description: 'Used when you want to create a channel cue.',
+        nullable: true,
     })
     public async create(
         @Arg('cue', (type) => String) cue: string,
@@ -56,6 +58,14 @@ export class CueMutationResolver {
             if (!channel) return false;
 
             const { owners = [] } = channel;
+
+            const ownersSet = new Set();
+
+            ownersSet.add(channel.createdBy);
+
+            owners.map((owner: any) => ownersSet.add(owner));
+
+            const ownerIds: any = Array.from(ownersSet);
 
             if (owners.length > 0) {
                 const anotherOwner = owners.find((item: any) => {
@@ -88,8 +98,6 @@ export class CueMutationResolver {
                 totalPoints: totalPoints && totalPoints !== '' ? Number(totalPoints) : null,
             };
 
-            console.log('New Cue', c);
-
             const newCue = await CueModel.create({
                 ...c,
                 limitedShares: limitedShares
@@ -108,7 +116,11 @@ export class CueMutationResolver {
             const modifications: any[] = [];
 
             if (shareWithUserIds !== undefined && shareWithUserIds !== null) {
-                userIds = shareWithUserIds;
+                // NEED TO ADD CHANNEL CREATOR AND MODERATORS SINCE THEY ARE INCLUDED IN SHARE WITH IDS
+                userIds = [...shareWithUserIds, ...ownerIds];
+
+                console.log('All User Ids', userIds);
+
                 userIds.map((userId: string) => {
                     modifications.push({
                         ...c,
@@ -241,10 +253,23 @@ export class CueMutationResolver {
             // 	})
             // })
 
-            return true;
+            if (newCue) {
+                console.log('New Cue Id', newCue._id);
+
+                const fetchMod = await ModificationsModel.findOne({
+                    cueId: newCue._id,
+                    userId: createdBy,
+                });
+
+                console.log('FETCH MOD', fetchMod);
+
+                return fetchMod;
+            }
+
+            return null;
         } catch (e) {
             console.log('Error creating', e);
-            return false;
+            return null;
         }
     }
 
@@ -345,6 +370,281 @@ export class CueMutationResolver {
             console.log('Error', e);
 
             return false;
+        }
+    }
+
+    // USED FOR CREATING LOCAL CUES AND SAVING ALL CUES
+    @Field((type) => CueObject, { nullable: true })
+    public async handleSaveCue(
+        @Arg('cue', (type) => CueInputObject)
+        cue: CueInputObject,
+        @Arg('userId', (type) => String)
+        userId: string,
+        @Arg('create', (type) => Boolean)
+        create: string
+    ) {
+        try {
+            if (create) {
+                if (!cue.channelId || cue.channelId === '') {
+                    const c = JSON.parse(JSON.stringify(cue));
+                    const newCue = {
+                        ...c,
+                        channelId: null,
+                        createdBy: userId,
+                        color: Number(cue.color),
+                        date: new Date(),
+                        endPlayAt: cue.endPlayAt && cue.endPlayAt !== '' ? new Date(cue.endPlayAt) : null,
+                    };
+                    delete newCue._id;
+                    delete newCue.original;
+
+                    const createNewCue = await CueModel.create(newCue);
+
+                    return createNewCue ? createNewCue : undefined;
+                }
+                return undefined;
+            } else {
+                const c = JSON.parse(JSON.stringify(cue));
+
+                // UPDATE CUE
+                const updateCue = {
+                    ...c,
+                    color: Number(cue.color),
+                    date: new Date(cue.date),
+                    endPlayAt: cue.endPlayAt && cue.endPlayAt !== '' ? new Date(cue.endPlayAt) : null,
+                };
+                delete updateCue._id;
+                let updateRes;
+
+                if (cue.channelId && cue.channelId !== '') {
+                    //  now update modifications objects
+                    if (cue.createdBy.toString().trim() !== userId.toString().trim()) {
+                        // Deleting these because they should not be changed...
+                        delete updateCue.deadline;
+                        delete updateCue.initiateAt;
+                        delete updateCue.gradeWeight;
+                        delete updateCue.submission;
+                        delete updateCue.allowedAttempts;
+                        delete updateCue.availableUntil;
+                        delete updateCue.totalPoints;
+
+                        delete updateCue.score;
+                        delete updateCue.submittedAt;
+                        delete updateCue.createdBy;
+                        delete updateCue.graded;
+                        delete updateCue.original;
+                        // Channel cue
+                        const mod = await ModificationsModel.findOne({ userId, cueId: cue._id });
+                        if (mod) {
+                            // Need to avoid overriding submission and quiz attemps
+                            if (mod.submission) {
+                                // If cue is empty then no need to check for updating Annotations
+                                try {
+                                    const newCue = JSON.parse(updateCue.cue);
+
+                                    if (
+                                        newCue.attempts &&
+                                        newCue.attempts.length !== 0 &&
+                                        !newCue.quizResponses &&
+                                        mod.cue
+                                    ) {
+                                        // If it's a submission then we need to update the Annotations
+
+                                        // const currCueValue = mod.cue;
+
+                                        // const obj = JSON.parse(currCueValue);
+
+                                        // const newAttempt = newCue.attempts[newCue.attempts.length - 1];
+
+                                        // const currAttempt = obj.attempts[obj.attempts.length - 1];
+
+                                        // currAttempt.annotations = newAttempt.annotations;
+
+                                        // const allAttempts = [...obj.attempts];
+
+                                        // allAttempts[allAttempts.length - 1] = currAttempt;
+
+                                        // console.log('Update annotation', newAttempt.annotations);
+
+                                        // const updateCue = {
+                                        //     attempts: allAttempts,
+                                        //     submissionDraft: obj.submissionDraft,
+                                        // };
+
+                                        delete updateCue.cue;
+
+                                        updateRes = await ModificationsModel.updateOne(
+                                            {
+                                                cueId: cue._id,
+                                                userId,
+                                            },
+                                            {
+                                                ...updateCue,
+                                                // cue: JSON.stringify(updateCue),
+                                            }
+                                        );
+                                    } else {
+                                        // Quiz so no annotations
+                                        delete updateCue.cue;
+
+                                        updateRes = await ModificationsModel.updateOne(
+                                            {
+                                                cueId: cue._id,
+                                                userId,
+                                            },
+                                            {
+                                                ...updateCue,
+                                            }
+                                        );
+                                    }
+                                } catch (e) {
+                                    delete updateCue.cue;
+
+                                    updateRes = await ModificationsModel.updateOne(
+                                        {
+                                            cueId: cue._id,
+                                            userId,
+                                        },
+                                        {
+                                            ...updateCue,
+                                        }
+                                    );
+
+                                    return;
+                                }
+                            } else {
+                                // update modified
+                                updateRes = await ModificationsModel.updateOne(
+                                    {
+                                        cueId: cue._id,
+                                        userId,
+                                    },
+                                    {
+                                        ...updateCue,
+                                    }
+                                );
+                            }
+                        } else {
+                            // the cue was deleted by owner. do nothing.
+                        }
+                    } else {
+                        // update all modification objects with that particular CueId along with details to original one
+                        const subscribers: any[] = await SubscriptionModel.find({
+                            channelId: cue.channelId,
+                            unsubscribedAt: { $exists: false },
+                        });
+                        const userIds: any[] = [];
+                        subscribers.map((s) => {
+                            const sub = s.toObject();
+                            userIds.push(sub.userId);
+                        });
+
+                        delete updateCue.score;
+                        delete updateCue.graded;
+                        delete updateCue.submittedAt;
+                        delete updateCue.createdBy;
+                        const tempCue = updateCue.cue;
+                        const tempOriginal = updateCue.original;
+                        delete updateCue.cue;
+                        delete updateCue.original;
+                        const tempAnnotations = updateCue.annotations;
+                        delete updateCue.annotations;
+
+                        if (tempOriginal === undefined || tempOriginal === null) {
+                            await CueModel.updateOne(
+                                {
+                                    _id: cue._id,
+                                },
+                                {
+                                    ...updateCue,
+                                    gradeWeight:
+                                        updateCue.submission && updateCue.gradeWeight
+                                            ? Number(updateCue.gradeWeight)
+                                            : undefined,
+                                    allowedAttempts: updateCue.allowedAttempts
+                                        ? Number(updateCue.allowedAttempts)
+                                        : null,
+                                    totalPoints:
+                                        updateCue.submission && updateCue.totalPoints
+                                            ? Number(updateCue.totalPoints)
+                                            : undefined,
+                                }
+                            );
+                        } else {
+                            await CueModel.updateOne(
+                                {
+                                    _id: cue._id,
+                                },
+                                {
+                                    ...updateCue,
+                                    cue: tempOriginal,
+                                    gradeWeight:
+                                        updateCue.submission && updateCue.gradeWeight
+                                            ? Number(updateCue.gradeWeight)
+                                            : undefined,
+                                    allowedAttempts: updateCue.allowedAttempts
+                                        ? Number(updateCue.allowedAttempts)
+                                        : null,
+                                    totalPoints:
+                                        updateCue.submission && updateCue.totalPoints
+                                            ? Number(updateCue.totalPoints)
+                                            : undefined,
+                                }
+                            );
+                        }
+                        const updates = await ModificationsModel.updateMany(
+                            {
+                                cueId: cue._id,
+                                userId: { $in: userIds },
+                            },
+                            {
+                                ...updateCue,
+                                gradeWeight:
+                                    updateCue.submission && updateCue.gradeWeight
+                                        ? Number(updateCue.gradeWeight)
+                                        : undefined,
+                                allowedAttempts: updateCue.allowedAttempts ? Number(updateCue.allowedAttempts) : null,
+                                totalPoints:
+                                    updateCue.submission && updateCue.totalPoints
+                                        ? Number(updateCue.totalPoints)
+                                        : undefined,
+                            }
+                        );
+                        // get the cue back to the main owner
+                        updateRes = await ModificationsModel.updateOne(
+                            { cueId: cue._id, userId },
+                            { cue: tempCue, annotations: tempAnnotations }
+                        );
+                    }
+
+                    if (updateRes) {
+                        const fetchModified = await ModificationsModel.findOne({
+                            cueId: cue._id,
+                            userId,
+                        });
+
+                        if (fetchModified) return fetchModified;
+                    }
+                } else {
+                    // Local cue
+
+                    // update the cue
+                    updateRes = await CueModel.updateOne({ _id: cue._id }, { ...updateCue });
+
+                    if (updateRes.n) {
+                        const fetchModified = await CueModel.findById(cue._id);
+
+                        if (fetchModified) return fetchModified;
+                    }
+                }
+
+                console.log('Update Res', updateRes);
+
+                return null;
+            }
+        } catch (e) {
+            console.log('Error', e);
+            return null;
         }
     }
 

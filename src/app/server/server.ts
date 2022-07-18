@@ -182,35 +182,52 @@ export class Server {
     //  This object assigns all the necessary resolver, queries and mutations with the isLoggedIn middleware
     private requiresAuthentication = {
         Query: {
-            // activity: this.isLoggedIn,
+            activity: this.isLoggedIn,
             attendance: this.isLoggedIn,
-            // channel: this.isLoggedIn,
+            channel: this.isLoggedIn,
             cue: this.isLoggedIn,
             date: this.isLoggedIn,
             folder: this.isLoggedIn,
             group: this.isLoggedIn,
             message: this.isLoggedIn,
             messageStatus: this.isLoggedIn,
-            // subscription: this.isLoggedIn,
+            subscription: this.isLoggedIn,
             thread: this.isLoggedIn,
             status: this.isLoggedIn,
             threadStatus: this.isLoggedIn,
             quiz: this.isLoggedIn,
+            school: this.isLoggedIn,
+            announcements: this.isLoggedIn,
+            academicTerms: this.isLoggedIn,
+            feePlans: this.isLoggedIn,
+            gradingScales: this.isLoggedIn,
+            gradebook: this.isLoggedIn,
+            standards: this.isLoggedIn,
+            streamChat: this.isLoggedIn,
+            // NOT ADDING USER HERE SINCE LOGIN IS HANDLED BY USER QUERY
         },
         Mutation: {
             activity: this.isLoggedIn,
             attendance: this.isLoggedIn,
-            // channel: this.isLoggedIn,
+            channel: this.isLoggedIn,
             cue: this.isLoggedIn,
             date: this.isLoggedIn,
             folder: this.isLoggedIn,
             message: this.isLoggedIn,
             messageStatus: this.isLoggedIn,
-            // subscription: this.isLoggedIn,
+            subscription: this.isLoggedIn,
             thread: this.isLoggedIn,
             status: this.isLoggedIn,
             threadStatus: this.isLoggedIn,
             quiz: this.isLoggedIn,
+            announcements: this.isLoggedIn,
+            academicTerms: this.isLoggedIn,
+            feePlans: this.isLoggedIn,
+            gradingScales: this.isLoggedIn,
+            gradebook: this.isLoggedIn,
+            standards: this.isLoggedIn,
+            streamChat: this.isLoggedIn,
+            // NOT ADDING USER HERE SINCE DISABLING EXPO TOKENS HAPPENS AFTER WE
         },
     };
 
@@ -227,6 +244,7 @@ export class Server {
 
                 if (req.request.header('authorization')) {
                     token = req.request.header('authorization') || '';
+                    console.log('JWT TOKEN', token);
                 }
 
                 let jwtUser: any = null;

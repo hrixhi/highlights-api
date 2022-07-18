@@ -1,4 +1,4 @@
-const isDevelopment = true;
+const isDevelopment = false;
 
 export const STREAM_CHAT_API_KEY = isDevelopment ? 'fa2jhu3kqpah' : 'hfh5wcccsja6';
 export const STREAM_CHAT_API_SECRET = isDevelopment

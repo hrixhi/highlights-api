@@ -5,23 +5,30 @@ import { JWT_SECRET } from '../configs/app';
  * This is the function that creates a token user object that is the authorization stamp for a client
  */
 export async function createJWTUser(userDocument: any) {
-  const token = jwt.sign(userDocument.toObject(), JWT_SECRET);
-  return {
-    id: userDocument.id,
-    username: userDocument.email,
-    name: userDocument.name,
-    healthStatus: userDocument.healthStatus,
-    logId: userDocument.logId,
-    stillOut: userDocument.stillOut,
-    lastname: userDocument.lastname,
-    age: userDocument.age ? userDocument.age : 0,
-    token
-  };
+    const token = jwt.sign(userDocument.toObject(), JWT_SECRET);
+    return {
+        id: userDocument.id,
+        username: userDocument.email,
+        name: userDocument.name,
+        healthStatus: userDocument.healthStatus,
+        logId: userDocument.logId,
+        stillOut: userDocument.stillOut,
+        lastname: userDocument.lastname,
+        age: userDocument.age ? userDocument.age : 0,
+        token,
+    };
 }
 
-// Create JWT Token and return it 
+// Create JWT Token and return it
 export function createJWTToken(userId: string) {
-  return jwt.sign({ id: userId }, JWT_SECRET,  {
-    expiresIn: 86400 * 7 // expires in 1 week
-  });
+    return jwt.sign({ id: userId }, JWT_SECRET, {
+        expiresIn: 86400 * 7, // expires in 1 week
+    });
 }
+
+// TEST JWT TOKEN
+// export function createJWTToken(userId: string) {
+//     return jwt.sign({ id: userId }, JWT_SECRET, {
+//         expiresIn: 180, // expires in 3 min for testing
+//     });
+// }

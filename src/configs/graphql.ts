@@ -5,7 +5,7 @@ export default {
     subscriptions: {
         port: 4100,
     },
-    port: 8000,
+    port: 8081,
     bodyParserOptions: { limit: '50mb', type: 'application/json' },
     uploads: {
         maxFieldSize: 1000000000,

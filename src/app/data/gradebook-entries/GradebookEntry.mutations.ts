@@ -329,193 +329,203 @@ export class GradebookEntryMutationResolver {
         @Arg('releaseSubmission', (type) => Boolean) releaseSubmission: boolean
     ) {
         // Gradebook entry
-        if (gradebookEntry) {
-            // Update gradebook entry
-            const updateGradebook = await GradebookEntryModel.updateOne(
-                {
-                    _id: entryId,
-                },
-                {
-                    releaseSubmission,
-                }
-            );
-
-            const fetchGradebookEntry = await GradebookEntryModel.findOne({
-                _id: entryId,
-            });
-
-            if (updateGradebook.nModified > 0 && releaseSubmission && fetchGradebookEntry) {
-                const { title, channelId } = fetchGradebookEntry;
-
-                const notificationService = new Expo();
-                let userIds: string[] = [];
-                const messages: any[] = [];
-
-                const fetchChannel = await ChannelModel.findById(channelId);
-
-                if (!fetchChannel) return;
-
-                const subscriptions = await SubscriptionModel.find({
-                    $and: [{ channelId }, { unsubscribedAt: { $exists: false } }],
-                });
-
-                subscriptions.map((s) => {
-                    userIds.push(s.userId);
-                });
-
-                const subscribers = await UserModel.find({ _id: { $in: userIds } });
-
-                subscribers.map((sub: any) => {
-                    const notificationIds = sub.notificationId.split('-BREAK-');
-                    notificationIds.map((notifId: any) => {
-                        if (!Expo.isExpoPushToken(notifId)) {
-                            return;
-                        }
-                        messages.push({
-                            to: notifId,
-                            sound: 'default',
-                            subtitle: title,
-                            title: fetchChannel.name + ' - ' + title + ' ',
-                            body: 'Grades available',
-                            data: { userId: sub._id },
-                        });
-                    });
-                });
-
-                let chunks = notificationService.chunkPushNotifications(messages);
-                for (let chunk of chunks) {
-                    try {
-                        let ticketChunk = await notificationService.sendPushNotificationsAsync(chunk);
-                    } catch (e) {
-                        console.error(e);
+        try {
+            if (gradebookEntry) {
+                // Update gradebook entry
+                const updateGradebook = await GradebookEntryModel.updateOne(
+                    {
+                        _id: entryId,
+                    },
+                    {
+                        releaseSubmission,
                     }
-                }
-
-                // Web notifications
-
-                const oneSignalClient = new OneSignal.Client(
-                    '78cd253e-262d-4517-a710-8719abf3ee55',
-                    'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
                 );
 
-                const notification = {
-                    contents: {
-                        en: fetchChannel.name + ' - ' + title + ' ' + 'Grades available',
-                    },
-                    include_external_user_ids: userIds,
-                };
-
-                if (userIds.length > 0) {
-                    const response = await oneSignalClient.createNotification(notification);
-                }
-
-                return true;
-            } else if (updateGradebook.nModified > 0) {
-                return true;
-            }
-
-            // Assignment
-        } else {
-            const updateCue = await CueModel.updateOne(
-                {
+                const fetchGradebookEntry = await GradebookEntryModel.findOne({
                     _id: entryId,
-                },
-                {
-                    releaseSubmission,
-                }
-            );
-
-            const updateModifications = await ModificationsModel.updateMany(
-                {
-                    cueId: entryId,
-                },
-                {
-                    releaseSubmission,
-                }
-            );
-
-            const fetchCue = await CueModel.findById(entryId);
-
-            if (releaseSubmission && fetchCue) {
-                const { submission, channelId, gradeWeight, cue } = fetchCue;
-
-                const notificationService = new Expo();
-                let userIds: string[] = [];
-                const messages: any[] = [];
-
-                const fetchChannel = await ChannelModel.findById(channelId);
-
-                if (!fetchChannel || !submission) return;
-
-                const subscriptions = await SubscriptionModel.find({
-                    $and: [{ channelId }, { unsubscribedAt: { $exists: false } }],
                 });
 
-                subscriptions.map((s) => {
-                    userIds.push(s.userId);
-                });
+                if (updateGradebook.nModified > 0 && releaseSubmission && fetchGradebookEntry) {
+                    const { title, channelId } = fetchGradebookEntry;
 
-                const { title, subtitle: body } = htmlStringParser(cue);
+                    const notificationService = new Expo();
+                    let userIds: string[] = [];
+                    const messages: any[] = [];
 
-                const subscribers = await UserModel.find({ _id: { $in: userIds } });
-                const activity: any[] = [];
+                    const fetchChannel = await ChannelModel.findById(channelId);
 
-                subscribers.map((sub) => {
-                    const notificationIds = sub.notificationId.split('-BREAK-');
-                    notificationIds.map((notifId: any) => {
-                        if (!Expo.isExpoPushToken(notifId)) {
-                            return;
-                        }
-                        messages.push({
-                            to: notifId,
-                            sound: 'default',
-                            subtitle: title,
-                            title: fetchChannel.name + ' - ' + title + ' ',
-                            body:
-                                submission && gradeWeight && gradeWeight > 0 ? ' Grades available' : 'Scores available',
-                            data: { userId: sub._id },
+                    if (!fetchChannel) return;
+
+                    const subscriptions = await SubscriptionModel.find({
+                        $and: [{ channelId }, { unsubscribedAt: { $exists: false } }],
+                    });
+
+                    subscriptions.map((s) => {
+                        userIds.push(s.userId);
+                    });
+
+                    const subscribers = await UserModel.find({ _id: { $in: userIds } });
+
+                    subscribers.map((sub: any) => {
+                        const notificationIds = sub.notificationId.split('-BREAK-');
+                        notificationIds.map((notifId: any) => {
+                            if (!Expo.isExpoPushToken(notifId)) {
+                                return;
+                            }
+                            messages.push({
+                                to: notifId,
+                                sound: 'default',
+                                subtitle: title,
+                                title: fetchChannel.name + ' - ' + title + ' ',
+                                body: 'Grades available',
+                                data: { userId: sub._id },
+                            });
                         });
                     });
-                });
 
-                let chunks = notificationService.chunkPushNotifications(messages);
-                for (let chunk of chunks) {
-                    try {
-                        let ticketChunk = await notificationService.sendPushNotificationsAsync(chunk);
-                    } catch (e) {
-                        console.error(e);
+                    let chunks = notificationService.chunkPushNotifications(messages);
+                    for (let chunk of chunks) {
+                        try {
+                            let ticketChunk = await notificationService.sendPushNotificationsAsync(chunk);
+                        } catch (e) {
+                            console.error(e);
+                        }
                     }
+
+                    // Web notifications
+
+                    const oneSignalClient = new OneSignal.Client(
+                        '78cd253e-262d-4517-a710-8719abf3ee55',
+                        'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+                    );
+
+                    const notification = {
+                        contents: {
+                            en: fetchChannel.name + ' - ' + title + ' ' + 'Grades available',
+                        },
+                        include_external_user_ids: userIds,
+                    };
+
+                    if (userIds.length > 0) {
+                        const response = await oneSignalClient.createNotification(notification);
+                    }
+
+                    return true;
+                } else if (updateGradebook.nModified > 0) {
+                    return true;
                 }
 
-                // Web notifications
-
-                const oneSignalClient = new OneSignal.Client(
-                    '78cd253e-262d-4517-a710-8719abf3ee55',
-                    'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+                // Assignment
+            } else {
+                const updateCue = await CueModel.updateOne(
+                    {
+                        _id: entryId,
+                    },
+                    {
+                        releaseSubmission,
+                    }
                 );
 
-                const notification = {
-                    contents: {
-                        en:
-                            fetchChannel.name +
-                            ' - ' +
-                            title +
-                            ' ' +
-                            (submission && gradeWeight && gradeWeight > 0 ? ' Grades available' : 'Scores available'),
+                console.log('Update Cue', updateCue);
+
+                const updateModifications = await ModificationsModel.updateMany(
+                    {
+                        cueId: entryId,
                     },
-                    include_external_user_ids: userIds,
-                };
+                    {
+                        releaseSubmission,
+                    }
+                );
 
-                if (userIds.length > 0) {
-                    const response = await oneSignalClient.createNotification(notification);
+                const fetchCue = await CueModel.findById(entryId);
+
+                if (releaseSubmission && fetchCue) {
+                    const { submission, channelId, gradeWeight, cue } = fetchCue;
+
+                    const notificationService = new Expo();
+                    let userIds: string[] = [];
+                    const messages: any[] = [];
+
+                    const fetchChannel = await ChannelModel.findById(channelId);
+
+                    if (!fetchChannel || !submission) return;
+
+                    const subscriptions = await SubscriptionModel.find({
+                        $and: [{ channelId }, { unsubscribedAt: { $exists: false } }],
+                    });
+
+                    subscriptions.map((s) => {
+                        userIds.push(s.userId);
+                    });
+
+                    const { title, subtitle: body } = htmlStringParser(cue);
+
+                    const subscribers = await UserModel.find({ _id: { $in: userIds } });
+                    const activity: any[] = [];
+
+                    subscribers.map((sub) => {
+                        const notificationIds = sub.notificationId.split('-BREAK-');
+                        notificationIds.map((notifId: any) => {
+                            if (!Expo.isExpoPushToken(notifId)) {
+                                return;
+                            }
+                            messages.push({
+                                to: notifId,
+                                sound: 'default',
+                                subtitle: title,
+                                title: fetchChannel.name + ' - ' + title + ' ',
+                                body:
+                                    submission && gradeWeight && gradeWeight > 0
+                                        ? ' Grades available'
+                                        : 'Scores available',
+                                data: { userId: sub._id },
+                            });
+                        });
+                    });
+
+                    let chunks = notificationService.chunkPushNotifications(messages);
+                    for (let chunk of chunks) {
+                        try {
+                            let ticketChunk = await notificationService.sendPushNotificationsAsync(chunk);
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+
+                    // Web notifications
+
+                    const oneSignalClient = new OneSignal.Client(
+                        '78cd253e-262d-4517-a710-8719abf3ee55',
+                        'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+                    );
+
+                    const notification = {
+                        contents: {
+                            en:
+                                fetchChannel.name +
+                                ' - ' +
+                                title +
+                                ' ' +
+                                (submission && gradeWeight && gradeWeight > 0
+                                    ? ' Grades available'
+                                    : 'Scores available'),
+                        },
+                        include_external_user_ids: userIds,
+                    };
+
+                    if (userIds.length > 0) {
+                        const response = await oneSignalClient.createNotification(notification);
+                    }
+
+                    return true;
+                } else if (updateCue.nModified > 0) {
+                    return true;
                 }
-
-                return true;
-            } else if (updateCue.nModified > 0) {
-                return true;
             }
+
+            return false;
+        } catch (e) {
+            return false;
         }
-
-        return false;
     }
 }

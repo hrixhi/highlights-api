@@ -61,6 +61,23 @@ export class CueQueryResolver {
         }
     }
 
+    @Field((type) => CueObject, {
+        description: 'Returns list of cues created by a user.',
+        nullable: true,
+    })
+    public async findCueById(
+        @Arg('cueId', (type) => String)
+        cueId: string,
+        @Arg('userId', (type) => String)
+        userId: string
+    ) {
+        try {
+            return await ModificationsModel.findOne({ userId, cueId });
+        } catch (e) {
+            return null;
+        }
+    }
+
     @Field((type) => [CueObject], {
         description: 'Returns list of cues created by a user.',
     })

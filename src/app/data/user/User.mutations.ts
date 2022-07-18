@@ -19,6 +19,8 @@ import { zoomClientId, zoomClientSecret, zoomRedirectUri } from '../../../helper
 import { NewUserAdmin } from './input-types/NewUserAdmin.input';
 import { EditUserAdmin } from './input-types/EditUserAdmin.input';
 import { AddImportedUsersResponse } from './types/AddImportedUsersResponse.type';
+import { StreamChat } from 'stream-chat';
+import { STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET } from '@config/StreamKeys';
 
 const customId = require('custom-id');
 
@@ -66,7 +68,7 @@ export class UserMutationResolver {
         avatar?: string
     ) {
         try {
-            await UserModel.updateOne(
+            const updateUser = await UserModel.updateOne(
                 { _id: userId },
                 {
                     fullName,
@@ -74,6 +76,20 @@ export class UserMutationResolver {
                     avatar: avatar ? avatar : undefined,
                 }
             );
+
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
+            if (updateUser) {
+                // UPDATE STREAM PROFILE FOR USER
+                serverClient.partialUpdateUser({
+                    id: userId,
+                    set: {
+                        name: fullName,
+                        image: avatar,
+                    },
+                });
+            }
+
             return true;
         } catch (e) {
             console.log(e);
@@ -1164,6 +1180,17 @@ export class UserMutationResolver {
                 accountType: zoomData.type,
             };
 
+            // REVOKE ACCESS TO THIS ZOOM ACCOUNT FOR OTHER USERS WITH THIS EMAIL
+            await UserModel.updateMany(
+                {
+                    'zoomInfo.email': zoomUserData.email,
+                },
+                {
+                    zoomInfo: undefined,
+                }
+            );
+
+            // SET ZOOM ACCOUNT FOR THIS USER
             await UserModel.updateOne(
                 { _id: userId },
                 {
