@@ -21,8 +21,12 @@ import { EditUserAdmin } from './input-types/EditUserAdmin.input';
 import { AddImportedUsersResponse } from './types/AddImportedUsersResponse.type';
 import { StreamChat } from 'stream-chat';
 import { STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET } from '@config/StreamKeys';
-
+import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } from '@config/GoogleOauthKeys';
+import { OAuth2Client } from 'google-auth-library';
+const { google } = require('googleapis');
+import * as AWS from 'aws-sdk';
 const customId = require('custom-id');
+import request from 'request-promise';
 
 /**
  * User Mutation Endpoints
@@ -1130,6 +1134,73 @@ export class UserMutationResolver {
         }
     }
 
+    @Field((type) => Boolean)
+    public async removeGoogleOauth(
+        @Arg('userId', (type) => String)
+        userId: string
+    ) {
+        try {
+            const removeAuth = await UserModel.updateOne(
+                {
+                    _id: userId,
+                },
+                {
+                    googleOauthRefreshToken: undefined,
+                }
+            );
+
+            if (removeAuth) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (e) {
+            console.log('error', e);
+            return false;
+        }
+    }
+
+    @Field((type) => Boolean)
+    public async connectGoogleOauth(
+        @Arg('userId', (type) => String)
+        userId: string,
+        @Arg('code', (type) => String)
+        code: string
+    ) {
+        try {
+            const oAuth2Client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
+
+            // Now that we have the code, use that to acquire tokens.
+            const res: any = await oAuth2Client.getToken(code);
+
+            console.log('Res', res);
+
+            if (res.tokens && res.tokens.refresh_token) {
+                console.log('userId', userId);
+                console.log('Refresh token', res.tokens.refresh_token);
+                const updateUser = await UserModel.updateOne(
+                    {
+                        _id: userId,
+                    },
+                    {
+                        googleOauthRefreshToken: res.tokens.refresh_token,
+                    }
+                );
+
+                if (updateUser && updateUser.nModified > 0) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        } catch (e) {
+            console.log(e);
+            return false;
+        }
+    }
+
     @Field((type) => ZoomObject, { nullable: true })
     public async connectZoom(
         @Arg('userId', (type) => String)
@@ -2038,6 +2109,78 @@ export class UserMutationResolver {
         } catch (e) {
             console.log('Error', e);
             return 'SOMETHING_WENT_WRONG';
+        }
+    }
+
+    @Field((type) => String)
+    public async uploadFileFromDrive(
+        @Arg('userId', (type) => String)
+        userId: String,
+        @Arg('fileId', (type) => String)
+        fileId: String
+    ) {
+        try {
+            const fetchUser = await UserModel.findById(userId);
+
+            if (!fetchUser || !fetchUser.googleOauthRefreshToken) return '';
+
+            const oAuth2Client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
+
+            oAuth2Client.setCredentials({ refresh_token: fetchUser.googleOauthRefreshToken });
+
+            const drive = google.drive({
+                version: 'v3',
+                auth: oAuth2Client,
+            });
+
+            const file = await drive.files.get({ fileId, alt: 'media' });
+
+            console.log('File', file);
+
+            if (!file || !file.status) {
+                return '';
+            }
+
+            // const exportLink = file.data.exportLinks['application/pdf'];
+
+            AWS.config.update({
+                accessKeyId: 'AKIAJS2WW55SPDVYG2GQ',
+                secretAccessKey: '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',
+            });
+
+            // const options = {
+            //     uri: exportLink,
+            //     encoding: null,
+            // };
+
+            // const body = await request(options);
+
+            const s3 = new AWS.S3();
+
+            const link = await s3.upload(
+                {
+                    Bucket: 'cues-files',
+                    Key: 'media/' + userId + '/' + 'pdf/' + encodeURIComponent(file.data.title),
+                    Body: file.data,
+                    ContentType: 'application/pdf',
+                },
+                (err: any, data: any) => {
+                    // handle error
+                    if (err) {
+                        console.log(err);
+                        return '';
+                    }
+                    // success
+                    return data.Location;
+                }
+            );
+
+            console.log('Link', link);
+
+            return link;
+        } catch (e) {
+            console.log('error', e);
+            return '';
         }
     }
 }

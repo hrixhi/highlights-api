@@ -153,9 +153,9 @@ export class EventObject {
     @Field((type) => String, { nullable: true })
     public async creatorProfile(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
-        const { createdBy } = localThis._doc || localThis;
-        if (createdBy && createdBy !== '') {
-            const user = await UserModel.findById(createdBy);
+        const { userId } = localThis._doc || localThis;
+        if (userId && userId !== '') {
+            const user = await UserModel.findById(userId);
 
             if (user) {
                 return user.fullName + ', ' + user.email;
@@ -169,9 +169,9 @@ export class EventObject {
     @Field((type) => String, { nullable: true })
     public async creatorAvatar(@Ctx() context: IGraphQLContext) {
         const localThis: any = this;
-        const { createdBy } = localThis._doc || localThis;
-        if (createdBy && createdBy !== '') {
-            const user = await UserModel.findById(createdBy);
+        const { userId } = localThis._doc || localThis;
+        if (userId && userId !== '') {
+            const user = await UserModel.findById(userId);
 
             if (user && user.avatar) {
                 return user.avatar;

@@ -29,6 +29,6 @@ export function createJWTToken(userId: string) {
 // TEST JWT TOKEN
 // export function createJWTToken(userId: string) {
 //     return jwt.sign({ id: userId }, JWT_SECRET, {
-//         expiresIn: 180, // expires in 3 min for testing
+//         expiresIn: 60, // expires in 3 min for testing
 //     });
 // }

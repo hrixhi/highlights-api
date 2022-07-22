@@ -14,7 +14,11 @@ export class AnnouncementQueryResolver {
         @Arg('userId', (type) => String)
         userId: string,
         @Arg('schoolId', (type) => String)
-        schoolId: string
+        schoolId: string,
+        @Arg('skips', (type) => Number)
+        skips: number,
+        @Arg('limit', (type) => Number)
+        limit: number
     ) {
         try {
             return await AnnouncementModel.find({
@@ -27,9 +31,12 @@ export class AnnouncementQueryResolver {
                         ],
                     },
                 ],
-            }).sort({
-                createdAt: -1,
-            });
+            })
+                .sort({
+                    createdAt: -1,
+                })
+                .skip(skips * limit)
+                .limit(limit);
         } catch (e) {
             console.log(e);
             return [];

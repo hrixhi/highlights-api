@@ -28,6 +28,21 @@ const zoomSchema = new Schema({
     },
 });
 
+const googleOauthSchema = new Schema({
+    access_token: {
+        type: String,
+        required: true,
+    },
+    expiresOn: {
+        type: Date,
+        required: true,
+    },
+    refresh_token: {
+        type: String,
+        required: true,
+    },
+});
+
 const personalInformationSchema = new Schema(
     {
         dateOfBirth: {
@@ -212,6 +227,10 @@ const schema = new Schema(
             required: false,
         },
         currentDraft: {
+            type: String,
+            required: false,
+        },
+        googleOauthRefreshToken: {
             type: String,
             required: false,
         },

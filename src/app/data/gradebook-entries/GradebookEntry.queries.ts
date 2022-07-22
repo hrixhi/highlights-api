@@ -1017,7 +1017,7 @@ export class GradebookQueryResolver {
                     }
 
                     userScores.sort((a: any, b: any) => {
-                        return a.score > b.score ? 1 : -1;
+                        return a.score > b.score ? -1 : 1;
                     });
 
                     let topN = 5;

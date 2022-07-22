@@ -30,6 +30,7 @@ export interface IUserModel extends Document {
     sleepFrom?: string;
     sleepTo?: string;
     currentDraft?: string;
+    googleOauthRefreshToken?: string;
 }
 
 export const UserModel: Model<IUserModel> = model<IUserModel>('users', UserSchema);

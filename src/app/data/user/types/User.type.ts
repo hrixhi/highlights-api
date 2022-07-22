@@ -216,6 +216,14 @@ export class UserObject {
     @Field((type) => ParentInfo, { nullable: true })
     public parent2?: ParentInfo;
 
+    @Field((type) => Boolean)
+    public async googleIntegrated(@Ctx() context: IGraphQLContext) {
+        const localThis: any = this;
+        const { googleOauthRefreshToken } = localThis._doc || localThis;
+
+        return googleOauthRefreshToken && googleOauthRefreshToken !== '' ? true : false;
+    }
+
     // DELETE
 
     @Field({ nullable: true })

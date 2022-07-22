@@ -1,6 +1,7 @@
 import { Schema, Types } from 'mongoose';
 
 const schema = new Schema({
+    // User ID is not added for Channel Events but ADDED FOR PERSONAL EVENTS OR SCHOOL EVENTS CREATED BY ADMINS
     userId: {
         type: Types.ObjectId,
         required: false,
@@ -68,7 +69,7 @@ const schema = new Schema({
         type: String,
         required: false,
     },
-    // SCHOOL CALENDAR EVENTS IF SCHOOL ID PRESENT
+    // SCHOOL CALENDAR EVENTS IF SCHOOL ID PRESENT (CREATED BY ADMINS)
     schoolId: {
         type: Types.ObjectId,
         required: false,

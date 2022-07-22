@@ -17,6 +17,9 @@ import { createJWTToken } from '../../../helpers/auth';
 import { CueObject } from '../cue/types/Cue.type';
 import WorkOS from '@workos-inc/node';
 import { WORKOS_API_KEY, WORKOS_CLIENT_ID, REDIRECT_URI } from '../../../helpers/workosCredentials';
+import { OAuth2Client } from 'google-auth-library';
+import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } from '@config/GoogleOauthKeys';
+import { GoogleAuthResponseObject } from './types/GoogleAuthResponse.type';
 
 /**
  * User Query Endpoints
@@ -74,6 +77,8 @@ export class UserQueryResolver {
             return [];
         }
     }
+
+    // MAIN APP LOGINS
 
     @Field((type) => AuthResponseObject)
     public async login(
@@ -181,6 +186,62 @@ export class UserQueryResolver {
                     user: null,
                     error:
                         'No Cues account linked with this profile. Contact your school admin to be added to the roster.',
+                    token: '',
+                };
+            }
+        } catch (e) {
+            return {
+                user: null,
+                error: 'Something went wrong. Try again.',
+                token: '',
+            };
+        }
+    }
+
+    // ADMIN LOGINS
+    @Field((type) => AuthResponseObject)
+    public async loginAdmin(
+        @Arg('email', (type) => String)
+        email: string,
+        @Arg('password', (type) => String)
+        password: string
+    ) {
+        try {
+            if (!email || !password) {
+                return 'Invalid credentials provided.';
+            }
+
+            const user = await UserModel.findOne({
+                email,
+                adminInfo: { $ne: undefined },
+            });
+
+            if (!user || !user.password) {
+                return 'No admin user found with this email.';
+            }
+
+            const passwordCorrect = await verifyPassword(password, user.password);
+
+            if (passwordCorrect) {
+                await UserModel.updateOne({ _id: user._id }, { lastLoginAt: new Date() });
+
+                const token = createJWTToken(user._id);
+
+                console.log({
+                    user,
+                    error: '',
+                    token,
+                });
+
+                return {
+                    user,
+                    error: '',
+                    token,
+                };
+            } else {
+                return {
+                    user: null,
+                    error: 'Incorrect password provided. Try again.',
                     token: '',
                 };
             }
@@ -867,6 +928,50 @@ export class UserQueryResolver {
             return fetchSchoolUsers;
         } catch (e) {
             return [];
+        }
+    }
+
+    @Field((type) => GoogleAuthResponseObject)
+    public async getGoogleAuth(
+        @Arg('userId', (type) => String)
+        userId: string
+    ) {
+        try {
+            const fetchUser = await UserModel.findById(userId);
+
+            if (!fetchUser) return '';
+
+            const oAuth2Client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
+
+            // WE HAVE REFRESH TOKEN SO
+            if (fetchUser && fetchUser.googleOauthRefreshToken) {
+                oAuth2Client.setCredentials({ refresh_token: fetchUser.googleOauthRefreshToken });
+
+                const res = await oAuth2Client.getAccessToken();
+                // RETURN REDIRECT URL
+                if (res.token) {
+                    return {
+                        access_token: res.token,
+                    };
+                } else {
+                    return {
+                        error: 'Something went wrong. Try Again.',
+                    };
+                }
+            } else {
+                const authorizeUrl = oAuth2Client.generateAuthUrl({
+                    access_type: 'offline',
+                    scope: 'https://www.googleapis.com/auth/drive.readonly',
+                });
+
+                return {
+                    authorizeUrl,
+                };
+            }
+        } catch (e) {
+            return {
+                error: 'Something went wrong. Try Again.',
+            };
         }
     }
 }

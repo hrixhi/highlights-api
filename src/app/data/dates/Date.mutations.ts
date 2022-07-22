@@ -930,6 +930,7 @@ export class DateMutationResolver {
                 newObj = await DateModel.create({
                     userId,
                     title,
+                    description,
                     start: new Date(start),
                     end: new Date(end),
                     isNonMeetingSchoolEvent: !meeting,
