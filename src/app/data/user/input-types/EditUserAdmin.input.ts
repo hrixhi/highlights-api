@@ -41,6 +41,9 @@ export class EditUserAdmin {
     public streetAddress?: string;
 
     @Field((type) => String, { nullable: true })
+    public streetAddress2?: string;
+
+    @Field((type) => String, { nullable: true })
     public city?: string;
 
     @Field((type) => String, { nullable: true })

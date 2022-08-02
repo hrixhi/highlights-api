@@ -24,6 +24,9 @@ export class AdminUserInfo {
 
     @Field({ nullable: true })
     public contactNumber?: string;
+
+    @Field((type) => [String], { nullable: true })
+    public permissions?: string[];
 }
 
 @ObjectType()
@@ -39,6 +42,9 @@ export class PersonalInfo {
 
     @Field((type) => String, { nullable: true })
     public streetAddress?: string;
+
+    @Field((type) => String, { nullable: true })
+    public streetAddress2?: string;
 
     @Field((type) => String, { nullable: true })
     public city?: string;
@@ -73,8 +79,8 @@ export class UserObject {
     @Field()
     public fullName: string;
 
-    @Field()
-    public displayName: string;
+    @Field({ nullable: true })
+    public displayName?: string;
 
     @Field()
     public notificationId: string;

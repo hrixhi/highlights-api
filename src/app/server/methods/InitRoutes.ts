@@ -1470,6 +1470,7 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
             const createAdminUser = await UserModel.create({
                 email,
                 fullName: name,
+                displayName: name.toLowerCase(),
                 role: 'admin',
                 password: hash,
                 notificationId: 'NOT_SET',
@@ -1478,12 +1479,41 @@ export function initializeRoutes(GQLServer: GraphQLServer) {
                     jobTitle,
                     contactNumber: personalContact,
                 },
+                schoolId: createSchool._id,
             });
 
             if (!createAdminUser) {
                 // Send Error email to user
                 return res.status(400).send({ error: 'Failed to create user.' });
             }
+
+            // Add user to
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
+            // UPSERT USER
+            await serverClient.upsertUser({
+                id: createAdminUser._id.toString(),
+                name: createAdminUser.fullName,
+                image: createAdminUser.avatar,
+                email: createAdminUser.email,
+                cues_role: createAdminUser.role,
+                cues_grade: createAdminUser.role === 'student' ? createAdminUser.grade : undefined,
+                cues_section: createAdminUser.role === 'student' ? createAdminUser.section : undefined,
+                schoolId: createSchool._id.toString(),
+                teams: [createSchool._id.toString()],
+            });
+
+            // Automatic expiration for chat user
+            const token = serverClient.createToken(createAdminUser._id.toString());
+
+            const updateUser = await UserModel.updateOne(
+                {
+                    _id: createAdminUser._id,
+                },
+                {
+                    streamToken: token,
+                }
+            );
 
             // SEND SUCCESS EMAIL TO USER AND US
             emailService.organizationOnboardSuccessful(name, email, dummyPassword, organizationName);

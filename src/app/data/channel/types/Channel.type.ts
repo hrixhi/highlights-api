@@ -191,14 +191,20 @@ export class ChannelObject {
     @Field((type) => [String])
     public async subscribers() {
         const localThis: any = this;
-        const { _id } = localThis._doc || localThis;
+        const { _id, owners = [], createdBy } = localThis._doc || localThis;
 
         const subs = await SubscriptionModel.find({
             channelId: _id,
             unsubscribedAt: undefined,
         });
 
-        let userIds = subs.map((sub: any) => sub.userId);
+        let userIds = subs.map((sub: any) => sub.userId.toString());
+
+        userIds = userIds.filter((userId: string) => !owners.includes(userId) && createdBy.toString() !== userId);
+
+        console.log('USer Ids', userIds);
+        console.log('OWners', owners);
+        console.log('Created BY', createdBy);
 
         return userIds;
     }

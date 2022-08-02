@@ -5,7 +5,7 @@ export interface IUserModel extends Document {
     notificationId: string;
     displayName: string;
     fullName: string;
-    email?: string;
+    email: string;
     avatar?: string;
     password?: string;
     schoolId?: string;

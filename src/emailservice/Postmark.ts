@@ -351,4 +351,64 @@ export class EmailService {
                 console.log('error handling', e);
             });
     }
+
+    public deleteUserConfirmation(name: string, email_id: string, school_name: string) {
+        client
+            .sendEmailWithTemplate({
+                From: 'support@learnwithcues.com',
+                To: email_id,
+                TemplateAlias: 'delete_user_confirmation',
+                TemplateModel: {
+                    name,
+                    school_name,
+                },
+            })
+            .then((res: any) => {
+                return;
+            })
+            .catch((e: any) => {
+                console.log('error handling', e);
+            });
+    }
+
+    public newAdminAddedPassword(name: string, email_id: string, password: string, school_name: string) {
+        client
+            .sendEmailWithTemplate({
+                From: 'support@learnwithcues.com',
+                To: email_id,
+                TemplateAlias: 'new_admin_added_password',
+                TemplateModel: {
+                    name,
+                    email_id,
+                    school_name,
+                    password,
+                },
+            })
+            .then((res: any) => {
+                return;
+            })
+            .catch((e: any) => {
+                console.log('error handling', e);
+            });
+    }
+
+    public newAdminAddedSSO(name: string, email_id: string, school_name: string) {
+        client
+            .sendEmailWithTemplate({
+                From: 'support@learnwithcues.com',
+                To: email_id,
+                TemplateAlias: 'new_admin_added_SSO',
+                TemplateModel: {
+                    name,
+                    email_id,
+                    school_name,
+                },
+            })
+            .then((res: any) => {
+                return;
+            })
+            .catch((e: any) => {
+                console.log('error handling', e);
+            });
+    }
 }

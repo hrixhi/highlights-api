@@ -46,6 +46,32 @@ export class GradingScaleObject {
     @Field((type) => String, { nullable: true })
     public standardsGradeMode?: string;
 
+    @Field((type) => Number, { nullable: true })
+    public async courses() {
+        const localThis: any = this;
+        const { _id, standardsBasedScale } = localThis._doc || localThis;
+
+        let fetchCourses;
+
+        if (standardsBasedScale) {
+            fetchCourses = await ChannelModel.find({
+                standardsBasedGradingScale: _id,
+                deletedAt: undefined,
+            });
+        } else {
+            fetchCourses = await ChannelModel.find({
+                gradingScale: _id,
+                deletedAt: undefined,
+            });
+        }
+
+        if (fetchCourses) {
+            return fetchCourses.length;
+        }
+
+        return 0;
+    }
+
     // @Field((type) => Number, { nullable: true })
     // public async courses() {
     //     const localThis: any = this;

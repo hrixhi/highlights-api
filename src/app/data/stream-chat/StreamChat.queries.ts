@@ -194,4 +194,161 @@ export class StreamChatQueryResolver {
             return null;
         }
     }
+
+    @Field((type) => [DirectoryUserObject], {
+        description: 'Used to retrieve school by userId',
+        nullable: true,
+    })
+    public async getInboxDirectoryAdmin(
+        @Arg('userId', (type) => String)
+        userId: string
+    ) {
+        try {
+            const fetchUser = await UserModel.findById(userId);
+
+            if (!fetchUser) return null;
+
+            let directory: any[] = [];
+
+            const fetchDirectoryUsers = await UserModel.find({
+                $and: [
+                    {
+                        role: { $in: ['student', 'instructor', 'admin'] },
+                    },
+                    {
+                        _id: { $ne: userId },
+                        deletedAt: undefined,
+                        inactive: { $ne: true },
+                        schoolId: fetchUser.schoolId,
+                    },
+                ],
+            });
+
+            const parentIds = new Set();
+
+            const parentsMap: any = [];
+
+            // Build directory User object for each
+            for (let i = 0; i < fetchDirectoryUsers.length; i++) {
+                const user = fetchDirectoryUsers[i].toObject();
+
+                let subscriptions;
+
+                // CONSTRUCT PARENTS IF USER IS INSTRUCTOR
+                if (user.role === 'student') {
+                    if (user.parent1) {
+                        parentIds.add(user.parent1._id.toString());
+
+                        if (parentsMap[user.parent1._id.toString()]) {
+                            const updateIds = [...parentsMap[user.parent1._id.toString()]];
+                            //
+                            updateIds.push({
+                                fullName: user.fullName,
+                                grade: user.grade,
+                                section: user.section,
+                            });
+                            parentsMap[user.parent1._id.toString()] = updateIds;
+                        } else {
+                            parentsMap[user.parent1._id.toString()] = [
+                                {
+                                    fullName: user.fullName,
+                                    grade: user.grade,
+                                    section: user.section,
+                                },
+                            ];
+                        }
+                    }
+
+                    if (user.parent2) {
+                        parentIds.add(user.parent2._id.toString());
+
+                        if (parentsMap[user.parent2._id.toString()]) {
+                            const updateIds = [...parentsMap[user.parent2._id.toString()]];
+                            //
+                            updateIds.push({
+                                fullName: user.fullName,
+                                grade: user.grade,
+                                section: user.section,
+                            });
+                            parentsMap[user.parent2._id.toString()] = updateIds;
+                        } else {
+                            parentsMap[user.parent2._id.toString()] = [
+                                {
+                                    fullName: user.fullName,
+                                    grade: user.grade,
+                                    section: user.section,
+                                },
+                            ];
+                        }
+                    }
+
+                    const fetchActiveSubscriptions = await SubscriptionModel.find({
+                        userId: user._id,
+                        unsubscribedAt: undefined,
+                    });
+
+                    subscriptions = fetchActiveSubscriptions.map((sub: any) => sub.channelId);
+                }
+
+                if (user.role === 'instructor') {
+                    const fetchActiveSubscriptions = await SubscriptionModel.find({
+                        userId: user._id,
+                        unsubscribedAt: undefined,
+                    });
+
+                    subscriptions = fetchActiveSubscriptions.map((sub: any) => sub.channelId);
+                }
+
+                directory.push({
+                    _id: user._id,
+                    fullName: user.fullName,
+                    avatar: user.avatar,
+                    role: user.role,
+                    grade: user.grade,
+                    section: user.section,
+                    roleDescription:
+                        user.role === 'student' ? 'Student, ' + user.grade + '-' + user.section : 'Intructor',
+                    courses: subscriptions ? subscriptions : [],
+                });
+            }
+
+            console.log('Parents', Array.from(parentIds));
+
+            const fetchParents = await UserModel.find({
+                _id: { $in: Array.from(parentIds) },
+                deletedAt: undefined,
+                inactive: { $ne: true },
+            });
+
+            for (let i = 0; i < fetchParents.length; i++) {
+                const parent = fetchParents[i].toObject();
+
+                const getChildren = parentsMap[parent._id.toString()];
+
+                for (let j = 0; j < getChildren.length; j++) {
+                    const child = getChildren[j];
+
+                    directory.push({
+                        _id: parent._id,
+                        fullName: parent.fullName,
+                        avatar: parent.avatar,
+                        role: parent.role,
+                        grade: child.grade,
+                        section: child.section,
+                        roleDescription: 'Parent of ' + child.fullName + ` (${child.grade}, ${child.section})`,
+                        courses: [],
+                    });
+                }
+            }
+
+            directory.sort((a: any, b: any) => {
+                return a.fullName > b.fullName ? 1 : -1;
+            });
+
+            return directory;
+        } catch (e) {
+            console.log('Error', e);
+            return null;
+        }
+    }
 }

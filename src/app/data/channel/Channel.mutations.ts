@@ -25,6 +25,7 @@ import { NewCourseAdmin } from './input-types/NewCourseAdminInput.input';
 import { ImportedCourseAdmin } from './input-types/ImportedCourseAdmin.input';
 import { AcademicTermModel } from '../academic-term/mongo/academicTerm.model';
 import { AddImportedCoursesResponse } from './types/AddImportedCoursesResponse.type';
+import { EditCourseAdmin } from './input-types/EditCourseAdmin.input';
 const customId = require('custom-id');
 
 /**
@@ -2413,11 +2414,14 @@ export class ChannelMutationResolver {
                 term,
                 startDate,
                 endDate,
+                creditHours,
+                gradingScale,
+                standardsBasedGradingScale,
             } = newCourseInput;
 
             const invalidNames = ['all, all courses', 'my notes'];
 
-            if (!name || invalidNames.includes(name)) {
+            if (!name || invalidNames.includes(name.toLowerCase())) {
                 return 'INVALID_NAME';
             }
 
@@ -2448,6 +2452,9 @@ export class ChannelMutationResolver {
                     : customId({
                           name,
                       }),
+                creditHours,
+                gradingScale,
+                standardsBasedGradingScale,
             });
 
             if (!channel) {
@@ -2460,11 +2467,39 @@ export class ChannelMutationResolver {
                 channelId: channel._id,
             });
 
+            // ADD ALERTS FOR ADDING AS OWNER
+
+            await ActivityModel.create({
+                userId: createdBy,
+                subtitle: 'You have been added as owner of this course.',
+                title: channel.name + ' - Assigned as owner!',
+                status: 'unread',
+                date: new Date(),
+                channelId: channel._id,
+                target: 'CHANNEL_OWNER_ADDED',
+            });
+
             let usersAdded: string[] = [];
 
             // Rest of Subscribers and Moderators
             if (subscribers && subscribers.length > 0) {
                 for (const sub of subscribers) {
+                    if (sub.toString().trim() !== createdBy.toString().trim()) {
+                        const newSub = await SubscriptionModel.create({
+                            userId: sub,
+                            channelId: channel._id,
+                        });
+
+                        // Add alerts for subscribers when they are added to the channel
+                        if (newSub) {
+                            usersAdded.push(sub.toString().trim());
+                        }
+                    }
+                }
+            }
+
+            if (moderators && moderators.length > 0) {
+                for (const sub of moderators) {
                     if (sub.toString().trim() !== createdBy.toString().trim()) {
                         const newSub = await SubscriptionModel.create({
                             userId: sub,
@@ -2715,11 +2750,14 @@ export class ChannelMutationResolver {
                     term,
                     startDate,
                     endDate,
+                    creditHours,
+                    gradingScale,
+                    standardsBasedGradingScale,
                 } = newCourseInput;
 
                 const invalidNames = ['all, all courses', 'my notes'];
 
-                if (!name || invalidNames.includes(name)) {
+                if (!name || invalidNames.includes(name.toLowerCase())) {
                     failedToAdd.push(i.toString());
                     errors.push('INVALID_NAME');
                     continue;
@@ -2777,6 +2815,9 @@ export class ChannelMutationResolver {
                         : customId({
                               name,
                           }),
+                    creditHours,
+                    gradingScale,
+                    standardsBasedGradingScale,
                 });
 
                 if (!channel) {
@@ -2791,6 +2832,18 @@ export class ChannelMutationResolver {
                 await SubscriptionModel.create({
                     userId: createdBy,
                     channelId: channel._id,
+                });
+
+                // ADD ALERTS FOR ADDING AS OWNER
+
+                await ActivityModel.create({
+                    userId: createdBy,
+                    subtitle: 'You have been added as owner of this course.',
+                    title: channel.name + ' - Assigned as owner!',
+                    status: 'unread',
+                    date: new Date(),
+                    channelId: channel._id,
+                    target: 'CHANNEL_OWNER_ADDED',
                 });
 
                 let usersAdded: string[] = [];
@@ -2938,6 +2991,464 @@ export class ChannelMutationResolver {
             };
         } catch (e) {
             return null;
+        }
+    }
+
+    @Field((type) => String, {
+        description: 'New Course Admin',
+    })
+    public async editCourseAdmin(
+        @Arg('editCourseInput', (type) => EditCourseAdmin)
+        editCourseInput: EditCourseAdmin
+    ) {
+        try {
+            const {
+                _id,
+                name,
+                createdBy,
+                password,
+                sisId,
+                schoolId,
+                subscribers,
+                moderators,
+                colorCode,
+                term,
+                creditHours,
+                gradingScale,
+                standardsBasedGradingScale,
+            } = editCourseInput;
+
+            // Step 1: Fetch Existing Channel
+            const fetchExistingCourse = await ChannelModel.findById({
+                _id,
+                schoolId,
+            });
+
+            if (!fetchExistingCourse) {
+                return 'SOMETHING_WENT_WRONG';
+            }
+
+            const invalidNames = ['all, all courses', 'my notes'];
+
+            if (!name || invalidNames.includes(name.toLowerCase())) {
+                return 'INVALID_NAME';
+            }
+
+            if (sisId !== fetchExistingCourse.sisId) {
+                const checkExistingSISId = await ChannelModel.findOne({
+                    sisId,
+                    schoolId,
+                });
+
+                if (checkExistingSISId) {
+                    return 'SIS_ID_ALREADY_EXISTS';
+                }
+            }
+
+            // Update Channel Details
+            const updateChannel = await ChannelModel.updateOne(
+                {
+                    _id,
+                },
+                {
+                    name,
+                    createdBy,
+                    password,
+                    subscribers,
+                    owners: moderators ? moderators : [],
+                    colorCode,
+                    term,
+                    sisId: sisId
+                        ? sisId
+                        : customId({
+                              name,
+                          }),
+                    creditHours,
+                    gradingScale,
+                    standardsBasedGradingScale,
+                }
+            );
+
+            if (updateChannel.nModified <= 0) {
+                return 'SOMETHING_WENT_WRONG';
+            }
+
+            // Step 2: Update the channel owner
+            let createdByAdded: string[] = [];
+            let createdByRemoved: string[] = [];
+
+            // If new owner is not the same as the previous owner then we unsubscribe the current owner if owner is not part of the new subs list and subscribe the new owner if
+            if (createdBy !== fetchExistingCourse.createdBy.toString()) {
+                createdByAdded.push(createdBy.toString());
+                createdByRemoved.push(fetchExistingCourse.createdBy.toString());
+
+                // Clear any old subscriptions with kc = true
+                await SubscriptionModel.updateMany(
+                    {
+                        userId: createdBy,
+                        channelId: _id,
+                        unsubscribedAt: { $exists: true },
+                    },
+                    {
+                        keepContent: false,
+                    }
+                );
+
+                await SubscriptionModel.create({
+                    userId: createdBy,
+                    channelId: _id,
+                });
+
+                // Subscribe new owner
+
+                // Delete owner activity for previous owner
+                await ActivityModel.deleteMany({
+                    channelId: _id,
+                    target: 'CHANNEL_OWNER_ADDED',
+                });
+
+                await ActivityModel.create({
+                    userId: fetchExistingCourse.createdBy,
+                    subtitle: 'You have been removed as owner of this course.',
+                    title: name + ' - Removed as owner!',
+                    status: 'unread',
+                    date: new Date(),
+                    channelId: _id,
+                    target: 'CHANNEL_OWNER_REMOVED',
+                });
+
+                // Add activity for new owner
+                await ActivityModel.create({
+                    userId: createdBy,
+                    subtitle: 'You have been added as owner of this course.',
+                    title: name + ' - Assigned as owner!',
+                    status: 'unread',
+                    date: new Date(),
+                    channelId: _id,
+                    target: 'CHANNEL_OWNER_ADDED',
+                });
+
+                // Update channel owner
+                await ChannelModel.updateOne(
+                    {
+                        _id,
+                    },
+                    {
+                        createdBy,
+                        creatorUnsubscribed: undefined,
+                    }
+                );
+
+                // Unsubscribe Previous Owner
+                await SubscriptionModel.updateOne(
+                    {
+                        userId: fetchExistingCourse.createdBy,
+                        channelId: _id,
+                        unsubscribedAt: { $exists: false },
+                    },
+                    {
+                        unsubscribedAt: new Date(),
+                        keepContent: true,
+                    }
+                );
+            }
+
+            // Step 3: Fetch existing subs and mark students as added and removed
+            const fetchActiveSubscriptions = await SubscriptionModel.find({
+                channelId: fetchExistingCourse._id,
+                unsubscribedAt: { $exists: false },
+            });
+
+            // Only Student subscribers
+            let activeStudents: string[] = [];
+
+            // Only active moderators
+            let activeModerators: string[] = fetchExistingCourse.owners ? fetchExistingCourse.owners : [];
+
+            fetchActiveSubscriptions.map((sub: any) => {
+                if (
+                    !activeModerators.includes(sub.userId.toString()) &&
+                    sub.userId.toString() !== fetchExistingCourse.createdBy.toString()
+                ) {
+                    activeStudents.push(sub.userId.toString());
+                }
+            });
+
+            // For Notifications and Alerts
+            let studentsAdded: string[] = [];
+            let studentsRemoved: string[] = [];
+
+            activeStudents.map((studentId: string) => {
+                if (!subscribers.includes(studentId)) {
+                    studentsRemoved.push(studentId);
+                }
+            });
+
+            subscribers.map((studentId: string) => {
+                if (!activeStudents.includes(studentId)) {
+                    studentsAdded.push(studentId);
+                }
+            });
+
+            console.log('Moderators', moderators);
+
+            let moderatorsAdded: string[] = [];
+            let moderatorsRemoved: string[] = [];
+
+            activeModerators.map((moderatorId: string) => {
+                if (!moderators.includes(moderatorId)) {
+                    moderatorsRemoved.push(moderatorId);
+                }
+            });
+
+            moderators.map((moderatorId: string) => {
+                if (!activeModerators.includes(moderatorId)) {
+                    moderatorsAdded.push(moderatorId);
+                }
+            });
+
+            // Update course moderators
+            await ChannelModel.updateOne(
+                {
+                    _id,
+                },
+                {
+                    owners: moderators,
+                }
+            );
+
+            console.log('Created By Added', createdByAdded);
+            console.log('Students Added', studentsAdded);
+            console.log('Moderators Added', moderatorsAdded);
+
+            console.log('Created By Removed', createdByRemoved);
+            console.log('Students Removed', studentsRemoved);
+            console.log('Moderators Removed', moderatorsRemoved);
+
+            // Subscribe all new users to the course
+            let allUsersAdded = [...studentsAdded, ...moderatorsAdded];
+
+            const allUsersRemoved = [...studentsRemoved, ...moderatorsRemoved];
+
+            console.log('All Users added', allUsersAdded);
+
+            for (let i = 0; i < allUsersAdded.length; i++) {
+                const userId = allUsersAdded[i];
+
+                // Clear any old subscriptions with kc = true
+                await SubscriptionModel.updateMany(
+                    {
+                        userId,
+                        channelId: _id,
+                        unsubscribedAt: { $exists: true },
+                    },
+                    {
+                        keepContent: false,
+                    }
+                );
+
+                await SubscriptionModel.create({
+                    userId,
+                    channelId: _id,
+                });
+            }
+
+            const subtitle = 'You have been added to the course.';
+            const title = name + ' - Subscribed!';
+            const messages: any[] = [];
+            const subscribersAdded = await UserModel.find({ _id: { $in: allUsersAdded } });
+            const activity: any[] = [];
+
+            subscribersAdded.map((sub) => {
+                const notificationIds = sub.notificationId.split('-BREAK-');
+                notificationIds.map((notifId: any) => {
+                    if (!Expo.isExpoPushToken(notifId)) {
+                        return;
+                    }
+                    messages.push({
+                        to: notifId,
+                        sound: 'default',
+                        subtitle: subtitle,
+                        title: title,
+                        body: '',
+                        data: { userId: sub._id },
+                    });
+                });
+                activity.push({
+                    userId: sub._id,
+                    subtitle,
+                    title: 'Subscribed',
+                    status: 'unread',
+                    date: new Date(),
+                    channelId: _id,
+                    target: 'CHANNEL_SUBSCRIBED',
+                });
+            });
+
+            await ActivityModel.insertMany(activity);
+            const oneSignalClient = new OneSignal.Client(
+                '78cd253e-262d-4517-a710-8719abf3ee55',
+                'YTNlNWE2MGYtZjdmMi00ZjlmLWIzNmQtMTE1MzJiMmFmYzA5'
+            );
+            const notification = {
+                contents: {
+                    en: title,
+                },
+                include_external_user_ids: allUsersAdded,
+            };
+            const notificationService = new Expo();
+
+            if (allUsersAdded.length > 0) {
+                await oneSignalClient.createNotification(notification);
+            }
+
+            let chunks = notificationService.chunkPushNotifications(messages);
+            for (let chunk of chunks) {
+                try {
+                    await notificationService.sendPushNotificationsAsync(chunk);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            // Now unsubscribe Users
+            console.log('All Users Removed', allUsersRemoved);
+
+            for (let i = 0; i < allUsersRemoved.length; i++) {
+                const userId = allUsersRemoved[i];
+
+                // Unsubscribe User
+                await SubscriptionModel.updateOne(
+                    {
+                        userId,
+                        channelId: _id,
+                        unsubscribedAt: { $exists: false },
+                    },
+                    {
+                        unsubscribedAt: new Date(),
+                        keepContent: true,
+                    }
+                );
+
+                // Remove all activity associated with this user and channel
+                await ActivityModel.deleteMany({
+                    userId,
+                    channelId: _id,
+                    target: { $ne: 'CHANNEL_UNSUBSCRIBED' },
+                });
+            }
+
+            const unsubSubtitle = 'You have been removed from the course.';
+            const unsubTitle = name + ' - Unsubscribed!';
+            const unsubMessages: any[] = [];
+            const subscribersRemoved = await UserModel.find({ _id: { $in: allUsersRemoved } });
+            const unsubActivity: any[] = [];
+
+            subscribersRemoved.map((sub) => {
+                unsubActivity.push({
+                    userId: sub._id,
+                    subtitle,
+                    title: 'Unsubscribed',
+                    status: 'unread',
+                    date: new Date(),
+                    channelId: _id,
+                    target: 'CHANNEL_UNSUBSCRIBED',
+                });
+
+                const notificationIds = sub.notificationId.split('-BREAK-');
+                notificationIds.map((notifId: any) => {
+                    if (!Expo.isExpoPushToken(notifId)) {
+                        return;
+                    }
+                    unsubMessages.push({
+                        to: notifId,
+                        sound: 'default',
+                        subtitle: unsubSubtitle,
+                        title: unsubTitle,
+                        body: '',
+                        data: { userId: sub._id },
+                    });
+                });
+            });
+            await ActivityModel.insertMany(unsubActivity);
+
+            const unsubNotification = {
+                contents: {
+                    en: title,
+                },
+                include_external_user_ids: allUsersRemoved,
+            };
+
+            if (allUsersRemoved.length > 0) {
+                await oneSignalClient.createNotification(unsubNotification);
+            }
+
+            let unsubChunks = notificationService.chunkPushNotifications(unsubMessages);
+            for (let chunk of unsubChunks) {
+                try {
+                    await notificationService.sendPushNotificationsAsync(chunk);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            if (moderatorsAdded.length !== 0) {
+                const subtitle = 'Your role has been updated.';
+                const title = name + ' - Added as moderator';
+                const messages: any[] = [];
+                const activity1: any[] = [];
+                const newModerators = await UserModel.find({ _id: { $in: moderatorsAdded } });
+                newModerators.map((sub) => {
+                    const notificationIds = sub.notificationId.split('-BREAK-');
+                    notificationIds.map((notifId: any) => {
+                        if (!Expo.isExpoPushToken(notifId)) {
+                            return;
+                        }
+                        messages.push({
+                            to: notifId,
+                            sound: 'default',
+                            subtitle: subtitle,
+                            title: title,
+                            body: '',
+                            data: { userId: sub._id },
+                        });
+                    });
+                    activity1.push({
+                        userId: sub._id,
+                        subtitle,
+                        title: 'Added as moderator',
+                        status: 'unread',
+                        date: new Date(),
+                        channelId: _id,
+                        target: 'CHANNEL_MODERATOR_ADDED',
+                    });
+                });
+                await ActivityModel.insertMany(activity1);
+
+                const notification = {
+                    contents: {
+                        en: title,
+                    },
+                    include_external_user_ids: [...moderatorsAdded],
+                };
+
+                if (moderatorsAdded.length > 0) {
+                    await oneSignalClient.createNotification(notification);
+                }
+                let chunks = notificationService.chunkPushNotifications(messages);
+                for (let chunk of chunks) {
+                    try {
+                        await notificationService.sendPushNotificationsAsync(chunk);
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+            }
+
+            return 'SUCCESS';
+        } catch (e) {
+            console.log('Error', e);
+            return 'SOMETHING_WENT_WRONG';
         }
     }
 }

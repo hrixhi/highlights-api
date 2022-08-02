@@ -27,6 +27,10 @@ const { google } = require('googleapis');
 import * as AWS from 'aws-sdk';
 const customId = require('custom-id');
 import request from 'request-promise';
+import shortid from 'shortid';
+import { nanoid } from 'nanoid';
+import { NewAdminInputObject } from './input-types/NewAdmin.input';
+import { EditAdminInputObject } from './input-types/EditAdmin.input';
 
 /**
  * User Mutation Endpoints
@@ -77,6 +81,50 @@ export class UserMutationResolver {
                 {
                     fullName,
                     displayName,
+                    avatar: avatar ? avatar : undefined,
+                }
+            );
+
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
+            if (updateUser) {
+                // UPDATE STREAM PROFILE FOR USER
+                serverClient.partialUpdateUser({
+                    id: userId,
+                    set: {
+                        name: fullName,
+                        image: avatar,
+                    },
+                });
+            }
+
+            return true;
+        } catch (e) {
+            console.log(e);
+            return false;
+        }
+    }
+
+    @Field((type) => Boolean, {
+        description: 'Used when you want to update a user.',
+        nullable: true,
+    })
+    public async updateAdminProfile(
+        @Arg('userId', (type) => String)
+        userId: string,
+        @Arg('fullName', (type) => String)
+        fullName: string,
+        @Arg('avatar', (type) => String, { nullable: true })
+        avatar?: string,
+        @Arg('phoneNumber', (type) => String, { nullable: true })
+        phoneNumber?: string
+    ) {
+        try {
+            const updateUser = await UserModel.updateOne(
+                { _id: userId },
+                {
+                    fullName,
+                    phoneNumber,
                     avatar: avatar ? avatar : undefined,
                 }
             );
@@ -590,81 +638,132 @@ export class UserMutationResolver {
         }
     }
 
+    /**
+     * Description: Delete all user personal info and retain him as a
+     * @param ids
+     * @returns
+     */
     @Field((type) => Boolean)
-    public async deleteUsersFromOrganisation(
-        @Arg('emails', (type) => [String])
-        emails: string[],
+    public async deleteUsersHard(
+        @Arg('ids', (type) => [String])
+        ids: string[],
         @Arg('schoolId', (type) => String)
         schoolId: string
     ) {
         try {
-            emails.map(async (email) => {
-                const user = await UserModel.findOne({ email, schoolId });
-                if (user) {
-                    // remove school from user
-                    await UserModel.updateOne(
-                        { _id: user._id },
-                        {
-                            // schoolId: undefined,
-                            // role: undefined,
-                            // grade: undefined,
-                            // section: undefined,
-                            deletedAt: new Date(),
-                        }
-                    );
-                    // remove school subscriptions
-                }
-            });
-            return true;
-        } catch (e) {
-            console.log(e);
-            return false;
-        }
-    }
+            const fetchSchool = await SchoolsModel.findById(schoolId);
 
-    @Field((type) => Boolean)
-    public async deleteUsers(
-        @Arg('ids', (type) => [String])
-        ids: string[]
-    ) {
-        try {
-            await UserModel.updateMany(
-                {
-                    _id: { $in: ids },
-                },
-                {
-                    deletedAt: new Date(),
-                    notificationId: 'NOT_SET',
-                    schoolId: undefined,
-                    parent1: undefined,
-                    parent2: undefined,
-                }
-            );
+            if (!fetchSchool) return false;
 
             for (let i = 0; i < ids.length; i++) {
-                const id = ids[i];
+                const userId = ids[i];
 
-                // Fetch user first
-                const user = await UserModel.findOne({ _id: id });
+                const fetchUser = await UserModel.findById(userId);
 
-                if (!user) continue;
+                if (!fetchUser) {
+                    continue;
+                }
 
-                // Unsubscriber user from all the channels
+                const userEmail = fetchUser.email;
+                const userName = fetchUser.fullName;
+
+                shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$@');
+
+                const deleteId = shortid.generate();
+
+                let parent1Id;
+                let parent2Id;
+
+                if (fetchUser.parent1) {
+                    parent1Id = fetchUser.parent1._id;
+                }
+
+                if (fetchUser.parent2) {
+                    parent2Id = fetchUser.parent2._id;
+                }
+
+                // HARD DELETE INVOLVES REPLACING USER PERSONAL INFO WITH FAKE DELETE ID
+
+                await UserModel.updateOne(
+                    {
+                        _id: userId,
+                    },
+                    {
+                        fullName: 'Deleted User #' + deleteId,
+                        displayName: deleteId,
+                        email: 'deleted_user_' + deleteId + '@learnwithcues.com',
+                        notificationId: 'NOT_SET',
+                        avatar: undefined,
+                        parent1: undefined,
+                        parent2: undefined,
+                        personalInfo: undefined,
+                        zoomInfo: undefined,
+                        googleOauthRefreshToken: undefined,
+                        streamToken: undefined,
+                        deletedAt: new Date(),
+                    }
+                );
+
                 await SubscriptionModel.updateMany(
                     {
-                        userId: user._id,
+                        userId,
                         keepContent: { $exists: false },
                     },
                     {
                         unsubscribedAt: new Date(),
                         keepContent: true,
+                        archivedUser: true,
                     }
                 );
+
+                const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
+                // First we set the user to anonymous mode
+                await serverClient.upsertUser({
+                    id: userId,
+                    name: 'Deleted User #' + deleteId,
+                    image: '',
+                    email: 'deleted_user_' + deleteId + '@learnwithcues.com',
+                });
+
+                // Next we will deactivate the user
+                await serverClient.deactivateUser(userId, {
+                    mark_messages_deleted: true,
+                });
+
+                // REMOVE USER AS OWNER FROM ANY CHANNELS
+                await ChannelModel.updateMany(
+                    {
+                        owners: userId,
+                    },
+                    {
+                        $pull: { owners: userId },
+                    }
+                );
+
+                // IF CHANNEL CREATED BY USER THAT IS UNSUBSCRIBED
+                await ChannelModel.updateMany(
+                    {
+                        createdBy: userId,
+                    },
+                    {
+                        creatorUnsubscribed: true,
+                    }
+                );
+
+                // If school id is part of
+                if (parent1Id) {
+                    // Write code here to pull
+                }
+
+                if (parent2Id) {
+                    // Same as above
+                }
+
+                // Send email to user confirming their account was deleted successfully
+                const emailService = new EmailService();
+                emailService.deleteUserConfirmation(userName, userEmail, fetchSchool.name);
             }
-
-            // DELETE USER DATA FROM ORGANIZATION PERMANENTLY SO NEED TO DELETE MESSAGES, DELETE SHARED WITH EVENTS, DELETE ACTIVITY, DELETE SUBSCRIPTIONS
-
-            // DELETE PARENT DATA FROM ORGANIZATION IF WE ARE REMOVING THEIR STUDENT (SUCH AS MESSAGES, EVENTS, ACTIVITY)
 
             return true;
         } catch (e) {
@@ -677,15 +776,15 @@ export class UserMutationResolver {
     public async changeInactiveStatus(
         @Arg('inactive', (type) => Boolean)
         inactive: boolean,
-        @Arg('userId', (type) => String)
-        userId: string
+        @Arg('ids', (type) => [String])
+        ids: string[]
     ) {
         try {
             // If making inactive then clear the notification id so that no new notifications are sent
             if (inactive) {
-                await UserModel.updateOne({ _id: userId }, { inactive, notificationId: 'NOT_SET' });
+                await UserModel.updateMany({ _id: { $in: ids } }, { inactive, notificationId: 'NOT_SET' });
             } else {
-                await UserModel.updateOne({ _id: userId }, { inactive });
+                await UserModel.updateMany({ _id: { $in: ids } }, { inactive });
             }
 
             return true;
@@ -1416,6 +1515,7 @@ export class UserMutationResolver {
                 expectedGradYear,
                 phoneNumber,
                 streetAddress,
+                streetAddress2,
                 city,
                 state,
                 country,
@@ -1427,6 +1527,8 @@ export class UserMutationResolver {
                 parent2Email,
             } = newUserInput;
 
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
             function emailAccessToParent(parent: any, user: any, parentPassword: string, school: any) {}
 
             function emailAccessToStudent(user: any, school: any, isSSOEnabled: boolean, password?: string) {
@@ -1437,6 +1539,34 @@ export class UserMutationResolver {
                 } else if (isSSOEnabled) {
                     emailService.newUserAddedSSO(user.fullName, user.email, school.name);
                 }
+            }
+
+            async function registerUserToStream(user: any, userSchoolId: string) {
+                // REGISTER USER TO STREAM
+                // IF USER IS PARENT THEN WE NEED TO STORE  USER ID +
+                await serverClient.upsertUser({
+                    id: user._id.toString(),
+                    name: user.fullName,
+                    image: user.avatar,
+                    email: user.email,
+                    cues_role: user.role,
+                    cues_grade: user.role === 'student' ? user.grade : undefined,
+                    cues_section: user.role === 'student' ? user.section : undefined,
+                    schoolId: userSchoolId,
+                    teams: [userSchoolId],
+                });
+
+                // Automatic expiration for chat user
+                const token = serverClient.createToken(user._id.toString());
+
+                await UserModel.updateOne(
+                    {
+                        _id: user._id,
+                    },
+                    {
+                        streamToken: token,
+                    }
+                );
             }
 
             // BASIC VALIDATION
@@ -1451,6 +1581,7 @@ export class UserMutationResolver {
             if (sisId) {
                 const checkExistingSISId = await UserModel.findOne({
                     sisId,
+                    schoolId,
                 });
 
                 if (checkExistingSISId) {
@@ -1473,6 +1604,7 @@ export class UserMutationResolver {
                 expectedGradYear,
                 phoneNumber,
                 streetAddress,
+                streetAddress2,
                 city,
                 state,
                 country,
@@ -1608,6 +1740,8 @@ export class UserMutationResolver {
                 return 'SOMETHING_WENT_WRONG';
             }
 
+            registerUserToStream(createNewUser, schoolId);
+
             let isSSOSchool = false;
 
             const fetchSchool = await SchoolsModel.findOne({
@@ -1624,6 +1758,28 @@ export class UserMutationResolver {
             }
 
             emailAccessToStudent(user, school, isSSOSchool, !isSSOSchool ? password : undefined);
+
+            if (parent1 && parent1._id) {
+                await UserModel.updateOne(
+                    {
+                        _id: parent1._id,
+                    },
+                    {
+                        $addToSet: { parentSchoolIds: schoolId },
+                    }
+                );
+            }
+
+            if (parent2 && parent2._id) {
+                await UserModel.updateOne(
+                    {
+                        _id: parent2._id,
+                    },
+                    {
+                        $addToSet: { parentSchoolIds: schoolId },
+                    }
+                );
+            }
 
             // if (giveParentsAccess && parent1 && parent1Password) {
             //     emailAccessToParent(parent1, user, parent1Password, school);
@@ -1649,6 +1805,8 @@ export class UserMutationResolver {
         importedUsers: NewUserAdmin[]
     ) {
         try {
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
             function emailAccessToParent(parent: any, user: any, parentPassword: string, school: any) {}
 
             function emailAccessToStudent(user: any, school: any, isSSOEnabled: boolean, password?: string) {
@@ -1659,6 +1817,34 @@ export class UserMutationResolver {
                 } else if (isSSOEnabled) {
                     emailService.newUserAddedSSO(user.fullName, user.email, school.name);
                 }
+            }
+
+            async function registerUserToStream(user: any, userSchoolId: string) {
+                // REGISTER USER TO STREAM
+                // IF USER IS PARENT THEN WE NEED TO STORE  USER ID +
+                await serverClient.upsertUser({
+                    id: user._id.toString(),
+                    name: user.fullName,
+                    image: user.avatar,
+                    email: user.email,
+                    cues_role: user.role,
+                    cues_grade: user.role === 'student' ? user.grade : undefined,
+                    cues_section: user.role === 'student' ? user.section : undefined,
+                    schoolId: userSchoolId,
+                    teams: [userSchoolId],
+                });
+
+                // Automatic expiration for chat user
+                const token = serverClient.createToken(user._id.toString());
+
+                await UserModel.updateOne(
+                    {
+                        _id: user._id,
+                    },
+                    {
+                        streamToken: token,
+                    }
+                );
             }
 
             let success: string[] = [];
@@ -1875,12 +2061,36 @@ export class UserMutationResolver {
                     continue;
                 }
 
+                registerUserToStream(createNewUser, schoolId);
+
                 let isSSOSchool = false;
 
                 if (!fetchSchool) {
                     fetchSchool = await SchoolsModel.findOne({
                         _id: schoolId,
                     });
+                }
+
+                if (parent1 && parent1._id) {
+                    await UserModel.updateOne(
+                        {
+                            _id: parent1._id,
+                        },
+                        {
+                            $addToSet: { parentSchoolIds: schoolId },
+                        }
+                    );
+                }
+
+                if (parent2 && parent2._id) {
+                    await UserModel.updateOne(
+                        {
+                            _id: parent2._id,
+                        },
+                        {
+                            $addToSet: { parentSchoolIds: schoolId },
+                        }
+                    );
                 }
 
                 const school = fetchSchool.toObject();
@@ -1932,6 +2142,7 @@ export class UserMutationResolver {
                 expectedGradYear,
                 phoneNumber,
                 streetAddress,
+                streetAddress2,
                 city,
                 state,
                 country,
@@ -1949,6 +2160,7 @@ export class UserMutationResolver {
                 expectedGradYear,
                 phoneNumber,
                 streetAddress,
+                streetAddress2,
                 city,
                 state,
                 country,
@@ -1970,10 +2182,21 @@ export class UserMutationResolver {
                 return 'EMAIL_ALREADY_IN_USE';
             }
 
-            let updateParent1: any = user;
+            if (sisId !== user.sisId) {
+                const checkSisIdInUse = await UserModel.findOne({
+                    sisId,
+                    schoolId: user.schoolId,
+                });
+
+                if (!checkSisIdInUse) {
+                    return 'DUPLICATE_SIS_ID';
+                }
+            }
+
+            let updateParent1: any;
             let parent1Password: any;
 
-            let updateParent2: any = user;
+            let updateParent2: any;
             let parent2Password: any;
 
             if (parent1Modified && parent1Email && parent1Name) {
@@ -2085,6 +2308,22 @@ export class UserMutationResolver {
                 }
             );
 
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
+            if (updateUser) {
+                // UPDATE STREAM PROFILE FOR USER
+                serverClient.partialUpdateUser({
+                    id: _id,
+                    set: {
+                        name: fullName,
+                        image: avatar,
+                        email: email,
+                        cues_grade: user.role === 'student' ? grade : undefined,
+                        cues_section: user.role === 'student' ? section : undefined,
+                    },
+                });
+            }
+
             const fetchSchool = await SchoolsModel.findOne({
                 _id: user.schoolId,
             });
@@ -2181,6 +2420,173 @@ export class UserMutationResolver {
         } catch (e) {
             console.log('error', e);
             return '';
+        }
+    }
+
+    // ADMIN USERS
+    @Field((type) => String)
+    public async newAdmin(
+        @Arg('adminInput', (type) => NewAdminInputObject)
+        adminInput: NewAdminInputObject
+    ) {
+        function emailAccessToAdmin(user: any, school: any, isSSOEnabled: boolean, password?: string) {
+            const emailService = new EmailService();
+
+            if (!isSSOEnabled && password) {
+                emailService.newAdminAddedPassword(user.fullName, user.email, password, school.name);
+            } else if (isSSOEnabled) {
+                emailService.newAdminAddedSSO(user.fullName, user.email, school.name);
+            }
+        }
+
+        const { email, fullName, avatar, schoolId, role, permissions, phoneNumber, jobTitle } = adminInput;
+
+        // BASIC VALIDATION
+        const checkExistingUser = await UserModel.findOne({
+            email,
+        });
+
+        if (checkExistingUser) {
+            return 'EMAIL_ALREADY_IN_USE';
+        }
+
+        const username = email.split('@')[0] + Math.floor(Math.random() * (999 - 100 + 1) + 100).toString();
+
+        const password = username + '@123';
+
+        const hash = await hashPassword(password);
+
+        const createAdminUser = await UserModel.create({
+            email,
+            fullName,
+            displayName: fullName.toLowerCase(),
+            avatar,
+            schoolId,
+            role: 'admin',
+            password: hash,
+            adminInfo: {
+                role,
+                contactNumber: phoneNumber,
+                permissions,
+                jobTitle,
+            },
+            notificationId: 'NOT_SET',
+        });
+
+        if (!createAdminUser) {
+            return 'SOMETHING_WENT_WRONG';
+        }
+
+        // Add user to
+        const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
+        // UPSERT USER
+        await serverClient.upsertUser({
+            id: createAdminUser._id.toString(),
+            name: createAdminUser.fullName,
+            image: createAdminUser.avatar,
+            email: createAdminUser.email,
+            cues_role: createAdminUser.role,
+            schoolId,
+            teams: [schoolId],
+        });
+
+        // Automatic expiration for chat user
+        const token = serverClient.createToken(createAdminUser._id.toString());
+
+        await UserModel.updateOne(
+            {
+                _id: createAdminUser._id,
+            },
+            {
+                streamToken: token,
+            }
+        );
+
+        let isSSOSchool = false;
+
+        const fetchSchool = await SchoolsModel.findOne({
+            _id: schoolId,
+        });
+
+        if (!fetchSchool) return;
+
+        const school = fetchSchool.toObject();
+        const user = createAdminUser.toObject();
+
+        if (fetchSchool.ssoEnabled && fetchSchool.workosConnection) {
+            isSSOSchool = true;
+        }
+
+        emailAccessToAdmin(user, school, isSSOSchool, !isSSOSchool ? password : undefined);
+
+        return 'SUCCESS';
+    }
+
+    @Field((type) => String)
+    public async editAdmin(
+        @Arg('adminInput', (type) => EditAdminInputObject)
+        adminInput: EditAdminInputObject
+    ) {
+        try {
+            const { _id, email, fullName, avatar, role, permissions, phoneNumber, jobTitle } = adminInput;
+
+            // BASIC VALIDATION
+            const checkExistingUser = await UserModel.findOne({
+                email,
+            });
+
+            const fetchUser = await UserModel.findById(_id);
+
+            if (!fetchUser) return 'SOMETHING_WENT_WRONG';
+
+            const user = fetchUser.toObject();
+
+            if (email !== user.email && checkExistingUser) {
+                return 'EMAIL_ALREADY_IN_USE';
+            }
+
+            const updateAdmin = await UserModel.updateOne(
+                {
+                    _id,
+                },
+                {
+                    email,
+                    fullName,
+                    avatar,
+                    adminInfo: {
+                        jobTitle,
+                        role,
+                        permissions,
+                        contactNumber: phoneNumber,
+                    },
+                }
+            );
+
+            if (updateAdmin.nModified <= 0) {
+                return 'SOMETHING_WENT_WRONG';
+            }
+
+            // Add user to
+            const serverClient = StreamChat.getInstance(STREAM_CHAT_API_KEY, STREAM_CHAT_API_SECRET);
+
+            if (updateAdmin) {
+                // UPDATE STREAM PROFILE FOR USER
+                serverClient.partialUpdateUser({
+                    id: _id,
+                    set: {
+                        name: fullName,
+                        image: avatar,
+                        email: email,
+                        role: 'admin',
+                    },
+                });
+            }
+
+            return 'SUCCESS';
+        } catch (e) {
+            console.log('Error', e);
+            return 'SOMETHING_WENT_WRONG';
         }
     }
 }

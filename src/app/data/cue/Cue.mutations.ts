@@ -2028,14 +2028,21 @@ export class CueMutationResolver {
                 } else {
                     mods.push(clone);
 
+                    alertUsers.push(user._id);
+                }
+
+                const existingStatus = await StatusModel.findOne({
+                    userId: user._id,
+                    cueId: clone.cueId,
+                });
+
+                if (!existingStatus) {
                     statuses.push({
                         userId: user._id,
                         channelId: clone.channelId,
                         status: 'delivered',
                         cueId: clone.cueId,
                     });
-
-                    alertUsers.push(user._id);
                 }
             }
 
@@ -2066,7 +2073,15 @@ export class CueMutationResolver {
                         target: 'CUE',
                     };
 
-                    ActivityModel.create(activity);
+                    const existingActivity = await ActivityModel.findOne({
+                        userId: user._id,
+                        cueId,
+                        target: 'CUE',
+                    });
+
+                    if (!existingActivity) {
+                        ActivityModel.create(activity);
+                    }
                 }
 
                 notificationIds.map((notifId: any) => {
@@ -2136,6 +2151,15 @@ export class CueMutationResolver {
                 }
             );
 
+            // Delete all alerts for unsharing
+            const deleteAlerts = await ActivityModel.deleteMany({
+                $and: [{ userId: { $in: userIds } }, { cueId: cue._id }, { target: 'CUE' }],
+            });
+
+            const deleteStatuses = await StatusModel.deleteMany({
+                $and: [{ userId: { $in: userIds } }, { cueId: cue._id }],
+            });
+
             console.log('Res', res);
 
             return true;
@@ -2197,16 +2221,16 @@ export class CueMutationResolver {
                         );
                     } else {
                         mods.push(clone);
-
-                        statuses.push({
-                            userId,
-                            channelId: clone.channelId,
-                            status: 'delivered',
-                            cueId: clone.cueId,
-                        });
-
-                        alertUsers.push(userId);
                     }
+
+                    statuses.push({
+                        userId,
+                        channelId: clone.channelId,
+                        status: 'delivered',
+                        cueId: clone.cueId,
+                    });
+
+                    alertUsers.push(userId);
                 }
 
                 await ModificationsModel.insertMany(mods);

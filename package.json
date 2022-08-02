@@ -84,7 +84,7 @@
         "stream-chat": "^6.7.2",
         "stripe": "^7.63.1",
         "tsconfig-paths": "^3.9.0",
-        "twilio": "^3.55.1",
+        "twilio": "^3.80.0",
         "type-graphql": "^0.17.6",
         "unique-names-generator": "^4.4.0",
         "unrequired": "^0.2.0",

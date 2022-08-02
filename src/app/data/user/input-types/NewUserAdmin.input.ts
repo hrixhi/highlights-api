@@ -18,7 +18,7 @@ export class NewUserAdmin {
     public section?: string;
 
     @Field((type) => String, { nullable: true })
-    public avatar: string;
+    public avatar?: string;
 
     @Field((type) => String)
     public schoolId: string;
@@ -42,6 +42,9 @@ export class NewUserAdmin {
 
     @Field((type) => String, { nullable: true })
     public streetAddress?: string;
+
+    @Field((type) => String, { nullable: true })
+    public streetAddress2?: string;
 
     @Field((type) => String, { nullable: true })
     public city?: string;

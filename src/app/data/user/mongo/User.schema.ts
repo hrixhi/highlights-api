@@ -28,21 +28,6 @@ const zoomSchema = new Schema({
     },
 });
 
-const googleOauthSchema = new Schema({
-    access_token: {
-        type: String,
-        required: true,
-    },
-    expiresOn: {
-        type: Date,
-        required: true,
-    },
-    refresh_token: {
-        type: String,
-        required: true,
-    },
-});
-
 const personalInformationSchema = new Schema(
     {
         dateOfBirth: {
@@ -58,6 +43,10 @@ const personalInformationSchema = new Schema(
             required: false,
         },
         streetAddress: {
+            type: String,
+            required: false,
+        },
+        streetAddress2: {
             type: String,
             required: false,
         },
@@ -101,7 +90,6 @@ const adminUserSchema = new Schema(
         role: {
             type: String,
             required: true,
-            enum: ['owner', 'moderator', 'viewer'],
         },
         jobTitle: {
             type: String,
@@ -109,6 +97,10 @@ const adminUserSchema = new Schema(
         },
         contactNumber: {
             type: String,
+            required: false,
+        },
+        permissions: {
+            type: [String],
             required: false,
         },
     },
@@ -132,7 +124,7 @@ const schema = new Schema(
         },
         email: {
             type: String,
-            required: false,
+            required: true,
         },
         password: {
             type: String,

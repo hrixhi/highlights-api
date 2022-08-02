@@ -20,6 +20,9 @@ import { WORKOS_API_KEY, WORKOS_CLIENT_ID, REDIRECT_URI } from '../../../helpers
 import { OAuth2Client } from 'google-auth-library';
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } from '@config/GoogleOauthKeys';
 import { GoogleAuthResponseObject } from './types/GoogleAuthResponse.type';
+const twilio = require('twilio');
+import { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } from '@config/TwilioKeys';
+import { PhoneNumberResponse } from './types/PhoneNumberResponse.type';
 
 /**
  * User Query Endpoints
@@ -208,7 +211,11 @@ export class UserQueryResolver {
     ) {
         try {
             if (!email || !password) {
-                return 'Invalid credentials provided.';
+                return {
+                    user: undefined,
+                    error: 'Invalid credentials provided.',
+                    token: undefined,
+                };
             }
 
             const user = await UserModel.findOne({
@@ -217,7 +224,11 @@ export class UserQueryResolver {
             });
 
             if (!user || !user.password) {
-                return 'No admin user found with this email.';
+                return {
+                    user: undefined,
+                    error: 'No admin user found with this email.',
+                    token: undefined,
+                };
             }
 
             const passwordCorrect = await verifyPassword(password, user.password);
@@ -226,12 +237,6 @@ export class UserQueryResolver {
                 await UserModel.updateOne({ _id: user._id }, { lastLoginAt: new Date() });
 
                 const token = createJWTToken(user._id);
-
-                console.log({
-                    user,
-                    error: '',
-                    token,
-                });
 
                 return {
                     user,
@@ -972,6 +977,75 @@ export class UserQueryResolver {
             return {
                 error: 'Something went wrong. Try Again.',
             };
+        }
+    }
+
+    @Field((type) => PhoneNumberResponse, { nullable: true })
+    public async validPhoneNumber(
+        @Arg('phoneNumber', (type) => String)
+        phoneNumber: string
+    ) {
+        try {
+            const client = new twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+
+            return client.lookups.v2
+                .phoneNumbers(phoneNumber)
+                .fetch()
+                .then((res: any) => {
+                    console.log('Res', res);
+
+                    if (res.valid) {
+                        return {
+                            callingCountryCode: res.callingCountryCode,
+                            countryCode: res.countryCode,
+                        };
+                    } else {
+                        return null;
+                    }
+                })
+                .catch((e: any) => {
+                    console.log('Error', e);
+                    return null;
+                });
+        } catch (e) {
+            console.log('error', e);
+            return null;
+        }
+    }
+
+    @Field((type) => [UserObject], { nullable: true })
+    public async getAllAdmins(
+        @Arg('schoolId', (type) => String)
+        schoolId: string,
+        @Arg('userId', (type) => String)
+        userId: string
+    ) {
+        try {
+            if (!schoolId) {
+                return [];
+            }
+
+            // GET USERS WITH SCHOOL ID
+            const fetchSchoolAdmins = await UserModel.find({
+                $and: [
+                    {
+                        _id: { $ne: userId },
+                    },
+                    {
+                        schoolId,
+                        role: 'admin',
+                        deletedAt: undefined,
+                    },
+                ],
+            });
+
+            if (!fetchSchoolAdmins) {
+                return [];
+            }
+
+            return fetchSchoolAdmins;
+        } catch (e) {
+            return [];
         }
     }
 }

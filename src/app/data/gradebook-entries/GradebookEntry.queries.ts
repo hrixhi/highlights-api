@@ -586,7 +586,9 @@ export class GradebookQueryResolver {
                         restrictAccess: { $ne: true },
                     });
 
-                    if (!fetchModification) return;
+                    if (!fetchModification) {
+                        continue;
+                    }
 
                     const mod = fetchModification.toObject();
 
@@ -646,7 +648,9 @@ export class GradebookQueryResolver {
                         userId,
                     });
 
-                    if (!fetchGradebookScore) return;
+                    if (!fetchGradebookScore) {
+                        continue;
+                    }
 
                     const mod = fetchGradebookScore.toObject();
 
@@ -794,6 +798,7 @@ export class GradebookQueryResolver {
                 total,
             };
         } catch (e) {
+            console.log('Error with Student Gradebook', e);
             return null;
         }
     }

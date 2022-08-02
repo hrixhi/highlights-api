@@ -80,4 +80,13 @@ export class SchoolObject {
 
     @Field((type) => String, { nullable: true })
     public meetingProvider?: string;
+
+    @Field((type) => Boolean, { nullable: true })
+    public enableStandardsBasedGrading?: boolean;
+
+    @Field((type) => String, { nullable: true })
+    public stripeAccountId?: string;
+
+    @Field((type) => String, { nullable: true })
+    public workosOrgId?: string;
 }
